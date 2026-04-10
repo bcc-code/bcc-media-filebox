@@ -19,13 +19,13 @@ type Server struct {
 	queries *db.Queries
 }
 
-func New(queries *db.Queries, uploadDir string, frontendFS fs.FS) (*Server, error) {
+func New(queries *db.Queries, uploadDir string, baseURL string, frontendFS fs.FS) (*Server, error) {
 	s := &Server{
 		mux:     http.NewServeMux(),
 		queries: queries,
 	}
 
-	if err := s.setupTus(uploadDir); err != nil {
+	if err := s.setupTus(uploadDir, baseURL); err != nil {
 		return nil, err
 	}
 	s.setupAPI()
@@ -34,7 +34,7 @@ func New(queries *db.Queries, uploadDir string, frontendFS fs.FS) (*Server, erro
 	return s, nil
 }
 
-func (s *Server) setupTus(uploadDir string) error {
+func (s *Server) setupTus(uploadDir string, baseURL string) error {
 	store := filestore.New(uploadDir)
 	locker := filelocker.New(uploadDir)
 
@@ -42,14 +42,20 @@ func (s *Server) setupTus(uploadDir string) error {
 	store.UseIn(composer)
 	locker.UseIn(composer)
 
-	h, err := tushandler.NewHandler(tushandler.Config{
+	tusConfig := tushandler.Config{
 		BasePath:                "/files/",
 		StoreComposer:           composer,
 		NotifyCompleteUploads:   true,
 		NotifyCreatedUploads:    true,
 		NotifyTerminatedUploads: true,
 		NotifyUploadProgress:    true,
-	})
+	}
+
+	if baseURL != "" {
+		tusConfig.BasePath = baseURL + "/files/"
+	}
+
+	h, err := tushandler.NewHandler(tusConfig)
 	if err != nil {
 		return err
 	}
@@ -64,7 +70,6 @@ func (s *Server) setupTus(uploadDir string) error {
 func (s *Server) setupAPI() {
 	h := api.NewHandlers(s.queries)
 	s.mux.HandleFunc("GET /api/uploads", h.ListUploads)
-	s.mux.HandleFunc("DELETE /api/uploads/{id}", h.DeleteUpload)
 }
 
 func (s *Server) setupFrontend(frontendFS fs.FS) {

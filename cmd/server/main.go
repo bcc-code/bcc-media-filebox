@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"os"
 
+	dbpkg "file-pusher/internal/db"
 	db "file-pusher/internal/db/gen"
 	"file-pusher/internal/server"
 
+	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
 )
 
@@ -18,6 +20,7 @@ func main() {
 	port := envOr("PORT", "8080")
 	uploadDir := envOr("UPLOAD_DIR", "uploads")
 	dbPath := envOr("DB_PATH", "file-pusher.db")
+	baseURL := os.Getenv("BASE_URL") // e.g. "https://upload.example.com"
 
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		log.Fatalf("failed to create upload directory: %v", err)
@@ -42,7 +45,7 @@ func main() {
 		}
 	}
 
-	srv, err := server.New(queries, uploadDir, frontendFS)
+	srv, err := server.New(queries, uploadDir, baseURL, frontendFS)
 	if err != nil {
 		log.Fatalf("failed to create server: %v", err)
 	}
@@ -56,24 +59,9 @@ func main() {
 }
 
 func runMigrations(database *sql.DB) error {
-	migration, err := os.ReadFile("internal/db/migrations/001_init.sql")
-	if err != nil {
-		// Try embedded path for production binary
-		migration = []byte(`CREATE TABLE IF NOT EXISTS uploads (
-			id TEXT PRIMARY KEY,
-			filename TEXT NOT NULL,
-			size INTEGER NOT NULL,
-			offset INTEGER NOT NULL DEFAULT 0,
-			content_type TEXT,
-			status TEXT NOT NULL DEFAULT 'uploading',
-			is_partial INTEGER NOT NULL DEFAULT 0,
-			final_upload_id TEXT,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			completed_at DATETIME
-		);`)
-	}
-	_, err = database.Exec(string(migration))
-	return err
+	goose.SetBaseFS(dbpkg.Migrations)
+	goose.SetDialect("sqlite3")
+	return goose.Up(database, "migrations")
 }
 
 func envOr(key, fallback string) string {

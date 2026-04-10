@@ -1,6 +1,7 @@
 import { reactive, ref } from 'vue'
 import * as tus from 'tus-js-client'
 import type { UploadItem } from '../types'
+import { getUserId } from './useUserId'
 
 let idCounter = 0
 
@@ -38,6 +39,7 @@ export function useTusUpload() {
       metadata: {
         filename: item.file.name,
         filetype: item.file.type || 'application/octet-stream',
+        userid: getUserId(),
       },
       onProgress(bytesUploaded: number, bytesTotal: number) {
         const now = Date.now()

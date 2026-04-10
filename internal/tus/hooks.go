@@ -63,9 +63,11 @@ func (ep *EventProcessor) handleCreated(event handler.HookEvent) {
 
 	filename := info.MetaData["filename"]
 	contentType := info.MetaData["filetype"]
+	userID := info.MetaData["userid"]
 
 	err := ep.queries.CreateUpload(context.Background(), db.CreateUploadParams{
-		ID:       info.ID,
+		ID:     info.ID,
+		UserID: userID,
 		Filename: filename,
 		Size:     info.Size,
 		ContentType: sql.NullString{

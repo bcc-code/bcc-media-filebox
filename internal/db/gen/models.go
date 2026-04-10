@@ -20,4 +20,6 @@ type Upload struct {
 	FinalUploadID sql.NullString
 	CreatedAt     time.Time
 	CompletedAt   sql.NullTime
+	UserID        string
+	DurationMs    sql.NullInt64
 }

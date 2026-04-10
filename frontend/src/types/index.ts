@@ -17,6 +17,8 @@ export interface UploadRecord {
   offset: number
   contentType: string | null
   status: string
+  durationMs: number | null
+  avgBandwidth: number | null
   createdAt: string
   completedAt: string | null
 }

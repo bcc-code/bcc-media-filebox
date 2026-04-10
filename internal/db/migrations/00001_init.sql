@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS uploads (
     id TEXT PRIMARY KEY,
     filename TEXT NOT NULL,
@@ -10,3 +11,6 @@ CREATE TABLE IF NOT EXISTS uploads (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS uploads;

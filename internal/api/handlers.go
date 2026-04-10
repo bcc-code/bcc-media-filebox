@@ -22,6 +22,8 @@ type UploadResponse struct {
 	Offset      int64   `json:"offset"`
 	ContentType *string `json:"contentType"`
 	Status      string  `json:"status"`
+	DurationMs  *int64  `json:"durationMs"`
+	AvgBandwidth *float64 `json:"avgBandwidth"`
 	CreatedAt   string  `json:"createdAt"`
 	CompletedAt *string `json:"completedAt"`
 }
@@ -42,11 +44,23 @@ func toResponse(u db.Upload) UploadResponse {
 		t := u.CompletedAt.Time.Format("2006-01-02T15:04:05Z")
 		r.CompletedAt = &t
 	}
+	if u.DurationMs.Valid && u.DurationMs.Int64 > 0 {
+		r.DurationMs = &u.DurationMs.Int64
+		// Average bandwidth in bytes/sec
+		bw := float64(u.Size) / (float64(u.DurationMs.Int64) / 1000.0)
+		r.AvgBandwidth = &bw
+	}
 	return r
 }
 
 func (h *Handlers) ListUploads(w http.ResponseWriter, r *http.Request) {
-	uploads, err := h.queries.ListUploads(r.Context())
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		http.Error(w, "missing user_id parameter", http.StatusBadRequest)
+		return
+	}
+
+	uploads, err := h.queries.ListUploads(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -59,20 +73,4 @@ func (h *Handlers) ListUploads(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
-}
-
-func (h *Handlers) DeleteUpload(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if id == "" {
-		http.Error(w, "missing upload id", http.StatusBadRequest)
-		return
-	}
-
-	err := h.queries.DeleteUpload(r.Context(), id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
 }

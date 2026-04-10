@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import type { UploadRecord } from '../types'
+import { getUserId } from '../composables/useUserId'
 
 const records = ref<UploadRecord[]>([])
 const loading = ref(false)
@@ -8,7 +9,7 @@ const loading = ref(false)
 async function fetchUploads() {
   loading.value = true
   try {
-    const res = await fetch('/api/uploads')
+    const res = await fetch(`/api/uploads?user_id=${encodeURIComponent(getUserId())}`)
     records.value = await res.json()
   } catch {
     // silently fail
@@ -22,6 +23,13 @@ function formatSize(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
   return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`
+}
+
+function formatDuration(ms: number): string {
+  const seconds = Math.round(ms / 1000)
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
 }
 
 function formatDate(iso: string): string {
@@ -63,18 +71,21 @@ defineExpose({ refresh: fetchUploads })
           </p>
           <p class="text-xs text-gray-500 dark:text-gray-400">
             {{ formatSize(record.size) }}
-            <span v-if="record.completedAt" class="ml-2">&mdash; {{ formatDate(record.completedAt) }}</span>
+            <span v-if="record.durationMs" class="ml-2">
+              &mdash; {{ formatDuration(record.durationMs) }}
+            </span>
+            <span v-if="record.avgBandwidth" class="ml-2">
+              &mdash; avg {{ formatSize(record.avgBandwidth) }}/s
+            </span>
+            <span v-if="record.completedAt" class="ml-2">
+              &mdash; {{ formatDate(record.completedAt) }}
+            </span>
           </p>
         </div>
         <span
-          class="text-xs font-medium px-2 py-0.5 rounded-full ml-4"
-          :class="{
-            'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300': record.status === 'completed',
-            'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300': record.status === 'uploading',
-            'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300': record.status === 'failed',
-          }"
+          class="text-xs font-medium px-2 py-0.5 rounded-full ml-4 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
         >
-          {{ record.status }}
+          completed
         </span>
       </div>
     </div>

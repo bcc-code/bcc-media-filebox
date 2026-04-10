@@ -11,7 +11,12 @@ import (
 )
 
 const completeUpload = `-- name: CompleteUpload :exec
-UPDATE uploads SET status = 'completed', offset = size, completed_at = CURRENT_TIMESTAMP WHERE id = ?
+UPDATE uploads
+SET status = 'completed',
+    offset = size,
+    duration_ms = CAST((julianday(CURRENT_TIMESTAMP) - julianday(created_at)) * 86400000 AS INTEGER),
+    completed_at = CURRENT_TIMESTAMP
+WHERE id = ?
 `
 
 func (q *Queries) CompleteUpload(ctx context.Context, id string) error {
@@ -20,12 +25,13 @@ func (q *Queries) CompleteUpload(ctx context.Context, id string) error {
 }
 
 const createUpload = `-- name: CreateUpload :exec
-INSERT INTO uploads (id, filename, size, content_type, is_partial, final_upload_id)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO uploads (id, user_id, filename, size, content_type, is_partial, final_upload_id)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateUploadParams struct {
 	ID            string
+	UserID        string
 	Filename      string
 	Size          int64
 	ContentType   sql.NullString
@@ -36,6 +42,7 @@ type CreateUploadParams struct {
 func (q *Queries) CreateUpload(ctx context.Context, arg CreateUploadParams) error {
 	_, err := q.db.ExecContext(ctx, createUpload,
 		arg.ID,
+		arg.UserID,
 		arg.Filename,
 		arg.Size,
 		arg.ContentType,
@@ -73,7 +80,7 @@ func (q *Queries) FailUpload(ctx context.Context, id string) error {
 }
 
 const getUpload = `-- name: GetUpload :one
-SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at FROM uploads WHERE id = ?
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms FROM uploads WHERE id = ?
 `
 
 func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
@@ -90,16 +97,18 @@ func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
 		&i.FinalUploadID,
 		&i.CreatedAt,
 		&i.CompletedAt,
+		&i.UserID,
+		&i.DurationMs,
 	)
 	return i, err
 }
 
 const listUploads = `-- name: ListUploads :many
-SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at FROM uploads WHERE is_partial = 0 ORDER BY created_at DESC
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = ? ORDER BY created_at DESC
 `
 
-func (q *Queries) ListUploads(ctx context.Context) ([]Upload, error) {
-	rows, err := q.db.QueryContext(ctx, listUploads)
+func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, error) {
+	rows, err := q.db.QueryContext(ctx, listUploads, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +127,8 @@ func (q *Queries) ListUploads(ctx context.Context) ([]Upload, error) {
 			&i.FinalUploadID,
 			&i.CreatedAt,
 			&i.CompletedAt,
+			&i.UserID,
+			&i.DurationMs,
 		); err != nil {
 			return nil, err
 		}
