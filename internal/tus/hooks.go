@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -139,11 +140,20 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 		targetDir = filepath.Join(ep.uploadDir, "RawMaterial")
 	}
 
-	// Rename the file from hash ID to original filename in the target directory
-	filename := info.MetaData["filename"]
+	// Rename the file from hash ID to original filename in the target directory.
+	// Defense in depth: the PreUploadCreateCallback already rejects hostile
+	// filenames at create time, but re-sanitize here so any future code path
+	// that bypasses the callback still can't escape targetDir.
+	rawFilename := info.MetaData["filename"]
 	var dstPath string
-	if filename != "" {
-		dstPath = ep.renameUpload(info.ID, filename, targetDir)
+	if rawFilename != "" {
+		filename, err := SanitizeFilename(rawFilename)
+		if err != nil {
+			log.Printf("rejecting upload %s: %v", info.ID, err)
+			ep.queries.FailUpload(context.Background(), info.ID)
+		} else {
+			dstPath = ep.renameUpload(info.ID, filename, targetDir)
+		}
 	}
 
 	// Verify file integrity against the client-provided SHA-256 hash
@@ -217,6 +227,27 @@ func (ep *EventProcessor) renameUpload(id, filename, targetDir string) string {
 	src := filepath.Join(ep.tempDir, id)
 	dst := ep.uniquePath(targetDir, filename)
 
+	// Defense in depth: verify the resolved destination is inside targetDir.
+	// SanitizeFilename should already guarantee this, but a containment check
+	// here catches future refactors and any path-sensitive edge cases.
+	// Note: this does not follow symlinks — if targetDir itself ever contains
+	// untrusted symlinks, add filepath.EvalSymlinks.
+	absTarget, err := filepath.Abs(targetDir)
+	if err != nil {
+		log.Printf("error resolving target dir %s: %v", targetDir, err)
+		return ""
+	}
+	absDst, err := filepath.Abs(dst)
+	if err != nil {
+		log.Printf("error resolving destination %s: %v", dst, err)
+		return ""
+	}
+	rel, err := filepath.Rel(absTarget, absDst)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		log.Printf("refusing to write outside target dir: target=%s dst=%s", absTarget, absDst)
+		return ""
+	}
+
 	if err := os.Rename(src, dst); err != nil {
 		log.Printf("error renaming upload %s to %s: %v", id, dst, err)
 		return ""
@@ -239,6 +270,24 @@ func (ep *EventProcessor) uniquePath(dir, filename string) string {
 			return dst
 		}
 	}
+}
+
+// SanitizeFilename rejects filenames that could escape the target directory
+// or otherwise confuse filesystem operations. It deliberately rejects rather
+// than silently stripping path components — a name like "../../etc/passwd"
+// is never legitimate, and reducing it to "passwd" would save the file under
+// a name the user never chose.
+func SanitizeFilename(name string) (string, error) {
+	if name == "" || name == "." || name == ".." {
+		return "", fmt.Errorf("invalid filename %q", name)
+	}
+	if strings.ContainsRune(name, 0) {
+		return "", errors.New("filename contains NUL byte")
+	}
+	if strings.ContainsRune(name, '/') || strings.ContainsRune(name, '\\') || strings.ContainsRune(name, filepath.Separator) {
+		return "", fmt.Errorf("filename %q contains path separator", name)
+	}
+	return name, nil
 }
 
 func computeFileSHA256(path string) (string, error) {

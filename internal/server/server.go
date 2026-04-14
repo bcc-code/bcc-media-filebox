@@ -59,6 +59,16 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 		NotifyCreatedUploads:    true,
 		NotifyTerminatedUploads: true,
 		NotifyUploadProgress:    true,
+		PreUploadCreateCallback: func(hook tushandler.HookEvent) (tushandler.HTTPResponse, tushandler.FileInfoChanges, error) {
+			name := hook.Upload.MetaData["filename"]
+			if name == "" {
+				return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{}, nil
+			}
+			if _, err := tus.SanitizeFilename(name); err != nil {
+				return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{}, tushandler.NewError("ERR_INVALID_FILENAME", err.Error(), http.StatusBadRequest)
+			}
+			return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{}, nil
+		},
 	}
 
 	if baseURL != "" {

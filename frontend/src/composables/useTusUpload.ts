@@ -6,6 +6,13 @@ import { getUserId } from './useUserId'
 let idCounter = 0
 let detectedParallelUploads: number | null = null
 
+function checkFilename(name: string): string | null {
+  if (name === '' || name === '.' || name === '..') return 'Invalid filename'
+  if (name.includes('\0')) return 'Filename contains NUL byte'
+  if (name.includes('/') || name.includes('\\')) return 'Filename contains path separator'
+  return null
+}
+
 async function detectParallelUploads(): Promise<number> {
   if (detectedParallelUploads !== null) return detectedParallelUploads
 
@@ -33,19 +40,20 @@ export function useTusUpload() {
 
   function addFiles(files: FileList | File[], target: string) {
     for (const file of files) {
+      const reason = checkFilename(file.name)
       const item = reactive<UploadItem>({
         id: `upload-${++idCounter}`,
         file,
         tusUpload: null,
-        status: 'pending',
+        status: reason ? 'failed' : 'pending',
         progress: 0,
         bytesUploaded: 0,
         bytesTotal: file.size,
         speed: 0,
-        error: null,
+        error: reason,
       })
       uploads.value.push(item)
-      startUpload(item, target)
+      if (!reason) startUpload(item, target)
     }
   }
 
