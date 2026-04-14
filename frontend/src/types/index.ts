@@ -19,6 +19,7 @@ export interface UploadRecord {
   status: string
   durationMs: number | null
   avgBandwidth: number | null
+  sha256: string | null
   createdAt: string
   completedAt: string | null
 }

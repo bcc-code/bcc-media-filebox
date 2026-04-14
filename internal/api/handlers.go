@@ -4,28 +4,31 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"file-pusher/internal/config"
 	db "file-pusher/internal/db/gen"
 )
 
 type Handlers struct {
 	queries *db.Queries
+	targets []config.Target
 }
 
-func NewHandlers(queries *db.Queries) *Handlers {
-	return &Handlers{queries: queries}
+func NewHandlers(queries *db.Queries, targets []config.Target) *Handlers {
+	return &Handlers{queries: queries, targets: targets}
 }
 
 type UploadResponse struct {
-	ID          string  `json:"id"`
-	Filename    string  `json:"filename"`
-	Size        int64   `json:"size"`
-	Offset      int64   `json:"offset"`
-	ContentType *string `json:"contentType"`
-	Status      string  `json:"status"`
-	DurationMs  *int64  `json:"durationMs"`
+	ID           string   `json:"id"`
+	Filename     string   `json:"filename"`
+	Size         int64    `json:"size"`
+	Offset       int64    `json:"offset"`
+	ContentType  *string  `json:"contentType"`
+	Status       string   `json:"status"`
+	DurationMs   *int64   `json:"durationMs"`
 	AvgBandwidth *float64 `json:"avgBandwidth"`
-	CreatedAt   string  `json:"createdAt"`
-	CompletedAt *string `json:"completedAt"`
+	SHA256       *string  `json:"sha256"`
+	CreatedAt    string   `json:"createdAt"`
+	CompletedAt  *string  `json:"completedAt"`
 }
 
 func toResponse(u db.Upload) UploadResponse {
@@ -40,6 +43,9 @@ func toResponse(u db.Upload) UploadResponse {
 	if u.ContentType.Valid {
 		r.ContentType = &u.ContentType.String
 	}
+	if u.Sha256.Valid {
+		r.SHA256 = &u.Sha256.String
+	}
 	if u.CompletedAt.Valid {
 		t := u.CompletedAt.Time.Format("2006-01-02T15:04:05Z")
 		r.CompletedAt = &t
@@ -51,6 +57,15 @@ func toResponse(u db.Upload) UploadResponse {
 		r.AvgBandwidth = &bw
 	}
 	return r
+}
+
+func (h *Handlers) ListTargets(w http.ResponseWriter, r *http.Request) {
+	names := make([]string, len(h.targets))
+	for i, t := range h.targets {
+		names[i] = t.Name
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(names)
 }
 
 func (h *Handlers) ListUploads(w http.ResponseWriter, r *http.Request) {

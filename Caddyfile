@@ -1,0 +1,3 @@
+delivery2.bcc.media {
+	reverse_proxy localhost:8080
+}

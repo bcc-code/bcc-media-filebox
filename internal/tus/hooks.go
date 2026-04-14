@@ -2,13 +2,18 @@ package tus
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"file-pusher/internal/config"
 	db "file-pusher/internal/db/gen"
 
 	"github.com/tus/tusd/v2/pkg/handler"
@@ -17,10 +22,12 @@ import (
 type EventProcessor struct {
 	queries   *db.Queries
 	uploadDir string
+	tempDir   string
+	targets   []config.Target
 }
 
-func NewEventProcessor(queries *db.Queries, uploadDir string) *EventProcessor {
-	return &EventProcessor{queries: queries, uploadDir: uploadDir}
+func NewEventProcessor(queries *db.Queries, uploadDir, tempDir string, targets []config.Target) *EventProcessor {
+	return &EventProcessor{queries: queries, uploadDir: uploadDir, tempDir: tempDir, targets: targets}
 }
 
 // Run processes all tus events in a single goroutine to avoid race conditions.
@@ -64,6 +71,7 @@ func (ep *EventProcessor) handleCreated(event handler.HookEvent) {
 	filename := info.MetaData["filename"]
 	contentType := info.MetaData["filetype"]
 	userID := info.MetaData["userid"]
+	sha256Hash := info.MetaData["sha256"]
 
 	err := ep.queries.CreateUpload(context.Background(), db.CreateUploadParams{
 		ID:     info.ID,
@@ -76,6 +84,10 @@ func (ep *EventProcessor) handleCreated(event handler.HookEvent) {
 		},
 		IsPartial:     isPartial,
 		FinalUploadID: sql.NullString{},
+		Sha256: sql.NullString{
+			String: sha256Hash,
+			Valid:  sha256Hash != "",
+		},
 	})
 	if err != nil {
 		log.Printf("error creating upload record: %v", err)
@@ -96,6 +108,11 @@ func (ep *EventProcessor) handleProgress(event handler.HookEvent) {
 func (ep *EventProcessor) handleComplete(event handler.HookEvent) {
 	info := event.Upload
 
+	// Capture completion time before any post-processing (rename, hash
+	// verification) so that bandwidth calculations reflect only the
+	// transfer, not the assembly overhead.
+	completedAt := time.Now()
+
 	// Mark as completed in DB
 	err := ep.queries.CompleteUpload(context.Background(), info.ID)
 	if err != nil {
@@ -108,17 +125,67 @@ func (ep *EventProcessor) handleComplete(event handler.HookEvent) {
 		return
 	}
 
-	// Rename the file from hash ID to original filename
-	filename := info.MetaData["filename"]
-	if filename != "" {
-		ep.renameUpload(info.ID, filename)
+	// Run post-upload work (rename, hash verification, cleanup) in a
+	// separate goroutine so we don't block the event loop — hashing a
+	// large file can take minutes and would stall all other uploads.
+	go ep.finalizeUpload(info, completedAt)
+}
+
+func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time.Time) {
+	// Resolve target directory
+	targetName := info.MetaData["target"]
+	targetDir, ok := config.TargetDir(ep.targets, targetName)
+	if !ok {
+		targetDir = filepath.Join(ep.uploadDir, "RawMaterial")
 	}
 
-	// Clean up partial files and .info files for concatenated uploads
+	// Rename the file from hash ID to original filename in the target directory
+	filename := info.MetaData["filename"]
+	var dstPath string
+	if filename != "" {
+		dstPath = ep.renameUpload(info.ID, filename, targetDir)
+	}
+
+	// Verify file integrity against the client-provided SHA-256 hash
+	expectedHash := info.MetaData["sha256"]
+	if expectedHash != "" && dstPath != "" {
+		actualHash, err := computeFileSHA256(dstPath)
+		if err != nil {
+			log.Printf("error computing SHA-256 for %s: %v", dstPath, err)
+		} else if actualHash != expectedHash {
+			log.Printf("integrity check FAILED for upload %s (%s): expected %s, got %s", info.ID, dstPath, expectedHash, actualHash)
+			ep.queries.FailUpload(context.Background(), info.ID)
+		} else {
+			log.Printf("integrity verified for %s (SHA-256: %s)", dstPath, actualHash)
+		}
+	}
+
+	// For concatenated uploads, fix the duration to measure from the earliest
+	// partial upload's creation time (the final upload is created and completed
+	// in the same request, so its created_at == completed_at).
 	if info.PartialUploads != nil {
+		var earliest time.Time
 		for _, partialID := range info.PartialUploads {
-			os.Remove(filepath.Join(ep.uploadDir, partialID))
-			os.Remove(filepath.Join(ep.uploadDir, partialID+".info"))
+			p, err := ep.queries.GetUpload(context.Background(), partialID)
+			if err != nil {
+				continue
+			}
+			if earliest.IsZero() || p.CreatedAt.Before(earliest) {
+				earliest = p.CreatedAt
+			}
+		}
+		if !earliest.IsZero() {
+			durationMs := completedAt.Sub(earliest).Milliseconds()
+			ep.queries.UpdateDurationMs(context.Background(), db.UpdateDurationMsParams{
+				DurationMs: sql.NullInt64{Int64: durationMs, Valid: true},
+				ID:         info.ID,
+			})
+		}
+
+		// Clean up partial files and .info files
+		for _, partialID := range info.PartialUploads {
+			os.Remove(filepath.Join(ep.tempDir, partialID))
+			os.Remove(filepath.Join(ep.tempDir, partialID+".info"))
 		}
 		// Delete partial DB records
 		for _, partialID := range info.PartialUploads {
@@ -127,7 +194,7 @@ func (ep *EventProcessor) handleComplete(event handler.HookEvent) {
 	}
 
 	// Remove the .info file for the completed upload
-	os.Remove(filepath.Join(ep.uploadDir, info.ID+".info"))
+	os.Remove(filepath.Join(ep.tempDir, info.ID+".info"))
 }
 
 func (ep *EventProcessor) handleTerminated(event handler.HookEvent) {
@@ -138,21 +205,28 @@ func (ep *EventProcessor) handleTerminated(event handler.HookEvent) {
 	}
 }
 
-// renameUpload moves the uploaded file from its hash-based ID to the original filename.
-// If a file with the same name exists, a numeric suffix is added.
-func (ep *EventProcessor) renameUpload(id, filename string) {
-	src := filepath.Join(ep.uploadDir, id)
-	dst := ep.uniquePath(filename)
+// renameUpload moves the uploaded file from its hash-based ID to the original filename
+// inside targetDir. If a file with the same name exists, a numeric suffix is added.
+// Returns the destination path on success, or empty string on failure.
+func (ep *EventProcessor) renameUpload(id, filename, targetDir string) string {
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		log.Printf("error creating target directory %s: %v", targetDir, err)
+		return ""
+	}
+
+	src := filepath.Join(ep.tempDir, id)
+	dst := ep.uniquePath(targetDir, filename)
 
 	if err := os.Rename(src, dst); err != nil {
 		log.Printf("error renaming upload %s to %s: %v", id, dst, err)
-	} else {
-		log.Printf("upload saved: %s", dst)
+		return ""
 	}
+	log.Printf("upload saved: %s", dst)
+	return dst
 }
 
-func (ep *EventProcessor) uniquePath(filename string) string {
-	dst := filepath.Join(ep.uploadDir, filename)
+func (ep *EventProcessor) uniquePath(dir, filename string) string {
+	dst := filepath.Join(dir, filename)
 	if _, err := os.Stat(dst); os.IsNotExist(err) {
 		return dst
 	}
@@ -160,9 +234,23 @@ func (ep *EventProcessor) uniquePath(filename string) string {
 	ext := filepath.Ext(filename)
 	base := strings.TrimSuffix(filename, ext)
 	for i := 1; ; i++ {
-		dst = filepath.Join(ep.uploadDir, fmt.Sprintf("%s (%d)%s", base, i, ext))
+		dst = filepath.Join(dir, fmt.Sprintf("%s (%d)%s", base, i, ext))
 		if _, err := os.Stat(dst); os.IsNotExist(err) {
 			return dst
 		}
 	}
+}
+
+func computeFileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

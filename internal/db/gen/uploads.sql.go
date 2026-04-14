@@ -25,8 +25,8 @@ func (q *Queries) CompleteUpload(ctx context.Context, id string) error {
 }
 
 const createUpload = `-- name: CreateUpload :exec
-INSERT INTO uploads (id, user_id, filename, size, content_type, is_partial, final_upload_id)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO uploads (id, user_id, filename, size, content_type, is_partial, final_upload_id, sha256)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateUploadParams struct {
@@ -37,6 +37,7 @@ type CreateUploadParams struct {
 	ContentType   sql.NullString
 	IsPartial     int64
 	FinalUploadID sql.NullString
+	Sha256        sql.NullString
 }
 
 func (q *Queries) CreateUpload(ctx context.Context, arg CreateUploadParams) error {
@@ -48,6 +49,7 @@ func (q *Queries) CreateUpload(ctx context.Context, arg CreateUploadParams) erro
 		arg.ContentType,
 		arg.IsPartial,
 		arg.FinalUploadID,
+		arg.Sha256,
 	)
 	return err
 }
@@ -80,7 +82,7 @@ func (q *Queries) FailUpload(ctx context.Context, id string) error {
 }
 
 const getUpload = `-- name: GetUpload :one
-SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms FROM uploads WHERE id = ?
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256 FROM uploads WHERE id = ?
 `
 
 func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
@@ -99,12 +101,13 @@ func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
 		&i.CompletedAt,
 		&i.UserID,
 		&i.DurationMs,
+		&i.Sha256,
 	)
 	return i, err
 }
 
 const listUploads = `-- name: ListUploads :many
-SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = ? ORDER BY created_at DESC
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256 FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = ? ORDER BY created_at DESC
 `
 
 func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, error) {
@@ -129,6 +132,7 @@ func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, err
 			&i.CompletedAt,
 			&i.UserID,
 			&i.DurationMs,
+			&i.Sha256,
 		); err != nil {
 			return nil, err
 		}
@@ -141,6 +145,20 @@ func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, err
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateDurationMs = `-- name: UpdateDurationMs :exec
+UPDATE uploads SET duration_ms = ? WHERE id = ?
+`
+
+type UpdateDurationMsParams struct {
+	DurationMs sql.NullInt64
+	ID         string
+}
+
+func (q *Queries) UpdateDurationMs(ctx context.Context, arg UpdateDurationMsParams) error {
+	_, err := q.db.ExecContext(ctx, updateDurationMs, arg.DurationMs, arg.ID)
+	return err
 }
 
 const updateUploadOffset = `-- name: UpdateUploadOffset :exec

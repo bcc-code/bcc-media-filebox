@@ -1,12 +1,16 @@
 package server
 
 import (
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
-	db "file-pusher/internal/db/gen"
 	"file-pusher/internal/api"
+	"file-pusher/internal/config"
+	db "file-pusher/internal/db/gen"
 	"file-pusher/internal/tus"
 
 	"github.com/tus/tusd/v2/pkg/filelocker"
@@ -17,12 +21,14 @@ import (
 type Server struct {
 	mux     *http.ServeMux
 	queries *db.Queries
+	targets []config.Target
 }
 
-func New(queries *db.Queries, uploadDir string, baseURL string, frontendFS fs.FS) (*Server, error) {
+func New(queries *db.Queries, uploadDir string, baseURL string, frontendFS fs.FS, targets []config.Target) (*Server, error) {
 	s := &Server{
 		mux:     http.NewServeMux(),
 		queries: queries,
+		targets: targets,
 	}
 
 	if err := s.setupTus(uploadDir, baseURL); err != nil {
@@ -35,8 +41,12 @@ func New(queries *db.Queries, uploadDir string, baseURL string, frontendFS fs.FS
 }
 
 func (s *Server) setupTus(uploadDir string, baseURL string) error {
-	store := filestore.New(uploadDir)
-	locker := filelocker.New(uploadDir)
+	tempDir := filepath.Join(uploadDir, ".tmp")
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return fmt.Errorf("create temp upload dir: %w", err)
+	}
+	store := filestore.New(tempDir)
+	locker := filelocker.New(tempDir)
 
 	composer := tushandler.NewStoreComposer()
 	store.UseIn(composer)
@@ -60,7 +70,7 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 		return err
 	}
 
-	ep := tus.NewEventProcessor(s.queries, uploadDir)
+	ep := tus.NewEventProcessor(s.queries, uploadDir, tempDir, s.targets)
 	go ep.Run(h.UnroutedHandler)
 
 	s.mux.Handle("/files/", http.StripPrefix("/files/", h))
@@ -68,7 +78,8 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 }
 
 func (s *Server) setupAPI() {
-	h := api.NewHandlers(s.queries)
+	h := api.NewHandlers(s.queries, s.targets)
+	s.mux.HandleFunc("GET /api/targets", h.ListTargets)
 	s.mux.HandleFunc("GET /api/uploads", h.ListUploads)
 }
 

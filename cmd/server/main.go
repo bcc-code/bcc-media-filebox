@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"file-pusher/internal/config"
 	dbpkg "file-pusher/internal/db"
 	db "file-pusher/internal/db/gen"
 	"file-pusher/internal/server"
@@ -22,6 +23,11 @@ func main() {
 	dbPath := envOr("DB_PATH", "file-pusher.db")
 	baseURL := os.Getenv("BASE_URL") // e.g. "https://upload.example.com"
 
+	targets, err := config.LoadTargets()
+	if err != nil {
+		log.Fatalf("failed to load targets: %v", err)
+	}
+
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		log.Fatalf("failed to create upload directory: %v", err)
 	}
@@ -30,6 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
+	database.SetMaxOpenConns(1)
 	defer database.Close()
 
 	if err := runMigrations(database); err != nil {
@@ -45,7 +52,7 @@ func main() {
 		}
 	}
 
-	srv, err := server.New(queries, uploadDir, baseURL, frontendFS)
+	srv, err := server.New(queries, uploadDir, baseURL, frontendFS, targets)
 	if err != nil {
 		log.Fatalf("failed to create server: %v", err)
 	}

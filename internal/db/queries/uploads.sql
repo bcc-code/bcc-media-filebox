@@ -1,6 +1,6 @@
 -- name: CreateUpload :exec
-INSERT INTO uploads (id, user_id, filename, size, content_type, is_partial, final_upload_id)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO uploads (id, user_id, filename, size, content_type, is_partial, final_upload_id, sha256)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetUpload :one
 SELECT * FROM uploads WHERE id = ?;
@@ -15,6 +15,9 @@ SET status = 'completed',
     duration_ms = CAST((julianday(CURRENT_TIMESTAMP) - julianday(created_at)) * 86400000 AS INTEGER),
     completed_at = CURRENT_TIMESTAMP
 WHERE id = ?;
+
+-- name: UpdateDurationMs :exec
+UPDATE uploads SET duration_ms = ? WHERE id = ?;
 
 -- name: FailUpload :exec
 UPDATE uploads SET status = 'failed' WHERE id = ?;

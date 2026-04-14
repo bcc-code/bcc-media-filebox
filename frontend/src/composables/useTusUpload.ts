@@ -4,11 +4,34 @@ import type { UploadItem } from '../types'
 import { getUserId } from './useUserId'
 
 let idCounter = 0
+let detectedParallelUploads: number | null = null
+
+async function detectParallelUploads(): Promise<number> {
+  if (detectedParallelUploads !== null) return detectedParallelUploads
+
+  try {
+    await fetch('/files/', { method: 'HEAD' })
+    const entry = performance
+      .getEntriesByType('resource')
+      .reverse()
+      .find((e) => e.name.includes('/files/')) as PerformanceResourceTiming | undefined
+    if (entry?.nextHopProtocol === 'h2' || entry?.nextHopProtocol === 'h3') {
+      detectedParallelUploads = 6
+    } else {
+      // HTTP/1.1: browsers allow ~6 connections per origin, reserve some headroom
+      detectedParallelUploads = 3
+    }
+  } catch {
+    detectedParallelUploads = 3
+  }
+
+  return detectedParallelUploads
+}
 
 export function useTusUpload() {
   const uploads = ref<UploadItem[]>([])
 
-  function addFiles(files: FileList | File[]) {
+  function addFiles(files: FileList | File[], target: string) {
     for (const file of files) {
       const item = reactive<UploadItem>({
         id: `upload-${++idCounter}`,
@@ -22,24 +45,26 @@ export function useTusUpload() {
         error: null,
       })
       uploads.value.push(item)
-      startUpload(item)
+      startUpload(item, target)
     }
   }
 
-  function startUpload(item: UploadItem) {
+  async function startUpload(item: UploadItem, target: string) {
     let lastBytes = 0
     let lastTime = Date.now()
+    const parallel = await detectParallelUploads()
 
     const upload = new tus.Upload(item.file, {
       endpoint: '/files/',
       chunkSize: 50 * 1024 * 1024,
-      parallelUploads: 5,
+      parallelUploads: parallel,
       retryDelays: [0, 1000, 3000, 5000, 10000],
       removeFingerprintOnSuccess: true,
       metadata: {
         filename: item.file.name,
         filetype: item.file.type || 'application/octet-stream',
         userid: getUserId(),
+        target: target,
       },
       onProgress(bytesUploaded: number, bytesTotal: number) {
         const now = Date.now()

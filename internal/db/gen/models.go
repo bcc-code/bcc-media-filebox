@@ -22,4 +22,5 @@ type Upload struct {
 	CompletedAt   sql.NullTime
 	UserID        string
 	DurationMs    sql.NullInt64
+	Sha256        sql.NullString
 }
