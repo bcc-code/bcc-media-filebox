@@ -47,14 +47,12 @@ func toResponse(u db.Upload) UploadResponse {
 		r.SHA256 = &u.Sha256.String
 	}
 	if u.CompletedAt.Valid {
-		t := u.CompletedAt.Time.Format("2006-01-02T15:04:05Z")
-		r.CompletedAt = &t
+		r.CompletedAt = new(u.CompletedAt.Time.Format("2006-01-02T15:04:05Z"))
 	}
 	if u.DurationMs.Valid && u.DurationMs.Int64 > 0 {
 		r.DurationMs = &u.DurationMs.Int64
 		// Average bandwidth in bytes/sec
-		bw := float64(u.Size) / (float64(u.DurationMs.Int64) / 1000.0)
-		r.AvgBandwidth = &bw
+		r.AvgBandwidth = new(float64(u.Size) / (float64(u.DurationMs.Int64) / 1000.0))
 	}
 	return r
 }
