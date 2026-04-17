@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"file-pusher/internal/config"
-	db "file-pusher/internal/db/gen"
+	"filebox/internal/config"
+	db "filebox/internal/db/gen"
 )
 
 type Handlers struct {

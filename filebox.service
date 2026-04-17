@@ -1,26 +1,26 @@
 [Unit]
-Description=File Pusher
+Description=FileBox
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/file-pusher
+ExecStart=/usr/local/bin/filebox
 Restart=on-failure
 RestartSec=5
 
 # Tweak these as needed
 Environment=PORT=8080
 Environment=UPLOAD_DIR=/mnt/temp/delivery2
-Environment=DB_PATH=/var/lib/file-pusher/file-pusher.db
+Environment=DB_PATH=/var/lib/filebox/filebox.db
 Environment=BASE_URL=
 
-WorkingDirectory=/var/lib/file-pusher
+WorkingDirectory=/var/lib/filebox
 
 # Hardening
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/file-pusher /mnt/temp/delivery2
+ReadWritePaths=/var/lib/filebox /mnt/temp/delivery2
 
 [Install]
 WantedBy=multi-user.target

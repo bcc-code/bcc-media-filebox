@@ -8,10 +8,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"file-pusher/internal/api"
-	"file-pusher/internal/config"
-	db "file-pusher/internal/db/gen"
-	"file-pusher/internal/tus"
+	"filebox/internal/api"
+	"filebox/internal/config"
+	db "filebox/internal/db/gen"
+	"filebox/internal/tus"
 
 	"github.com/tus/tusd/v2/pkg/filelocker"
 	"github.com/tus/tusd/v2/pkg/filestore"

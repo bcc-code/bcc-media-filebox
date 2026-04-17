@@ -1,4 +1,4 @@
-# File Pusher
+# FileBox
 
 ## Package Manager
 - Use **pnpm** (not npm or yarn) for all frontend dependency management.

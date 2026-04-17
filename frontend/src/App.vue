@@ -32,7 +32,7 @@ watch(
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <div class="max-w-3xl mx-auto px-4 py-12">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">File Pusher</h1>
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">FileBox</h1>
 
       <div class="mb-6">
         <label for="target" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>

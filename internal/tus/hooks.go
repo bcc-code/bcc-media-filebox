@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"file-pusher/internal/config"
-	db "file-pusher/internal/db/gen"
+	"filebox/internal/config"
+	db "filebox/internal/db/gen"
 
 	"github.com/tus/tusd/v2/pkg/handler"
 )

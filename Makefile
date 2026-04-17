@@ -6,13 +6,13 @@ all: generate frontend build
 build: frontend
 	rm -rf cmd/server/frontend_dist
 	cp -r frontend/dist cmd/server/frontend_dist
-	go build -o file-pusher ./cmd/server
+	go build -o filebox ./cmd/server
 
 # Go backend (production - linux amd64)
 build-linux: frontend
 	rm -rf cmd/server/frontend_dist
 	cp -r frontend/dist cmd/server/frontend_dist
-	GOOS=linux GOARCH=amd64 go build -o file-pusher-linux-amd64 ./cmd/server
+	GOOS=linux GOARCH=amd64 go build -o filebox-linux-amd64 ./cmd/server
 
 # Go backend (development - no embedded frontend)
 dev:
@@ -31,6 +31,6 @@ frontend-dev:
 
 # Clean build artifacts
 clean:
-	rm -f file-pusher file-pusher-linux-amd64
+	rm -f filebox filebox-linux-amd64
 	rm -rf frontend/dist
 	rm -rf cmd/server/frontend_dist

@@ -1,4 +1,4 @@
-module file-pusher
+module filebox
 
 go 1.26.1
 

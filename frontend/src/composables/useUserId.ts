@@ -1,6 +1,6 @@
 import { ulid } from 'ulid'
 
-const STORAGE_KEY = 'file-pusher-user-id'
+const STORAGE_KEY = 'filebox-user-id'
 
 let cached: string | null = null
 

@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"os"
 
-	"file-pusher/internal/config"
-	dbpkg "file-pusher/internal/db"
-	db "file-pusher/internal/db/gen"
-	"file-pusher/internal/server"
+	"filebox/internal/config"
+	dbpkg "filebox/internal/db"
+	db "filebox/internal/db/gen"
+	"filebox/internal/server"
 
 	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
@@ -20,7 +20,7 @@ import (
 func main() {
 	port := envOr("PORT", "8080")
 	uploadDir := envOr("UPLOAD_DIR", "uploads")
-	dbPath := envOr("DB_PATH", "file-pusher.db")
+	dbPath := envOr("DB_PATH", "filebox.db")
 	baseURL := os.Getenv("BASE_URL") // e.g. "https://upload.example.com"
 
 	targets, err := config.LoadTargets()
