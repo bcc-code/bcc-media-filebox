@@ -4,6 +4,7 @@ import { useTusUpload } from './composables/useTusUpload'
 import FileUploader from './components/FileUploader.vue'
 import UploadProgress from './components/UploadProgress.vue'
 import UploadList from './components/UploadList.vue'
+import AppLogo from './components/AppLogo.vue'
 
 const { uploads, addFiles, pauseUpload, resumeUpload, retryUpload, cancelUpload } = useTusUpload()
 const uploadList = ref<InstanceType<typeof UploadList> | null>(null)
@@ -32,7 +33,10 @@ watch(
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <div class="max-w-3xl mx-auto px-4 py-12">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">FileBox</h1>
+      <div class="flex gap-4 items-center text-gray-900 dark:text-gray-100 mb-8">
+        <AppLogo class="w-10 h-10" />
+        <h1 class="text-3xl font-bold">FileBox</h1>
+      </div>
 
       <div class="mb-6">
         <label for="target" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
