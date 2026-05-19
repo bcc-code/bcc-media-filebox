@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+type Session struct {
+	ID        string
+	UserID    int64
+	ExpiresAt time.Time
+	CreatedAt time.Time
+}
+
 type Upload struct {
 	ID            string
 	Filename      string
@@ -23,4 +30,15 @@ type Upload struct {
 	UserID        string
 	DurationMs    sql.NullInt64
 	Sha256        sql.NullString
+}
+
+type User struct {
+	ID          int64
+	Provider    string
+	Subject     string
+	Email       sql.NullString
+	Name        sql.NullString
+	CreatedAt   time.Time
+	LastLoginAt time.Time
+	Role        string
 }

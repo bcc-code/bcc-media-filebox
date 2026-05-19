@@ -1,23 +1,34 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
 
+	"filebox/internal/auth"
 	"filebox/internal/config"
 	dbpkg "filebox/internal/db"
 	db "filebox/internal/db/gen"
 	"filebox/internal/server"
 
+	"github.com/joho/godotenv"
 	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
 )
 
 func main() {
+	// Load .env if present (development convenience). Production deploys use
+	// real env vars, so a missing file is fine; anything else is fatal so
+	// typos don't silently lose configuration.
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Fatalf("failed to load .env: %v", err)
+	}
+
 	port := envOr("PORT", "8080")
 	uploadDir := envOr("UPLOAD_DIR", "uploads")
 	dbPath := envOr("DB_PATH", "filebox.db")
@@ -26,6 +37,11 @@ func main() {
 	targets, err := config.LoadTargets()
 	if err != nil {
 		log.Fatalf("failed to load targets: %v", err)
+	}
+
+	authConfig, err := auth.LoadConfig(baseURL)
+	if err != nil {
+		log.Fatalf("failed to load auth config: %v", err)
 	}
 
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
@@ -45,6 +61,27 @@ func main() {
 
 	queries := db.New(database)
 
+	var (
+		authManager  *auth.Manager
+		sessionStore *auth.SessionStore
+	)
+	if authConfig.Enabled() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		authManager, err = auth.NewManager(ctx, authConfig)
+		if err != nil {
+			log.Fatalf("failed to initialise OAuth providers: %v", err)
+		}
+		sessionStore = auth.NewSessionStore(queries, authConfig.CookieSecure)
+		ids := make([]string, 0, len(authConfig.Providers))
+		for _, p := range authConfig.Providers {
+			ids = append(ids, p.ID)
+		}
+		log.Printf("OAuth enabled (providers: %v)", ids)
+	} else {
+		log.Println("OAuth disabled (no OIDC_* env vars set) — running in guest-only mode")
+	}
+
 	var frontendFS fs.FS
 	if ef := embeddedFrontend(); ef != nil {
 		if sub, err := fs.Sub(ef, "frontend_dist"); err == nil {
@@ -52,7 +89,7 @@ func main() {
 		}
 	}
 
-	srv, err := server.New(queries, uploadDir, baseURL, frontendFS, targets)
+	srv, err := server.New(queries, uploadDir, baseURL, frontendFS, targets, authManager, sessionStore)
 	if err != nil {
 		log.Fatalf("failed to create server: %v", err)
 	}

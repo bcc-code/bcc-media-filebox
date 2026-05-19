@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useTusUpload } from './composables/useTusUpload'
+import { useAuth } from './composables/useAuth'
 import FileUploader from './components/FileUploader.vue'
 import UploadProgress from './components/UploadProgress.vue'
 import UploadList from './components/UploadList.vue'
 import AppLogo from './components/AppLogo.vue'
+import AuthMenu from './components/AuthMenu.vue'
+import LoginGate from './components/LoginGate.vue'
 
+const { mustChoose } = useAuth()
 const { uploads, addFiles, pauseUpload, resumeUpload, retryUpload, cancelUpload } = useTusUpload()
 const uploadList = ref<InstanceType<typeof UploadList> | null>(null)
 const targets = ref<string[]>([])
@@ -31,11 +35,15 @@ watch(
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+  <LoginGate v-if="mustChoose" />
+  <div v-else class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <div class="max-w-3xl mx-auto px-4 py-12">
       <div class="flex gap-4 items-center text-gray-900 dark:text-gray-100 mb-8">
         <AppLogo class="w-10 h-10" />
         <h1 class="text-3xl font-bold">FileBox</h1>
+        <div class="ml-auto">
+          <AuthMenu />
+        </div>
       </div>
 
       <div class="mb-6">

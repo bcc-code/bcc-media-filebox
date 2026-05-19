@@ -3,7 +3,9 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
+	"filebox/internal/auth"
 	"filebox/internal/config"
 	db "filebox/internal/db/gen"
 )
@@ -58,6 +60,10 @@ func toResponse(u db.Upload) UploadResponse {
 }
 
 func (h *Handlers) ListTargets(w http.ResponseWriter, r *http.Request) {
+	// Caller is plumbed through here so future per-target ACLs (group/email
+	// rules) have an identity to consult. No rules are applied today.
+	_ = auth.CallerFrom(r.Context())
+
 	names := make([]string, len(h.targets))
 	for i, t := range h.targets {
 		names[i] = t.Name
@@ -66,11 +72,26 @@ func (h *Handlers) ListTargets(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(names)
 }
 
+// ListUploads returns the history for the calling user. When the request is
+// authenticated, the session's canonical user_id is authoritative and the
+// user_id query parameter is ignored. Guests must supply user_id, but cannot
+// peek at authenticated users' histories: any value containing a ":" that
+// isn't a "guest:" id is rejected. Legacy raw-ULID ids (no colon) remain
+// queryable so pre-OAuth uploads stay accessible.
 func (h *Handlers) ListUploads(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		http.Error(w, "missing user_id parameter", http.StatusBadRequest)
-		return
+	var userID string
+	if caller := auth.CallerFrom(r.Context()); caller != nil {
+		userID = caller.CanonicalUserID()
+	} else {
+		userID = r.URL.Query().Get("user_id")
+		if userID == "" {
+			http.Error(w, "missing user_id parameter", http.StatusBadRequest)
+			return
+		}
+		if strings.Contains(userID, ":") && !strings.HasPrefix(userID, "guest:") {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 	}
 
 	uploads, err := h.queries.ListUploads(r.Context(), userID)

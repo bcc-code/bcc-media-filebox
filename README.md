@@ -11,6 +11,7 @@ A Go service that speaks the [TUS resumable upload protocol](https://tus.io/) in
 - Per-user upload history tracked in SQLite (duration, bandwidth, offset, status)
 - Multiple named upload targets, each bound to a filesystem directory
 - Strict filename validation to prevent directory-traversal attacks
+- Optional OAuth (OpenID Connect) sign-in with BCC Login and/or Microsoft Entra ID; falls back to guest mode when unconfigured
 - Goose migrations embedded in the binary, applied automatically on startup
 - Production frontend embedded in the binary; single-binary deploy
 
@@ -94,9 +95,11 @@ All configuration is via environment variables.
 | `PORT`           | `8080`           | HTTP listen port.                                                                                             |
 | `UPLOAD_DIR`     | `uploads`        | Working directory for in-flight TUS uploads. A `.tmp/` subdirectory is created inside it.                     |
 | `DB_PATH`        | `filebox.db` | SQLite database file. Opened with WAL and a 5s busy timeout.                                                  |
-| `BASE_URL`       | _(empty)_        | Absolute base URL used to build TUS upload URLs when behind a reverse proxy (e.g. `https://upload.example.com`). |
+| `BASE_URL`       | _(empty)_        | Absolute base URL used to build TUS upload URLs and OAuth callback URLs when behind a reverse proxy (e.g. `https://upload.example.com`). |
 | `TARGET_N_NAME`  | —                | Name of upload target `N` (starting at 1). Referenced by the client via the TUS `target` metadata field.      |
 | `TARGET_N_DIR`   | —                | Filesystem directory for target `N`. Must exist and be a directory. Completed uploads are moved here.         |
+| `SESSION_KEY`    | —                | 32+ byte secret used for session storage. Required only when at least one OAuth provider is configured.       |
+| `OIDC_BCC_*` / `OIDC_AZURE_*` | — | See [Authentication](#authentication). All `OIDC_*` variables are optional; OAuth is disabled when none are set. |
 
 At least one `TARGET_N_NAME` / `TARGET_N_DIR` pair must be configured. Numbering is contiguous starting at `1`; the loader stops at the first fully empty pair.
 
@@ -114,7 +117,10 @@ TARGET_2_DIR=/srv/uploads/processed
 ### JSON API
 
 - `GET /api/targets` — returns the configured target names.
-- `GET /api/uploads?user_id=<ulid>` — returns upload history for a user, including status, filename, size, offset, SHA-256, duration, bandwidth, and timestamps.
+- `GET /api/uploads` — returns upload history. For authenticated callers the session identifies the user and any `user_id` query parameter is ignored. Guests must pass `user_id=guest:<ulid>` (or a legacy raw ULID); requests asking for an authenticated user's history are rejected with `403`.
+- `GET /api/me` — returns `{authenticated: false}` for guests or `{authenticated, userId, provider, email, name}` for signed-in users.
+- `GET /auth/providers` — JSON list of configured OIDC providers (`[]` when OAuth is disabled).
+- `GET /auth/login/{provider}`, `GET /auth/callback/{provider}`, `POST /auth/logout` — OAuth flow endpoints (browser-driven).
 
 ### TUS endpoints
 
@@ -126,17 +132,55 @@ The server consumes the following upload metadata fields:
 | ---------- | -------- | -------------------------------------------------------------------- |
 | `filename` | yes      | Final filename inside the target directory. Validated; see below.    |
 | `filetype` | no       | Content-Type stored alongside the upload.                            |
-| `userid`   | yes      | Client-generated ULID tying the upload to a user's history.          |
+| `userid`   | no       | Hint only — the server overrides this field with the canonical `<provider>:<subject>` for authenticated callers, or `guest:<token>` for guests.          |
 | `sha256`   | yes      | Hex-encoded expected SHA-256. Verified server-side before promotion. |
 | `target`   | yes      | Name of a configured target (must match a `TARGET_N_NAME`).          |
 
 When behind a proxy, set `BASE_URL` so the server advertises absolute upload URLs.
 
-## User identity model
+## Authentication
 
-There is **no server-side authentication.** The frontend generates a [ULID](https://github.com/ulid/spec) on first visit, stores it in `localStorage`, and sends it as the TUS `userid` metadata on every upload. The backend uses this value as-is to group uploads in the history view.
+FileBox supports optional OAuth sign-in via any number of OpenID Connect providers. Sign-in is **never required**: if no providers are configured, the service runs in guest-only mode and behaves like the original anonymous-ULID build.
 
-This is only appropriate for trusted/internal environments. If you expose the service publicly, put it behind an authenticating reverse proxy and/or add real auth at the handler layer.
+### Identity formats
+
+Every row in the `uploads.user_id` column carries one of three formats:
+
+| Source              | Value                          |
+| ------------------- | ------------------------------ |
+| Guest (no session)  | `guest:<random-token>`         |
+| BCC Login           | `bcc:<oidc-subject>`           |
+| Microsoft Entra ID  | `azure:<oidc-subject>`         |
+
+The TUS `PreUploadCreateCallback` is the chokepoint that enforces this — clients cannot spoof another user's id even by forging the `userid` metadata field. Legacy raw-ULID rows from pre-OAuth deployments remain queryable as guest history.
+
+### Configuring providers
+
+Each provider has its own set of `OIDC_<ID>_*` environment variables. Recognised ids: `BCC`, `AZURE`. Variables for an unconfigured provider can be omitted entirely — providers are detected only when their `ISSUER`, `CLIENT_ID` and `CLIENT_SECRET` are all set.
+
+| Variable                       | Default                | Description                                                  |
+| ------------------------------ | ---------------------- | ------------------------------------------------------------ |
+| `OIDC_<ID>_ISSUER`             | —                      | OIDC discovery URL (where `/.well-known/openid-configuration` lives). |
+| `OIDC_<ID>_CLIENT_ID`          | —                      | OAuth client id registered with the provider.                |
+| `OIDC_<ID>_CLIENT_SECRET`      | —                      | OAuth client secret.                                         |
+| `OIDC_<ID>_DISPLAY_NAME`       | `BCC Login` / `Microsoft` | Label shown on the sign-in button.                        |
+| `OIDC_<ID>_SCOPES`             | `openid profile email` | Space-separated scope list.                                  |
+
+The callback URL each provider must whitelist is `<BASE_URL>/auth/callback/<id>` (e.g. `https://upload.example.com/auth/callback/bcc`). When `BASE_URL` is empty, the server falls back to the request's `Host` header — fine for local development, not for production.
+
+Signed-in sessions are server-side: an httpOnly, SameSite=Lax cookie holds an opaque 32-byte token that maps to a row in the `sessions` table. Cookies are flagged `Secure` automatically when `BASE_URL` starts with `https://`. Sessions live for 30 days; logout (`POST /auth/logout`) clears the FileBox session only — it does not trigger SSO sign-out at the IdP.
+
+### User registration and roles
+
+The first successful sign-in for any `(provider, subject)` pair inserts a row into the `users` table. Subsequent logins refresh `email`, `name`, and `last_login_at` but leave the `role` column untouched. New users default to `role = 'user'`; promote an account to a privileged role by updating the column directly — e.g. `UPDATE users SET role = 'admin' WHERE email = '…';`. The current role is returned in `/api/me` and threaded through the `Caller` struct, ready for future per-target ACLs and admin-only routes.
+
+### Guest mode
+
+When OAuth is enabled, signing in is still optional: guests upload exactly as before, except their `user_id` is namespaced (`guest:<ulid>`). When OAuth is disabled, the sign-in button is hidden, `/auth/providers` returns `[]`, and the rest of the app is unchanged.
+
+### Trust boundary
+
+OAuth sign-in establishes identity but **does not yet gate access**. Any visitor — guest or authenticated — can list targets and upload. Per-target ACLs (e.g. restricting a target to a particular email domain or OIDC group) are plumbed through the `Caller` type for a follow-up change. Until those rules land, treat the public surface as you would the original anonymous build.
 
 ## Filename and path safety
 

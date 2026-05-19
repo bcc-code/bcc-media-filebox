@@ -25,3 +25,7 @@ cmd/server/frontend_dist/
 
 # OS
 .DS_Store
+
+# Local environment
+.env
+.env.local

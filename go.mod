@@ -3,13 +3,17 @@ module filebox
 go 1.26.1
 
 require (
+	github.com/coreos/go-oidc/v3 v3.18.0
+	github.com/joho/godotenv v1.5.1
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/tus/tusd/v2 v2.9.2
+	golang.org/x/oauth2 v0.36.0
 	modernc.org/sqlite v1.48.2
 )
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
