@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/mail"
@@ -66,6 +67,15 @@ func (h *Handlers) Guest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := strings.ToLower(addr.Address)
+
+	if _, err := h.queries.GetNonGuestUserByEmail(r.Context(), email); err == nil {
+		http.Error(w, "this email is registered with single sign-on — please sign in instead", http.StatusConflict)
+		return
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		log.Printf("guest email lookup: %v", err)
+		http.Error(w, "registration failed", http.StatusInternalServerError)
+		return
+	}
 
 	user, err := h.queries.UpsertUser(r.Context(), db.UpsertUserParams{
 		Provider: "guest",

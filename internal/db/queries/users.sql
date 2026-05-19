@@ -25,6 +25,13 @@ SELECT * FROM users WHERE provider = ? AND subject = ?;
 -- name: GetUserByEmail :one
 SELECT * FROM users WHERE lower(email) = lower(?) ORDER BY last_login_at DESC LIMIT 1;
 
+-- name: GetNonGuestUserByEmail :one
+-- Used by guest sign-up to reject emails already claimed by an OAuth identity.
+SELECT * FROM users
+WHERE provider != 'guest' AND lower(email) = lower(?)
+ORDER BY last_login_at DESC
+LIMIT 1;
+
 -- name: UserUploadStats :one
 SELECT
     COALESCE(SUM(CASE WHEN status = 'completed' AND is_partial = 0 THEN 1 ELSE 0 END), 0) AS uploads,

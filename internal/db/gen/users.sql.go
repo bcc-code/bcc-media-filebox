@@ -32,6 +32,30 @@ func (q *Queries) AggregateUploadStats(ctx context.Context) (AggregateUploadStat
 	return i, err
 }
 
+const getNonGuestUserByEmail = `-- name: GetNonGuestUserByEmail :one
+SELECT id, provider, subject, email, name, created_at, last_login_at, role FROM users
+WHERE provider != 'guest' AND lower(email) = lower(?)
+ORDER BY last_login_at DESC
+LIMIT 1
+`
+
+// Used by guest sign-up to reject emails already claimed by an OAuth identity.
+func (q *Queries) GetNonGuestUserByEmail(ctx context.Context, lower string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getNonGuestUserByEmail, lower)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Provider,
+		&i.Subject,
+		&i.Email,
+		&i.Name,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+		&i.Role,
+	)
+	return i, err
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, provider, subject, email, name, created_at, last_login_at, role FROM users WHERE id = ?
 `
