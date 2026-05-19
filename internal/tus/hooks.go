@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"filebox/internal/config"
@@ -254,11 +255,62 @@ func (ep *EventProcessor) renameUpload(id, filename, targetDir string) string {
 	}
 
 	if err := os.Rename(src, dst); err != nil {
-		log.Printf("error renaming upload %s to %s: %v", id, dst, err)
-		return ""
+		if !errors.Is(err, syscall.EXDEV) {
+			log.Printf("error renaming upload %s to %s: %v", id, dst, err)
+			return ""
+		}
+		log.Printf("cross-device copy: %s -> %s", src, dst)
+		if err := crossDeviceMove(src, dst); err != nil {
+			log.Printf("error moving upload %s to %s across filesystems: %v", id, dst, err)
+			return ""
+		}
 	}
 	log.Printf("upload saved: %s", dst)
 	return dst
+}
+
+// crossDeviceMove copies src to dst when os.Rename fails with EXDEV. To keep
+// the destination atomically visible, bytes are written to a sibling
+// "<dst>.part" file (same filesystem as dst, so the closing rename is atomic),
+// then renamed into place. The source is removed only after the destination is
+// safely published; on any error the partial sibling is cleaned up and src is
+// left in place so the upload can be retried.
+func crossDeviceMove(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("open source: %w", err)
+	}
+	defer in.Close()
+
+	part := dst + ".part"
+	out, err := os.OpenFile(part, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		return fmt.Errorf("create partial: %w", err)
+	}
+	cleanup := func() { _ = os.Remove(part) }
+
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		cleanup()
+		return fmt.Errorf("copy: %w", err)
+	}
+	if err := out.Sync(); err != nil {
+		out.Close()
+		cleanup()
+		return fmt.Errorf("sync: %w", err)
+	}
+	if err := out.Close(); err != nil {
+		cleanup()
+		return fmt.Errorf("close partial: %w", err)
+	}
+	if err := os.Rename(part, dst); err != nil {
+		cleanup()
+		return fmt.Errorf("rename partial: %w", err)
+	}
+	if err := os.Remove(src); err != nil {
+		log.Printf("warning: failed to remove source %s after cross-device move: %v", src, err)
+	}
+	return nil
 }
 
 func (ep *EventProcessor) uniquePath(dir, filename string) string {
