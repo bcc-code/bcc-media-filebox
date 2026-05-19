@@ -12,6 +12,7 @@ import UserDrawer from '../components/admin/UserDrawer.vue'
 import TargetModal from '../components/admin/TargetModal.vue'
 import GroupModal from '../components/admin/GroupModal.vue'
 import GrantModal from '../components/admin/GrantModal.vue'
+import AppLogo from '../components/AppLogo.vue'
 import '../assets/admin.css'
 
 type Tab = 'targets' | 'users' | 'groups' | 'access'
@@ -137,11 +138,7 @@ async function revokeUser(u: AdminUserDetail) {
   <div v-if="isAdmin" class="admin-root">
     <div class="topbar">
       <div class="brand">
-        <svg width="22" height="22" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M16 3 L28 9 L28 23 L16 29 L4 23 L4 9 Z" />
-          <path d="M4 9 L16 15 L28 9" />
-          <path d="M16 15 L16 29" />
-        </svg>
+        <AppLogo style="width: 22px; height: 22px" />
         <span class="name">FileBox</span>
       </div>
       <div class="crumb"><span>filebox</span><span class="sep">/</span><span class="here">Admin</span></div>

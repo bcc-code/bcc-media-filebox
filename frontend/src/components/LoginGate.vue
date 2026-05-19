@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useProviders } from '../composables/useProviders'
 import bccLogoUrl from '../assets/bcc-logo.svg'
+import AppLogo from './AppLogo.vue'
 
 const { signIn, continueAsGuest } = useAuth()
 const providers = useProviders()
@@ -73,11 +74,7 @@ async function submitGuest() {
     <div class="lg-bg"></div>
     <div class="lg-card">
       <div class="lg-brand">
-        <svg width="22" height="22" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M16 3 L28 9 L28 23 L16 29 L4 23 L4 9 Z" />
-          <path d="M4 9 L16 15 L28 9" />
-          <path d="M16 15 L16 29" />
-        </svg>
+        <AppLogo style="width: 22px; height: 22px" />
         <span class="lg-brand-name">FileBox</span>
       </div>
 
