@@ -39,7 +39,7 @@ function formatETA(item: UploadItem): string {
     <div class="flex items-center justify-between mb-2">
       <div class="flex-1 min-w-0 mr-4">
         <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-          {{ item.file.name }}
+          {{ item.displayName }}
         </p>
         <p class="text-xs text-gray-500 dark:text-gray-400">
           {{ formatSize(item.bytesUploaded) }} / {{ formatSize(item.bytesTotal) }}

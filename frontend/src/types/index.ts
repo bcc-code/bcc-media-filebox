@@ -1,6 +1,7 @@
 export interface UploadItem {
   id: string
   file: File
+  displayName: string
   tusUpload: import('tus-js-client').Upload | null
   status: 'pending' | 'uploading' | 'paused' | 'completed' | 'failed'
   progress: number

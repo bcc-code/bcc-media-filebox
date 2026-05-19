@@ -329,22 +329,37 @@ func (ep *EventProcessor) uniquePath(dir, filename string) string {
 	}
 }
 
-// SanitizeFilename rejects filenames that could escape the target directory
-// or otherwise confuse filesystem operations. It deliberately rejects rather
-// than silently stripping path components — a name like "../../etc/passwd"
-// is never legitimate, and reducing it to "passwd" would save the file under
-// a name the user never chose.
+// SanitizeFilename returns a filename containing only [A-Za-z0-9_-] plus an
+// optional single '.' separating the extension. Every other rune (including
+// internal dots) is replaced with '_'. A leading '.' is never treated as an
+// extension separator — it is also replaced with '_' so files don't end up
+// hidden on POSIX filesystems. Returns an error for "", ".", and ".." since
+// those can't be safely represented even after substitution.
 func SanitizeFilename(name string) (string, error) {
 	if name == "" || name == "." || name == ".." {
 		return "", fmt.Errorf("invalid filename %q", name)
 	}
-	if strings.ContainsRune(name, 0) {
-		return "", errors.New("filename contains NUL byte")
+	lastDot := strings.LastIndex(name, ".")
+	if lastDot == 0 {
+		// The only dot is the leading one; not an extension separator.
+		lastDot = -1
 	}
-	if strings.ContainsRune(name, '/') || strings.ContainsRune(name, '\\') || strings.ContainsRune(name, filepath.Separator) {
-		return "", fmt.Errorf("filename %q contains path separator", name)
+	var b strings.Builder
+	b.Grow(len(name))
+	for i, r := range name {
+		switch {
+		case r >= 'A' && r <= 'Z',
+			r >= 'a' && r <= 'z',
+			r >= '0' && r <= '9',
+			r == '_', r == '-':
+			b.WriteRune(r)
+		case r == '.' && i == lastDot:
+			b.WriteRune(r)
+		default:
+			b.WriteRune('_')
+		}
 	}
-	return name, nil
+	return b.String(), nil
 }
 
 func computeFileSHA256(path string) (string, error) {

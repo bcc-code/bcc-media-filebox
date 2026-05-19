@@ -93,11 +93,12 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 // get "guest:<sanitised-token>". This is the chokepoint that prevents a guest
 // from impersonating an authenticated user via spoofed metadata.
 func (s *Server) preUploadCreate(hook tushandler.HookEvent) (tushandler.HTTPResponse, tushandler.FileInfoChanges, error) {
-	name := hook.Upload.MetaData["filename"]
-	if name != "" {
-		if _, err := tus.SanitizeFilename(name); err != nil {
+	if name := hook.Upload.MetaData["filename"]; name != "" {
+		sanitized, err := tus.SanitizeFilename(name)
+		if err != nil {
 			return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{}, tushandler.NewError("ERR_INVALID_FILENAME", err.Error(), http.StatusBadRequest)
 		}
+		hook.Upload.MetaData["filename"] = sanitized
 	}
 
 	newMeta := make(tushandler.MetaData, len(hook.Upload.MetaData)+1)

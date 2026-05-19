@@ -6,11 +6,31 @@ import { getUserId } from './useUserId'
 let idCounter = 0
 let detectedParallelUploads: number | null = null
 
-function checkFilename(name: string): string | null {
-  if (name === '' || name === '.' || name === '..') return 'Invalid filename'
-  if (name.includes('\0')) return 'Filename contains NUL byte'
-  if (name.includes('/') || name.includes('\\')) return 'Filename contains path separator'
-  return null
+function sanitizeFilename(name: string): { name: string; error: string | null } {
+  if (name === '' || name === '.' || name === '..') {
+    return { name: '', error: 'Invalid filename' }
+  }
+  const chars = Array.from(name)
+  let lastDot = -1
+  // Start at index 1 so a leading dot is never treated as an extension separator.
+  for (let i = chars.length - 1; i >= 1; i--) {
+    if (chars[i] === '.') {
+      lastDot = i
+      break
+    }
+  }
+  let out = ''
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i]
+    if (/^[A-Za-z0-9_-]$/.test(ch)) {
+      out += ch
+    } else if (ch === '.' && i === lastDot) {
+      out += '.'
+    } else {
+      out += '_'
+    }
+  }
+  return { name: out, error: null }
 }
 
 async function detectParallelUploads(): Promise<number> {
@@ -40,10 +60,11 @@ export function useTusUpload() {
 
   function addFiles(files: FileList | File[], target: string) {
     for (const file of files) {
-      const reason = checkFilename(file.name)
+      const { name: displayName, error: reason } = sanitizeFilename(file.name)
       const item = reactive<UploadItem>({
         id: `upload-${++idCounter}`,
         file,
+        displayName: reason ? file.name : displayName,
         tusUpload: null,
         status: reason ? 'failed' : 'pending',
         progress: 0,
@@ -69,7 +90,7 @@ export function useTusUpload() {
       retryDelays: [0, 1000, 3000, 5000, 10000],
       removeFingerprintOnSuccess: true,
       metadata: {
-        filename: item.file.name,
+        filename: item.displayName,
         filetype: item.file.type || 'application/octet-stream',
         userid: getUserId(),
         target: target,
