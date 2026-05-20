@@ -32,6 +32,17 @@ func (q *Queries) AggregateUploadStats(ctx context.Context) (AggregateUploadStat
 	return i, err
 }
 
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM users
+`
+
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getNonGuestUserByEmail = `-- name: GetNonGuestUserByEmail :one
 SELECT id, provider, subject, email, name, created_at, last_login_at, role FROM users
 WHERE provider != 'guest' AND lower(email) = lower(?)

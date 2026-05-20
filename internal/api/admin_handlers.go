@@ -718,8 +718,15 @@ func (req grantWriteRequest) validate() error {
 	if req.PrincipalKind != "user" && req.PrincipalKind != "group" {
 		return errors.New("principalKind must be 'user' or 'group'")
 	}
-	if strings.TrimSpace(req.PrincipalValue) == "" {
+	value := strings.TrimSpace(req.PrincipalValue)
+	if value == "" {
 		return errors.New("principalValue is required")
+	}
+	// Guests can never be admins. Block the obvious misconfiguration at
+	// write time; computeRoleFor enforces the same rule defensively at
+	// role-resolution time.
+	if req.Admin && req.PrincipalKind == "group" && value == "All guests" {
+		return errors.New("the 'All guests' group cannot be granted admin")
 	}
 	return nil
 }

@@ -15,76 +15,9 @@ A Go service that speaks the [TUS resumable upload protocol](https://tus.io/) in
 - Goose migrations embedded in the binary, applied automatically on startup
 - Production frontend embedded in the binary; single-binary deploy
 
-## Tech stack
+## Development
 
-- **Backend:** Go 1.26, [`tusd/v2`](https://github.com/tus/tusd), [`pressly/goose`](https://github.com/pressly/goose), [sqlc](https://sqlc.dev/), [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite) (pure-Go SQLite driver)
-- **Frontend:** Vue 3 + TypeScript, Vite, Tailwind CSS, [`tus-js-client`](https://github.com/tus/tus-js-client)
-- **Tooling:** pnpm (frontend), `make`, `sqlc` (only needed when changing SQL)
-
-## Repository layout
-
-```
-cmd/server/            # main.go, embedded frontend hook
-internal/
-  api/                 # JSON API handlers (/api/targets, /api/uploads)
-  config/              # TARGET_N_* env var loader
-  db/
-    gen/               # sqlc-generated query code
-    migrations/        # goose SQL migrations (embedded)
-    queries/           # hand-written SQL consumed by sqlc
-  server/              # HTTP mux, TUS handler wiring
-  tus/                 # TUS hooks: finalization, SHA-256 check, filename safety
-frontend/src/          # Vue app (composables, components)
-Caddyfile              # reference reverse-proxy config
-filebox.service    # reference systemd unit
-Makefile
-```
-
-Key entry points:
-
-- `cmd/server/main.go` — process entry, env vars, DB open, migrations, server start
-- `internal/server/server.go` — TUS + API + frontend wiring
-- `internal/api/handlers.go` — JSON API
-- `internal/tus/hooks.go` — upload lifecycle, filename sanitization, SHA-256 verification, atomic rename into target
-- `internal/config/targets.go` — target env var parsing
-
-## Prerequisites
-
-- Go 1.26 or newer
-- Node.js with [pnpm](https://pnpm.io/)
-- [`sqlc`](https://sqlc.dev/) — only required when modifying SQL in `internal/db/queries/`
-
-Goose is not a separate dependency: migrations ship embedded in the binary and run on startup.
-
-## Quick start (development)
-
-The dev workflow uses two processes: the Go server in API-only mode and the Vite dev server for the frontend.
-
-```bash
-# 1. Configure at least one upload target (startup fails without one)
-export TARGET_1_NAME=RawMaterial
-export TARGET_1_DIR="$PWD/uploads-raw"
-mkdir -p "$TARGET_1_DIR"
-
-# 2. Backend (API only, no embedded frontend)
-make dev
-
-# 3. Frontend (Vite dev server, in another terminal)
-make frontend-dev
-```
-
-The Vite dev server proxies API and TUS requests to the Go backend. Open the URL it prints.
-
-## Production build
-
-```bash
-make all           # generate + build frontend + build Go binary -> ./filebox
-make build-linux   # cross-compile -> ./filebox-linux-amd64
-make generate      # regenerate sqlc code after editing internal/db/queries/
-make clean         # remove binaries and frontend dist
-```
-
-`make all` bundles `frontend/dist` into the Go binary, so the resulting `./filebox` is self-contained.
+Building from source, running locally, and editing the code are covered in [development.md](development.md).
 
 ## Configuration
 
@@ -94,11 +27,12 @@ All configuration is via environment variables.
 | ---------------- | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | `PORT`           | `8080`           | HTTP listen port.                                                                                             |
 | `UPLOAD_DIR`     | `uploads`        | Working directory for in-flight TUS uploads. A `.tmp/` subdirectory is created inside it.                     |
-| `DB_PATH`        | `filebox.db` | SQLite database file. Opened with WAL and a 5s busy timeout.                                                  |
+| `DB_PATH`        | `filebox.db`     | SQLite database file. Opened with WAL and a 5s busy timeout.                                                  |
 | `BASE_URL`       | _(empty)_        | Absolute base URL used to build TUS upload URLs and OAuth callback URLs when behind a reverse proxy (e.g. `https://upload.example.com`). |
 | `TARGET_N_NAME`  | —                | Name of upload target `N` (starting at 1). Referenced by the client via the TUS `target` metadata field.      |
 | `TARGET_N_DIR`   | —                | Filesystem directory for target `N`. Must exist and be a directory. Completed uploads are moved here.         |
 | `SESSION_KEY`    | —                | 32+ byte secret used for session storage. Required only when at least one OAuth provider is configured.       |
+| `BOOTSTRAP_ADMIN_EMAIL` | —         | Optional. On startup, if the `users` table is empty, seeds an admin grant for this email (all targets, admin flag). Ignored once any user has signed in. See [Bootstrapping the first admin](#bootstrapping-the-first-admin). |
 | `OIDC_BCC_*` / `OIDC_AZURE_*` | — | See [Authentication](#authentication). All `OIDC_*` variables are optional; OAuth is disabled when none are set. |
 
 At least one `TARGET_N_NAME` / `TARGET_N_DIR` pair must be configured. Numbering is contiguous starting at `1`; the loader stops at the first fully empty pair.
@@ -172,7 +106,27 @@ Signed-in sessions are server-side: an httpOnly, SameSite=Lax cookie holds an op
 
 ### User registration and roles
 
-The first successful sign-in for any `(provider, subject)` pair inserts a row into the `users` table. Subsequent logins refresh `email`, `name`, and `last_login_at` but leave the `role` column untouched. New users default to `role = 'user'`; promote an account to a privileged role by updating the column directly — e.g. `UPDATE users SET role = 'admin' WHERE email = '…';`. The current role is returned in `/api/me` and threaded through the `Caller` struct, ready for future per-target ACLs and admin-only routes.
+The first successful sign-in for any `(provider, subject)` pair inserts a row into the `users` table. Subsequent logins refresh `email`, `name`, and `last_login_at`. Roles are derived from the `grants` table — direct user grants and matching group grants — and recomputed on sign-in and on every grant mutation through the admin UI. The current role is returned in `/api/me` and threaded through the `Caller` struct.
+
+**Guests are never admins.** Grants attached to the built-in `All guests` group are rejected with `admin=true` at the admin API, and the role resolver (`computeRoleFor`) refuses to promote any caller whose provider is `guest` regardless of grant configuration. A user who signs up as a guest cannot escalate, and an email that happens to belong to both a guest and an OAuth identity only gains admin through the OAuth identity.
+
+### Bootstrapping the first admin
+
+A fresh deploy has no users and no admin grants, so the admin UI is unreachable. Set `BOOTSTRAP_ADMIN_EMAIL` before the first start to seed one:
+
+```bash
+BOOTSTRAP_ADMIN_EMAIL=alice@example.com ./filebox
+```
+
+On startup the server:
+
+1. Counts the rows in `users`. **If non-empty, the variable is ignored** — operators should use the admin UI from here on.
+2. Inserts a grant `(principal_kind='user', principal_value=<lowercased email>, admin=1, all_targets=1)` if none exists for that email.
+3. Logs `BOOTSTRAP_ADMIN_EMAIL: seeded admin grant for <email>`.
+
+The grant takes effect the first time that email signs in via OIDC — `RecomputeRoleForUser` promotes the new user row to `role='admin'`. The email must be one that can sign in via a configured OIDC provider; guest sign-up with the same email will not produce admin access (see above).
+
+The bootstrap is idempotent across restarts: a subsequent restart with the same variable is a no-op once the grant exists, and trivially a no-op once any user has signed in.
 
 ### Guest mode
 
@@ -181,19 +135,6 @@ When OAuth is enabled, signing in is still optional: guests upload exactly as be
 ### Trust boundary
 
 OAuth sign-in establishes identity but **does not yet gate access**. Any visitor — guest or authenticated — can list targets and upload. Per-target ACLs (e.g. restricting a target to a particular email domain or OIDC group) are plumbed through the `Caller` type for a follow-up change. Until those rules land, treat the public surface as you would the original anonymous build.
-
-## Filename and path safety
-
-Filenames are validated twice: in the TUS `PreUploadCreateCallback` (so bad names are rejected before any bytes are accepted) and again immediately before the final rename. The validator rejects — rather than silently strips — any of: empty names, `.` and `..`, NUL bytes, and any path separator (`/` or `\`). Before renaming into a target, the server also recomputes the relative path with `filepath.Rel` and refuses the operation if it escapes the target directory.
-
-## Database and migrations
-
-Migrations live in `internal/db/migrations/` and are embedded into the binary via `go:embed`. On startup the server runs `goose.Up` against the SQLite database, so there is no separate migration step.
-
-Per `CLAUDE.md`:
-
-- **Never modify a committed migration.** Always add a new migration file.
-- Run `make generate` after editing anything under `internal/db/queries/` or the schema.
 
 ## Deployment
 
@@ -204,7 +145,7 @@ Two reference files ship in the repo:
 
 A typical deploy is:
 
-1. `make build-linux` locally.
+1. Build the binary with `make build-linux` (see [development.md](development.md) for build details).
 2. Copy `filebox-linux-amd64` to `/usr/local/bin/filebox` on the host.
 3. Install the systemd unit, set the target env vars, and ensure the target directories exist and are writable.
 4. Front the service with Caddy (or another reverse proxy) and set `BASE_URL` accordingly.

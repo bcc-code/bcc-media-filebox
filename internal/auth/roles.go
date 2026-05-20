@@ -65,6 +65,14 @@ func RecomputeRoleForUser(ctx context.Context, queries *db.Queries, userID int64
 }
 
 func computeRoleFor(ctx context.Context, queries *db.Queries, email, provider string) (string, error) {
+	// Hard rule: guests are never admins. Even if an admin attaches an admin
+	// grant to a guest's email or to the "All guests" group, guest identities
+	// stop short of admin here. This is the load-bearing check — the admin
+	// API also rejects such grants at write time, but this guard catches any
+	// grant that slipped in via direct SQL or a future code path.
+	if provider == "guest" {
+		return "uploader", nil
+	}
 	rows, err := queries.GrantsForUser(ctx, db.GrantsForUserParams{
 		Email:    email,
 		Provider: provider,

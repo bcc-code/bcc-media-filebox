@@ -16,6 +16,9 @@ UPDATE users SET role = ? WHERE id = ?;
 -- name: ListUsers :many
 SELECT * FROM users ORDER BY last_login_at DESC;
 
+-- name: CountUsers :one
+SELECT COUNT(*) FROM users;
+
 -- name: GetUser :one
 SELECT * FROM users WHERE id = ?;
 

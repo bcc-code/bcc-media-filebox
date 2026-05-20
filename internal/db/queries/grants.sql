@@ -26,6 +26,11 @@ LEFT JOIN grant_targets gt ON gt.grant_id = g.id
 WHERE g.id = ?
 GROUP BY g.id;
 
+-- name: GetGrantByPrincipal :one
+SELECT * FROM grants
+WHERE principal_kind = sqlc.arg(principal_kind)
+  AND lower(principal_value) = lower(sqlc.arg(principal_value));
+
 -- name: CreateGrant :one
 INSERT INTO grants (principal_kind, principal_value, admin, all_targets)
 VALUES (?, ?, ?, ?) RETURNING *;

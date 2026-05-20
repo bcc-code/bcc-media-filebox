@@ -147,6 +147,31 @@ func (q *Queries) GetGrant(ctx context.Context, id int64) (GetGrantRow, error) {
 	return i, err
 }
 
+const getGrantByPrincipal = `-- name: GetGrantByPrincipal :one
+SELECT id, principal_kind, principal_value, admin, all_targets, created_at FROM grants
+WHERE principal_kind = ?1
+  AND lower(principal_value) = lower(?2)
+`
+
+type GetGrantByPrincipalParams struct {
+	PrincipalKind  string
+	PrincipalValue string
+}
+
+func (q *Queries) GetGrantByPrincipal(ctx context.Context, arg GetGrantByPrincipalParams) (Grant, error) {
+	row := q.db.QueryRowContext(ctx, getGrantByPrincipal, arg.PrincipalKind, arg.PrincipalValue)
+	var i Grant
+	err := row.Scan(
+		&i.ID,
+		&i.PrincipalKind,
+		&i.PrincipalValue,
+		&i.Admin,
+		&i.AllTargets,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const grantsForUser = `-- name: GrantsForUser :many
 SELECT
     g.id,

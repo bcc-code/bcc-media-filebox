@@ -65,6 +65,10 @@ func main() {
 		log.Fatalf("failed to bootstrap targets: %v", err)
 	}
 
+	if err := auth.BootstrapAdminFromEnv(context.Background(), queries, os.Getenv("BOOTSTRAP_ADMIN_EMAIL")); err != nil {
+		log.Fatalf("failed to bootstrap admin: %v", err)
+	}
+
 	var (
 		authManager  *auth.Manager
 		sessionStore *auth.SessionStore
