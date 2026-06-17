@@ -36,6 +36,13 @@ type GroupMember struct {
 	Email   string
 }
 
+type Project struct {
+	ID        int64
+	Name      string
+	Code      string
+	CreatedAt time.Time
+}
+
 type Session struct {
 	ID        string
 	UserID    int64
@@ -49,6 +56,7 @@ type Target struct {
 	Path      string
 	CreatedAt time.Time
 	Position  int64
+	FormKey   sql.NullString
 }
 
 type Upload struct {
@@ -66,6 +74,7 @@ type Upload struct {
 	DurationMs    sql.NullInt64
 	Sha256        sql.NullString
 	TargetName    sql.NullString
+	FormData      sql.NullString
 }
 
 type User struct {

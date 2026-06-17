@@ -1,3 +1,8 @@
+export interface TargetInfo {
+  name: string
+  formKey: string | null
+}
+
 export interface UploadItem {
   id: string
   file: File

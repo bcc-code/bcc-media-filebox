@@ -4,7 +4,15 @@ export interface Target {
   id: number
   name: string
   path: string
+  formKey: string | null
   position: number
+  createdAt: string
+}
+
+export interface Project {
+  id: number
+  name: string
+  code: string
   createdAt: string
 }
 
@@ -61,6 +69,7 @@ export interface AdminUserDetail extends AdminUser {
 }
 
 const targets = ref<Target[]>([])
+const projects = ref<Project[]>([])
 const groups = ref<Group[]>([])
 const grants = ref<Grant[]>([])
 const users = ref<AdminUser[]>([])
@@ -101,13 +110,15 @@ async function loadAll() {
   loading.value = true
   lastError.value = null
   try {
-    const [t, g, gr, u] = await Promise.all([
+    const [t, p, g, gr, u] = await Promise.all([
       jsonFetch<Target[]>('/api/admin/targets'),
+      jsonFetch<Project[]>('/api/admin/projects'),
       jsonFetch<Group[]>('/api/admin/groups'),
       jsonFetch<Grant[]>('/api/admin/grants'),
       jsonFetch<AdminUser[]>('/api/admin/users'),
     ])
     targets.value = t
+    projects.value = p
     groups.value = g
     grants.value = gr
     users.value = u
@@ -120,7 +131,7 @@ async function loadAll() {
 
 // Targets ---------------------------------------------------------------
 
-async function createTarget(body: { name: string; path: string }) {
+async function createTarget(body: { name: string; path: string; formKey?: string | null }) {
   try {
     const t = await jsonFetch<Target>('/api/admin/targets', { method: 'POST', body: JSON.stringify(body) })
     targets.value.push(t)
@@ -130,7 +141,7 @@ async function createTarget(body: { name: string; path: string }) {
   }
 }
 
-async function updateTarget(id: number, body: { name: string; path: string }) {
+async function updateTarget(id: number, body: { name: string; path: string; formKey?: string | null }) {
   try {
     const t = await jsonFetch<Target>(`/api/admin/targets/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
     const i = targets.value.findIndex(x => x.id === id)
@@ -157,7 +168,7 @@ async function deleteTarget(id: number) {
 }
 
 async function duplicateTarget(t: Target) {
-  await createTarget({ name: `${t.name} (copy)`, path: t.path })
+  await createTarget({ name: `${t.name} (copy)`, path: t.path, formKey: t.formKey })
 }
 
 async function reorderTargets(ids: number[]) {
@@ -174,6 +185,40 @@ async function reorderTargets(ids: number[]) {
     showToast('Reordered targets')
   } catch (e) {
     targets.value = prev
+    showToast((e as Error).message, true)
+  }
+}
+
+// Projects --------------------------------------------------------------
+
+async function createProject(body: { name: string; code: string }) {
+  try {
+    const p = await jsonFetch<Project>('/api/admin/projects', { method: 'POST', body: JSON.stringify(body) })
+    projects.value.push(p)
+    showToast(`Added project “${p.name}”`)
+  } catch (e) {
+    showToast((e as Error).message, true)
+  }
+}
+
+async function updateProject(id: number, body: { name: string; code: string }) {
+  try {
+    const p = await jsonFetch<Project>(`/api/admin/projects/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
+    const i = projects.value.findIndex(x => x.id === id)
+    if (i >= 0) projects.value[i] = p
+    showToast(`Saved “${p.name}”`)
+  } catch (e) {
+    showToast((e as Error).message, true)
+  }
+}
+
+async function deleteProject(id: number) {
+  const p = projects.value.find(x => x.id === id)
+  try {
+    await jsonFetch(`/api/admin/projects/${id}`, { method: 'DELETE' })
+    projects.value = projects.value.filter(x => x.id !== id)
+    showToast(`Removed “${p?.name ?? 'project'}”`, true)
+  } catch (e) {
     showToast((e as Error).message, true)
   }
 }
@@ -277,6 +322,7 @@ const customGroups = computed(() => groups.value.filter(g => g.kind === 'custom'
 export function useAdmin() {
   return {
     targets,
+    projects,
     groups,
     grants,
     users,
@@ -292,6 +338,9 @@ export function useAdmin() {
     deleteTarget,
     duplicateTarget,
     reorderTargets,
+    createProject,
+    updateProject,
+    deleteProject,
     createGroup,
     updateGroup,
     deleteGroup,

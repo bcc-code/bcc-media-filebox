@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useAdmin, type Target } from '../../composables/useAdmin'
 
-const emit = defineEmits<{ (e: 'new'): void; (e: 'edit', t: Target): void }>()
+const emit = defineEmits<{ (e: 'new'): void; (e: 'edit', t: Target): void; (e: 'open', t: Target): void }>()
 const { targets, grants, duplicateTarget, deleteTarget, reorderTargets } = useAdmin()
 
 const inlineEditId = ref<number | null>(null)
@@ -170,6 +170,7 @@ function onDragEnd() {
               <span v-else class="chip ok">{{ countGrantsForTarget(t.id) }} principals</span>
             </td>
             <td class="actions">
+              <button class="btn btn-sm btn-ghost" @click="emit('open', t)">Edit</button>
               <button class="btn btn-sm btn-ghost" @click="duplicateTarget(t)">Duplicate</button>
               <button class="btn btn-sm btn-danger" @click="deleteTarget(t.id)">Delete</button>
             </td>

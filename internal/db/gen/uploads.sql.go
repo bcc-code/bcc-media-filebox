@@ -25,8 +25,8 @@ func (q *Queries) CompleteUpload(ctx context.Context, id string) error {
 }
 
 const createUpload = `-- name: CreateUpload :exec
-INSERT INTO uploads (id, user_id, filename, size, content_type, is_partial, final_upload_id, sha256, target_name)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO uploads (id, user_id, filename, size, content_type, is_partial, final_upload_id, sha256, target_name, form_data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateUploadParams struct {
@@ -39,6 +39,7 @@ type CreateUploadParams struct {
 	FinalUploadID sql.NullString
 	Sha256        sql.NullString
 	TargetName    sql.NullString
+	FormData      sql.NullString
 }
 
 func (q *Queries) CreateUpload(ctx context.Context, arg CreateUploadParams) error {
@@ -52,6 +53,7 @@ func (q *Queries) CreateUpload(ctx context.Context, arg CreateUploadParams) erro
 		arg.FinalUploadID,
 		arg.Sha256,
 		arg.TargetName,
+		arg.FormData,
 	)
 	return err
 }
@@ -84,7 +86,7 @@ func (q *Queries) FailUpload(ctx context.Context, id string) error {
 }
 
 const getUpload = `-- name: GetUpload :one
-SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name FROM uploads WHERE id = ?
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data FROM uploads WHERE id = ?
 `
 
 func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
@@ -105,12 +107,13 @@ func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
 		&i.DurationMs,
 		&i.Sha256,
 		&i.TargetName,
+		&i.FormData,
 	)
 	return i, err
 }
 
 const listUploads = `-- name: ListUploads :many
-SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = ? ORDER BY created_at DESC
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = ? ORDER BY created_at DESC
 `
 
 func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, error) {
@@ -137,10 +140,75 @@ func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, err
 			&i.DurationMs,
 			&i.Sha256,
 			&i.TargetName,
+			&i.FormData,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const projectEpisodes = `-- name: ProjectEpisodes :many
+SELECT DISTINCT CAST(json_extract(form_data, '$.episode') AS TEXT) AS value
+FROM uploads
+WHERE status = 'completed' AND form_data IS NOT NULL
+  AND CAST(json_extract(form_data, '$.project') AS TEXT) = ?
+  AND COALESCE(CAST(json_extract(form_data, '$.episode') AS TEXT), '') <> ''
+ORDER BY value
+`
+
+func (q *Queries) ProjectEpisodes(ctx context.Context, formData sql.NullString) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, projectEpisodes, formData)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var value string
+		if err := rows.Scan(&value); err != nil {
+			return nil, err
+		}
+		items = append(items, value)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const projectSeasons = `-- name: ProjectSeasons :many
+SELECT DISTINCT CAST(json_extract(form_data, '$.season') AS TEXT) AS value
+FROM uploads
+WHERE status = 'completed' AND form_data IS NOT NULL
+  AND CAST(json_extract(form_data, '$.project') AS TEXT) = ?
+  AND COALESCE(CAST(json_extract(form_data, '$.season') AS TEXT), '') <> ''
+ORDER BY value
+`
+
+func (q *Queries) ProjectSeasons(ctx context.Context, formData sql.NullString) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, projectSeasons, formData)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var value string
+		if err := rows.Scan(&value); err != nil {
+			return nil, err
+		}
+		items = append(items, value)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -162,6 +230,20 @@ type UpdateDurationMsParams struct {
 
 func (q *Queries) UpdateDurationMs(ctx context.Context, arg UpdateDurationMsParams) error {
 	_, err := q.db.ExecContext(ctx, updateDurationMs, arg.DurationMs, arg.ID)
+	return err
+}
+
+const updateUploadFilename = `-- name: UpdateUploadFilename :exec
+UPDATE uploads SET filename = ? WHERE id = ?
+`
+
+type UpdateUploadFilenameParams struct {
+	Filename string
+	ID       string
+}
+
+func (q *Queries) UpdateUploadFilename(ctx context.Context, arg UpdateUploadFilenameParams) error {
+	_, err := q.db.ExecContext(ctx, updateUploadFilename, arg.Filename, arg.ID)
 	return err
 }
 

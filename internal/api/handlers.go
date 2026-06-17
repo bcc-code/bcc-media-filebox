@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -57,8 +58,23 @@ func toResponse(u db.Upload) UploadResponse {
 	return r
 }
 
-// ListTargets returns the names of upload targets the caller is allowed to
-// write to. Authenticated callers are filtered by the grants table:
+// targetView is the user-facing shape of a target: the friendly name plus the
+// optional hardcoded form key the uploader must fill before uploading.
+type targetView struct {
+	Name    string  `json:"name"`
+	FormKey *string `json:"formKey"`
+}
+
+func targetToView(t db.Target) targetView {
+	v := targetView{Name: t.Name}
+	if t.FormKey.Valid && t.FormKey.String != "" {
+		v.FormKey = &t.FormKey.String
+	}
+	return v
+}
+
+// ListTargets returns the upload targets the caller is allowed to write to.
+// Authenticated callers are filtered by the grants table:
 //   - role=admin or any grant with all_targets=1 → all targets
 //   - otherwise → union of target_ids across all matching grants
 //
@@ -78,11 +94,11 @@ func (h *Handlers) ListTargets(w http.ResponseWriter, r *http.Request) {
 	if caller == nil {
 		// Unauthenticated — the LoginGate prevents the UI from rendering this
 		// state, but return everything so the picker isn't empty in dev.
-		names := make([]string, len(all))
+		views := make([]targetView, len(all))
 		for i, t := range all {
-			names[i] = t.Name
+			views[i] = targetToView(t)
 		}
-		_ = json.NewEncoder(w).Encode(names)
+		_ = json.NewEncoder(w).Encode(views)
 		return
 	}
 
@@ -93,21 +109,69 @@ func (h *Handlers) ListTargets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if allowed.All {
-		names := make([]string, len(all))
+		views := make([]targetView, len(all))
 		for i, t := range all {
-			names[i] = t.Name
+			views[i] = targetToView(t)
 		}
-		_ = json.NewEncoder(w).Encode(names)
+		_ = json.NewEncoder(w).Encode(views)
 		return
 	}
 
-	names := make([]string, 0, len(allowed.IDs))
+	views := make([]targetView, 0, len(allowed.IDs))
 	for _, t := range all {
 		if _, ok := allowed.IDs[t.ID]; ok {
-			names = append(names, t.Name)
+			views = append(views, targetToView(t))
 		}
 	}
-	_ = json.NewEncoder(w).Encode(names)
+	_ = json.NewEncoder(w).Encode(views)
+}
+
+// projectView is the user-facing shape of a project for form dropdowns: the
+// visible name plus the code that gets embedded in the derived filename.
+type projectView struct {
+	Name string `json:"name"`
+	Code string `json:"code"`
+}
+
+// ListProjects returns all projects for population of form select fields whose
+// optionsSource is "projects".
+func (h *Handlers) ListProjects(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	rows, err := h.queries.ListProjects(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	out := make([]projectView, len(rows))
+	for i, p := range rows {
+		out[i] = projectView{Name: p.Name, Code: p.Code}
+	}
+	_ = json.NewEncoder(w).Encode(out)
+}
+
+// ProjectSuggestions returns the distinct season and episode values previously
+// used for a project (by code), powering the free-text autocomplete in forms.
+func (h *Handlers) ProjectSuggestions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	code := sql.NullString{String: r.PathValue("code"), Valid: true}
+
+	seasons, err := h.queries.ProjectSeasons(r.Context(), code)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	episodes, err := h.queries.ProjectEpisodes(r.Context(), code)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if seasons == nil {
+		seasons = []string{}
+	}
+	if episodes == nil {
+		episodes = []string{}
+	}
+	_ = json.NewEncoder(w).Encode(map[string][]string{"seasons": seasons, "episodes": episodes})
 }
 
 // ListUploads returns the history for the calling user. When the request is

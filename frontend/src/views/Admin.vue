@@ -2,20 +2,22 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
-import { useAdmin, type Target, type Group, type Grant, type AdminUser, type AdminUserDetail } from '../composables/useAdmin'
+import { useAdmin, type Target, type Project, type Group, type Grant, type AdminUser, type AdminUserDetail } from '../composables/useAdmin'
 import { initials } from '../composables/adminHelpers'
 import TargetsTab from '../components/admin/TargetsTab.vue'
+import ProjectsTab from '../components/admin/ProjectsTab.vue'
 import UsersTab from '../components/admin/UsersTab.vue'
 import GroupsTab from '../components/admin/GroupsTab.vue'
 import AccessTab from '../components/admin/AccessTab.vue'
 import UserDrawer from '../components/admin/UserDrawer.vue'
 import TargetModal from '../components/admin/TargetModal.vue'
+import ProjectModal from '../components/admin/ProjectModal.vue'
 import GroupModal from '../components/admin/GroupModal.vue'
 import GrantModal from '../components/admin/GrantModal.vue'
 import AppLogo from '../components/AppLogo.vue'
 import '../assets/admin.css'
 
-type Tab = 'targets' | 'users' | 'groups' | 'access'
+type Tab = 'targets' | 'projects' | 'users' | 'groups' | 'access'
 
 const router = useRouter()
 const { state } = useAuth()
@@ -24,6 +26,8 @@ const admin = useAdmin()
 const tab = ref<Tab>('targets')
 const editingTarget = ref<Target | null>(null)
 const targetModalOpen = ref(false)
+const editingProject = ref<Project | null>(null)
+const projectModalOpen = ref(false)
 const editingGroup = ref<Group | null>(null)
 const groupModalOpen = ref(false)
 const editingGrant = ref<Grant | null>(null)
@@ -48,7 +52,29 @@ function openNewTarget() {
   editingTarget.value = null
   targetModalOpen.value = true
 }
-async function saveTarget(body: { name: string; path: string }) {
+function openEditTarget(t: Target) {
+  editingTarget.value = t
+  targetModalOpen.value = true
+}
+
+// ---- project modal ----
+function openNewProject() {
+  editingProject.value = null
+  projectModalOpen.value = true
+}
+function openEditProject(p: Project) {
+  editingProject.value = p
+  projectModalOpen.value = true
+}
+async function saveProject(body: { name: string; code: string }) {
+  if (editingProject.value) {
+    await admin.updateProject(editingProject.value.id, body)
+  } else {
+    await admin.createProject(body)
+  }
+  projectModalOpen.value = false
+}
+async function saveTarget(body: { name: string; path: string; formKey: string | null }) {
   if (editingTarget.value) {
     await admin.updateTarget(editingTarget.value.id, body)
   } else {
@@ -156,6 +182,10 @@ async function revokeUser(u: AdminUserDetail) {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
         Upload targets <span class="count">{{ admin.targets.value.length }}</span>
       </button>
+      <button :class="{ active: tab === 'projects' }" @click="tab = 'projects'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Projects <span class="count">{{ admin.projects.value.length }}</span>
+      </button>
       <button :class="{ active: tab === 'users' }" @click="tab = 'users'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1.5-3.6 4-5 7-5s5.5 1.4 7 5"/></svg>
         Users <span class="count">{{ admin.users.value.length }}</span>
@@ -171,7 +201,8 @@ async function revokeUser(u: AdminUserDetail) {
     </div>
 
     <div class="page">
-      <TargetsTab v-if="tab === 'targets'" @new="openNewTarget" @edit="(t) => admin.updateTarget(t.id, { name: t.name, path: t.path })" />
+      <TargetsTab v-if="tab === 'targets'" @new="openNewTarget" @open="openEditTarget" @edit="(t) => admin.updateTarget(t.id, { name: t.name, path: t.path, formKey: t.formKey })" />
+      <ProjectsTab v-else-if="tab === 'projects'" @new="openNewProject" @edit="openEditProject" />
       <UsersTab v-else-if="tab === 'users'" @open="openUser" />
       <GroupsTab v-else-if="tab === 'groups'" @new="openNewGroup" @edit="openEditGroup" />
       <AccessTab v-else @new="openNewGrant" @edit="openEditGrant" />
@@ -182,6 +213,13 @@ async function revokeUser(u: AdminUserDetail) {
       :target="editingTarget"
       @cancel="targetModalOpen = false"
       @save="saveTarget"
+    />
+
+    <ProjectModal
+      v-if="projectModalOpen"
+      :project="editingProject"
+      @cancel="projectModalOpen = false"
+      @save="saveProject"
     />
 
     <GroupModal

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"filebox/internal/api"
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
+	"filebox/internal/forms"
 	"filebox/internal/tus"
 
 	"github.com/tus/tusd/v2/pkg/filelocker"
@@ -101,6 +103,27 @@ func (s *Server) preUploadCreate(hook tushandler.HookEvent) (tushandler.HTTPResp
 		hook.Upload.MetaData["filename"] = sanitized
 	}
 
+	// When the chosen target is bound to a hardcoded form, the submitted form
+	// data must satisfy the form's required fields. Reject early so a bad upload
+	// never starts; finalizeUpload re-derives the authoritative filename later.
+	if targetName := hook.Upload.MetaData["target"]; targetName != "" {
+		if t, err := s.queries.GetTargetByName(hook.Context, targetName); err == nil && t.FormKey.Valid && t.FormKey.String != "" {
+			form, ok := forms.Get(t.FormKey.String)
+			if !ok {
+				return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{}, tushandler.NewError("ERR_INVALID_FORM", "target form is not available", http.StatusBadRequest)
+			}
+			values := map[string]string{}
+			if raw := hook.Upload.MetaData["formdata"]; raw != "" {
+				if err := json.Unmarshal([]byte(raw), &values); err != nil {
+					return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{}, tushandler.NewError("ERR_INVALID_FORM", "invalid form data", http.StatusBadRequest)
+				}
+			}
+			if err := forms.Validate(form, values); err != nil {
+				return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{}, tushandler.NewError("ERR_INVALID_FORM", err.Error(), http.StatusBadRequest)
+			}
+		}
+	}
+
 	newMeta := make(tushandler.MetaData, len(hook.Upload.MetaData)+1)
 	for k, v := range hook.Upload.MetaData {
 		newMeta[k] = v
@@ -143,6 +166,8 @@ func (s *Server) resolveUploadUserID(hook tushandler.HookEvent) (string, error) 
 func (s *Server) setupAPI() {
 	h := api.NewHandlers(s.queries)
 	s.mux.HandleFunc("GET /api/targets", h.ListTargets)
+	s.mux.HandleFunc("GET /api/projects", h.ListProjects)
+	s.mux.HandleFunc("GET /api/projects/{code}/suggestions", h.ProjectSuggestions)
 	s.mux.HandleFunc("GET /api/uploads", h.ListUploads)
 
 	admin := api.NewAdminHandlers(s.queries)

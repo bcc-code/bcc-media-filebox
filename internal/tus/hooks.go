@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,8 +16,8 @@ import (
 	"syscall"
 	"time"
 
-	"filebox/internal/config"
 	db "filebox/internal/db/gen"
+	"filebox/internal/forms"
 
 	"github.com/tus/tusd/v2/pkg/handler"
 )
@@ -74,6 +75,7 @@ func (ep *EventProcessor) handleCreated(event handler.HookEvent) {
 	userID := info.MetaData["userid"]
 	sha256Hash := info.MetaData["sha256"]
 	targetName := info.MetaData["target"]
+	formData := info.MetaData["formdata"]
 
 	err := ep.queries.CreateUpload(context.Background(), db.CreateUploadParams{
 		ID:       info.ID,
@@ -93,6 +95,10 @@ func (ep *EventProcessor) handleCreated(event handler.HookEvent) {
 		TargetName: sql.NullString{
 			String: targetName,
 			Valid:  targetName != "",
+		},
+		FormData: sql.NullString{
+			String: formData,
+			Valid:  formData != "",
 		},
 	})
 	if err != nil {
@@ -138,22 +144,39 @@ func (ep *EventProcessor) handleComplete(event handler.HookEvent) {
 }
 
 func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time.Time) {
-	// Resolve target directory from the DB — targets can be added/edited by
-	// admins at runtime, so this can't be cached at startup.
+	// Resolve the target row from the DB — targets can be added/edited by admins
+	// at runtime, so this can't be cached at startup. When the target is bound to
+	// a hardcoded form, the final filename is derived from the submitted form
+	// data rather than the client-supplied name.
 	targetName := info.MetaData["target"]
-	targetDir, ok := config.TargetDirFromDB(context.Background(), ep.queries, targetName)
-	if !ok {
-		targetDir = filepath.Join(ep.uploadDir, "RawMaterial")
+	targetDir := filepath.Join(ep.uploadDir, "RawMaterial")
+	var form forms.Form
+	hasForm := false
+	var formValues map[string]string
+	if t, err := ep.queries.GetTargetByName(context.Background(), targetName); err == nil {
+		targetDir = t.Path
+		if t.FormKey.Valid && t.FormKey.String != "" {
+			if f, ok := forms.Get(t.FormKey.String); ok {
+				form = f
+				hasForm = true
+				formValues = parseFormData(info.MetaData["formdata"])
+			}
+		}
 	}
 
-	// Rename the file from hash ID to original filename in the target directory.
-	// Defense in depth: the PreUploadCreateCallback already rejects hostile
-	// filenames at create time, but re-sanitize here so any future code path
-	// that bypasses the callback still can't escape targetDir.
+	// Rename the file from hash ID to its final name in the target directory.
+	// For form targets the name comes from forms.BuildFilename; otherwise the
+	// client-supplied filename is used. Defense in depth: re-sanitize here so any
+	// future code path that bypasses the create callback still can't escape
+	// targetDir.
 	rawFilename := info.MetaData["filename"]
 	var dstPath string
-	if rawFilename != "" {
-		filename, err := SanitizeFilename(rawFilename)
+	desiredName := rawFilename
+	if hasForm {
+		desiredName = forms.BuildFilename(form, formValues, filepath.Ext(rawFilename))
+	}
+	if desiredName != "" {
+		filename, err := SanitizeFilename(desiredName)
 		if err != nil {
 			log.Printf("rejecting upload %s: %v", info.ID, err)
 			ep.queries.FailUpload(context.Background(), info.ID)
@@ -162,7 +185,20 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 		}
 	}
 
+	// Record the final on-disk name (form-derived and/or de-duped) so the upload
+	// history reflects what actually landed in the target dir, not the original
+	// client filename captured at create time.
+	if dstPath != "" {
+		if err := ep.queries.UpdateUploadFilename(context.Background(), db.UpdateUploadFilenameParams{
+			Filename: filepath.Base(dstPath),
+			ID:       info.ID,
+		}); err != nil {
+			log.Printf("warning: failed to update stored filename for %s: %v", info.ID, err)
+		}
+	}
+
 	// Verify file integrity against the client-provided SHA-256 hash
+	integrityFailed := false
 	expectedHash := info.MetaData["sha256"]
 	if expectedHash != "" && dstPath != "" {
 		actualHash, err := computeFileSHA256(dstPath)
@@ -171,8 +207,28 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 		} else if actualHash != expectedHash {
 			log.Printf("integrity check FAILED for upload %s (%s): expected %s, got %s", info.ID, dstPath, expectedHash, actualHash)
 			ep.queries.FailUpload(context.Background(), info.ID)
+			integrityFailed = true
 		} else {
 			log.Printf("integrity verified for %s (SHA-256: %s)", dstPath, actualHash)
+		}
+	}
+
+	// Write the JSON sidecar next to the file for form uploads. Derived from the
+	// final (possibly de-duped) destination name. Skipped on integrity failure so
+	// we never leave metadata describing a rejected file; a sidecar write failure
+	// is logged but does not fail the upload — the file is the primary artifact.
+	if hasForm && dstPath != "" && !integrityFailed {
+		payload := sidecarPayload{
+			OriginalFilename: rawFilename,
+			Target:           targetName,
+			FormKey:          form.Key,
+			Fields:           formValues,
+			UploaderID:       info.MetaData["userid"],
+			SHA256:           expectedHash,
+			UploadedAt:       completedAt.UTC().Format(time.RFC3339),
+		}
+		if err := ep.writeSidecar(dstPath, targetDir, payload); err != nil {
+			log.Printf("warning: failed to write sidecar for %s: %v", dstPath, err)
 		}
 	}
 
@@ -310,6 +366,59 @@ func crossDeviceMove(src, dst string) error {
 	if err := os.Remove(src); err != nil {
 		log.Printf("warning: failed to remove source %s after cross-device move: %v", src, err)
 	}
+	return nil
+}
+
+// sidecarPayload is the JSON written next to a form upload, recording the
+// submitted field values and provenance.
+type sidecarPayload struct {
+	OriginalFilename string            `json:"originalFilename"`
+	Target           string            `json:"target"`
+	FormKey          string            `json:"formKey"`
+	Fields           map[string]string `json:"fields"`
+	UploaderID       string            `json:"uploaderId"`
+	SHA256           string            `json:"sha256,omitempty"`
+	UploadedAt       string            `json:"uploadedAt"`
+}
+
+// parseFormData decodes the TUS "formdata" metadata JSON into a value map,
+// returning an empty (non-nil) map when absent or malformed.
+func parseFormData(raw string) map[string]string {
+	values := map[string]string{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), &values); err != nil {
+			log.Printf("warning: ignoring malformed form data: %v", err)
+		}
+	}
+	return values
+}
+
+// writeSidecar writes payload as "<dstPath>.json". Reuses the same containment
+// check as renameUpload so the sidecar can never escape targetDir.
+func (ep *EventProcessor) writeSidecar(dstPath, targetDir string, payload sidecarPayload) error {
+	sidecarPath := dstPath + ".json"
+
+	absTarget, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("resolve target dir: %w", err)
+	}
+	absSidecar, err := filepath.Abs(sidecarPath)
+	if err != nil {
+		return fmt.Errorf("resolve sidecar path: %w", err)
+	}
+	rel, err := filepath.Rel(absTarget, absSidecar)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return fmt.Errorf("refusing to write sidecar outside target dir: %s", absSidecar)
+	}
+
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal sidecar: %w", err)
+	}
+	if err := os.WriteFile(sidecarPath, data, 0644); err != nil {
+		return fmt.Errorf("write sidecar: %w", err)
+	}
+	log.Printf("sidecar written: %s", sidecarPath)
 	return nil
 }
 

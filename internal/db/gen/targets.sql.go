@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const countTargets = `-- name: CountTargets :one
@@ -21,18 +22,19 @@ func (q *Queries) CountTargets(ctx context.Context) (int64, error) {
 }
 
 const createTarget = `-- name: CreateTarget :one
-INSERT INTO targets (name, path, position)
-VALUES (?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM targets))
-RETURNING id, name, path, created_at, position
+INSERT INTO targets (name, path, form_key, position)
+VALUES (?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM targets))
+RETURNING id, name, path, created_at, position, form_key
 `
 
 type CreateTargetParams struct {
-	Name string
-	Path string
+	Name    string
+	Path    string
+	FormKey sql.NullString
 }
 
 func (q *Queries) CreateTarget(ctx context.Context, arg CreateTargetParams) (Target, error) {
-	row := q.db.QueryRowContext(ctx, createTarget, arg.Name, arg.Path)
+	row := q.db.QueryRowContext(ctx, createTarget, arg.Name, arg.Path, arg.FormKey)
 	var i Target
 	err := row.Scan(
 		&i.ID,
@@ -40,6 +42,7 @@ func (q *Queries) CreateTarget(ctx context.Context, arg CreateTargetParams) (Tar
 		&i.Path,
 		&i.CreatedAt,
 		&i.Position,
+		&i.FormKey,
 	)
 	return i, err
 }
@@ -54,7 +57,7 @@ func (q *Queries) DeleteTarget(ctx context.Context, id int64) error {
 }
 
 const getTarget = `-- name: GetTarget :one
-SELECT id, name, path, created_at, position FROM targets WHERE id = ?
+SELECT id, name, path, created_at, position, form_key FROM targets WHERE id = ?
 `
 
 func (q *Queries) GetTarget(ctx context.Context, id int64) (Target, error) {
@@ -66,12 +69,13 @@ func (q *Queries) GetTarget(ctx context.Context, id int64) (Target, error) {
 		&i.Path,
 		&i.CreatedAt,
 		&i.Position,
+		&i.FormKey,
 	)
 	return i, err
 }
 
 const getTargetByName = `-- name: GetTargetByName :one
-SELECT id, name, path, created_at, position FROM targets WHERE name = ?
+SELECT id, name, path, created_at, position, form_key FROM targets WHERE name = ?
 `
 
 func (q *Queries) GetTargetByName(ctx context.Context, name string) (Target, error) {
@@ -83,12 +87,13 @@ func (q *Queries) GetTargetByName(ctx context.Context, name string) (Target, err
 		&i.Path,
 		&i.CreatedAt,
 		&i.Position,
+		&i.FormKey,
 	)
 	return i, err
 }
 
 const listTargets = `-- name: ListTargets :many
-SELECT id, name, path, created_at, position FROM targets ORDER BY position, id
+SELECT id, name, path, created_at, position, form_key FROM targets ORDER BY position, id
 `
 
 func (q *Queries) ListTargets(ctx context.Context) ([]Target, error) {
@@ -106,6 +111,7 @@ func (q *Queries) ListTargets(ctx context.Context) ([]Target, error) {
 			&i.Path,
 			&i.CreatedAt,
 			&i.Position,
+			&i.FormKey,
 		); err != nil {
 			return nil, err
 		}
@@ -121,17 +127,23 @@ func (q *Queries) ListTargets(ctx context.Context) ([]Target, error) {
 }
 
 const updateTarget = `-- name: UpdateTarget :one
-UPDATE targets SET name = ?, path = ? WHERE id = ? RETURNING id, name, path, created_at, position
+UPDATE targets SET name = ?, path = ?, form_key = ? WHERE id = ? RETURNING id, name, path, created_at, position, form_key
 `
 
 type UpdateTargetParams struct {
-	Name string
-	Path string
-	ID   int64
+	Name    string
+	Path    string
+	FormKey sql.NullString
+	ID      int64
 }
 
 func (q *Queries) UpdateTarget(ctx context.Context, arg UpdateTargetParams) (Target, error) {
-	row := q.db.QueryRowContext(ctx, updateTarget, arg.Name, arg.Path, arg.ID)
+	row := q.db.QueryRowContext(ctx, updateTarget,
+		arg.Name,
+		arg.Path,
+		arg.FormKey,
+		arg.ID,
+	)
 	var i Target
 	err := row.Scan(
 		&i.ID,
@@ -139,6 +151,7 @@ func (q *Queries) UpdateTarget(ctx context.Context, arg UpdateTargetParams) (Tar
 		&i.Path,
 		&i.CreatedAt,
 		&i.Position,
+		&i.FormKey,
 	)
 	return i, err
 }

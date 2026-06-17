@@ -9,12 +9,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
+	"filebox/internal/forms"
 )
 
 // AdminHandlers exposes /api/admin/* endpoints, all gated by users.role=='admin'.
@@ -36,6 +38,11 @@ func (h *AdminHandlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/admin/targets/reorder", wrap(h.ReorderTargets))
 	mux.HandleFunc("PATCH /api/admin/targets/{id}", wrap(h.UpdateTarget))
 	mux.HandleFunc("DELETE /api/admin/targets/{id}", wrap(h.DeleteTarget))
+
+	mux.HandleFunc("GET /api/admin/projects", wrap(h.ListProjects))
+	mux.HandleFunc("POST /api/admin/projects", wrap(h.CreateProject))
+	mux.HandleFunc("PATCH /api/admin/projects/{id}", wrap(h.UpdateProject))
+	mux.HandleFunc("DELETE /api/admin/projects/{id}", wrap(h.DeleteProject))
 
 	mux.HandleFunc("GET /api/admin/users", wrap(h.ListUsers))
 	mux.HandleFunc("GET /api/admin/users/{id}", wrap(h.GetUser))
@@ -80,21 +87,26 @@ func parseID(r *http.Request) (int64, error) {
 // ---------- Targets ----------
 
 type targetDTO struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	Path      string `json:"path"`
-	Position  int64  `json:"position"`
-	CreatedAt string `json:"createdAt"`
+	ID        int64   `json:"id"`
+	Name      string  `json:"name"`
+	Path      string  `json:"path"`
+	FormKey   *string `json:"formKey"`
+	Position  int64   `json:"position"`
+	CreatedAt string  `json:"createdAt"`
 }
 
 func targetToDTO(t db.Target) targetDTO {
-	return targetDTO{
+	dto := targetDTO{
 		ID:        t.ID,
 		Name:      t.Name,
 		Path:      t.Path,
 		Position:  t.Position,
 		CreatedAt: t.CreatedAt.Format(time.RFC3339),
 	}
+	if t.FormKey.Valid && t.FormKey.String != "" {
+		dto.FormKey = &t.FormKey.String
+	}
+	return dto
 }
 
 func (h *AdminHandlers) ListTargets(w http.ResponseWriter, r *http.Request) {
@@ -111,8 +123,18 @@ func (h *AdminHandlers) ListTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 type targetWriteRequest struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name    string  `json:"name"`
+	Path    string  `json:"path"`
+	FormKey *string `json:"formKey"`
+}
+
+// formKeyParam normalizes the request's form key into the nullable column value,
+// treating an empty string the same as "no form".
+func (req targetWriteRequest) formKeyParam() sql.NullString {
+	if req.FormKey == nil || strings.TrimSpace(*req.FormKey) == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: strings.TrimSpace(*req.FormKey), Valid: true}
 }
 
 func (h *AdminHandlers) CreateTarget(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +149,7 @@ func (h *AdminHandlers) CreateTarget(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	t, err := h.queries.CreateTarget(r.Context(), db.CreateTargetParams{Name: req.Name, Path: req.Path})
+	t, err := h.queries.CreateTarget(r.Context(), db.CreateTargetParams{Name: req.Name, Path: req.Path, FormKey: req.formKeyParam()})
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
@@ -152,7 +174,7 @@ func (h *AdminHandlers) UpdateTarget(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	t, err := h.queries.UpdateTarget(r.Context(), db.UpdateTargetParams{Name: req.Name, Path: req.Path, ID: id})
+	t, err := h.queries.UpdateTarget(r.Context(), db.UpdateTargetParams{Name: req.Name, Path: req.Path, FormKey: req.formKeyParam(), ID: id})
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
@@ -248,7 +270,123 @@ func validateTarget(req targetWriteRequest) error {
 	if !info.IsDir() {
 		return fmt.Errorf("path %q is not a directory", req.Path)
 	}
+	if req.FormKey != nil && strings.TrimSpace(*req.FormKey) != "" {
+		if _, ok := forms.Get(strings.TrimSpace(*req.FormKey)); !ok {
+			return fmt.Errorf("unknown form %q", *req.FormKey)
+		}
+	}
 	return nil
+}
+
+// ---------- Projects ----------
+
+// projectCodePattern restricts codes to filename-safe characters since the code
+// is embedded verbatim in derived filenames.
+var projectCodePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+type projectDTO struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Code      string `json:"code"`
+	CreatedAt string `json:"createdAt"`
+}
+
+func projectToDTO(p db.Project) projectDTO {
+	return projectDTO{
+		ID:        p.ID,
+		Name:      p.Name,
+		Code:      p.Code,
+		CreatedAt: p.CreatedAt.Format(time.RFC3339),
+	}
+}
+
+type projectWriteRequest struct {
+	Name string `json:"name"`
+	Code string `json:"code"`
+}
+
+func validateProject(req projectWriteRequest) error {
+	if req.Name == "" {
+		return errors.New("name is required")
+	}
+	if req.Code == "" {
+		return errors.New("code is required")
+	}
+	if !projectCodePattern.MatchString(req.Code) {
+		return errors.New("code may contain only letters, digits, '-' and '_'")
+	}
+	return nil
+}
+
+func (h *AdminHandlers) ListProjects(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.queries.ListProjects(r.Context())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	out := make([]projectDTO, len(rows))
+	for i, p := range rows {
+		out[i] = projectToDTO(p)
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (h *AdminHandlers) CreateProject(w http.ResponseWriter, r *http.Request) {
+	var req projectWriteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Code = strings.TrimSpace(req.Code)
+	if err := validateProject(req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	p, err := h.queries.CreateProject(r.Context(), db.CreateProjectParams{Name: req.Name, Code: req.Code})
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, projectToDTO(p))
+}
+
+func (h *AdminHandlers) UpdateProject(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	var req projectWriteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Code = strings.TrimSpace(req.Code)
+	if err := validateProject(req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	p, err := h.queries.UpdateProject(r.Context(), db.UpdateProjectParams{Name: req.Name, Code: req.Code, ID: id})
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, projectToDTO(p))
+}
+
+func (h *AdminHandlers) DeleteProject(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	if err := h.queries.DeleteProject(r.Context(), id); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ---------- Users ----------

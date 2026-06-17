@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+
+const props = withDefaults(
+  defineProps<{
+    // 0 = unlimited; 1 = single file (form targets that derive one filename).
+    maxFiles?: number
+    disabled?: boolean
+  }>(),
+  { maxFiles: 0, disabled: false },
+)
 
 const emit = defineEmits<{
   files: [files: FileList]
@@ -7,16 +16,30 @@ const emit = defineEmits<{
 
 const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const allowMultiple = computed(() => props.maxFiles !== 1)
+
+// When the target caps the upload at one file, keep only the first dropped/
+// selected file so a multi-select can't sneak past the single-file form.
+function limit(files: FileList): FileList {
+  if (props.maxFiles === 1 && files.length > 1) {
+    const dt = new DataTransfer()
+    dt.items.add(files[0])
+    return dt.files
+  }
+  return files
+}
 
 function onDrop(e: DragEvent) {
   isDragging.value = false
+  if (props.disabled) return
   if (e.dataTransfer?.files?.length) {
-    emit('files', e.dataTransfer.files)
+    emit('files', limit(e.dataTransfer.files))
   }
 }
 
 function onDragOver(e: DragEvent) {
   e.preventDefault()
+  if (props.disabled) return
   isDragging.value = true
 }
 
@@ -25,13 +48,14 @@ function onDragLeave() {
 }
 
 function openFilePicker() {
+  if (props.disabled) return
   fileInput.value?.click()
 }
 
 function onFileSelected(e: Event) {
   const input = e.target as HTMLInputElement
   if (input.files?.length) {
-    emit('files', input.files)
+    emit('files', limit(input.files))
     input.value = ''
   }
 }
@@ -43,15 +67,22 @@ function onFileSelected(e: Event) {
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @click="openFilePicker"
-    class="border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors"
-    :class="isDragging
-      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'"
+    class="border-2 border-dashed rounded-xl p-12 text-center transition-colors"
+    :class="[
+      disabled
+        ? 'border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed'
+        : 'cursor-pointer',
+      !disabled && isDragging
+        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+        : !disabled
+          ? 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+          : '',
+    ]"
   >
     <input
       ref="fileInput"
       type="file"
-      multiple
+      :multiple="allowMultiple"
       class="hidden"
       @change="onFileSelected"
     />

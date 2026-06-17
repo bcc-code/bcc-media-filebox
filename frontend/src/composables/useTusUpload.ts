@@ -58,7 +58,7 @@ async function detectParallelUploads(): Promise<number> {
 export function useTusUpload() {
   const uploads = ref<UploadItem[]>([])
 
-  function addFiles(files: FileList | File[], target: string) {
+  function addFiles(files: FileList | File[], target: string, formData?: Record<string, string>) {
     for (const file of files) {
       const { name: displayName, error: reason } = sanitizeFilename(file.name)
       const item = reactive<UploadItem>({
@@ -74,11 +74,11 @@ export function useTusUpload() {
         error: reason,
       })
       uploads.value.push(item)
-      if (!reason) startUpload(item, target)
+      if (!reason) startUpload(item, target, formData)
     }
   }
 
-  async function startUpload(item: UploadItem, target: string) {
+  async function startUpload(item: UploadItem, target: string, formData?: Record<string, string>) {
     let lastBytes = 0
     let lastTime = Date.now()
     const parallel = await detectParallelUploads()
@@ -94,6 +94,7 @@ export function useTusUpload() {
         filetype: item.file.type || 'application/octet-stream',
         userid: getUserId(),
         target: target,
+        ...(formData ? { formdata: JSON.stringify(formData) } : {}),
       },
       onProgress(bytesUploaded: number, bytesTotal: number) {
         const now = Date.now()
