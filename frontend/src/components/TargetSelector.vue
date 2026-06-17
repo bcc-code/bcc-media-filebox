@@ -1,12 +1,7 @@
 <script setup lang="ts">
-interface TargetOption {
-  name: string
-  path: string
-}
-
 defineProps<{
   modelValue: string
-  targets: TargetOption[]
+  targets: string[]
 }>()
 
 const emit = defineEmits<{
@@ -22,20 +17,20 @@ function select(name: string) {
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
     <button
       v-for="t in targets"
-      :key="t.name"
+      :key="t"
       type="button"
-      :aria-pressed="t.name === modelValue"
+      :aria-pressed="t === modelValue"
       class="group flex flex-col gap-3 rounded-xl border p-4 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-      :class="t.name === modelValue
+      :class="t === modelValue
         ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 ring-1 ring-blue-500'
         : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 bg-white dark:bg-gray-800'"
-      @click="select(t.name)"
+      @click="select(t)"
     >
       <div class="flex items-start justify-between">
         <!-- Generic disk icon -->
         <span
           class="flex h-10 w-10 items-center justify-center rounded-lg transition"
-          :class="t.name === modelValue
+          :class="t === modelValue
             ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
             : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'"
         >
@@ -48,7 +43,7 @@ function select(name: string) {
 
         <!-- Selection indicator -->
         <span
-          v-if="t.name === modelValue"
+          v-if="t === modelValue"
           class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -61,10 +56,7 @@ function select(name: string) {
         />
       </div>
 
-      <div>
-        <div class="font-semibold text-gray-900 dark:text-gray-100">{{ t.name }}</div>
-        <div class="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400 break-all">{{ t.path }}</div>
-      </div>
+      <div class="font-semibold text-gray-900 dark:text-gray-100">{{ t }}</div>
     </button>
   </div>
 </template>

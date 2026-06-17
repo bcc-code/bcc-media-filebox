@@ -10,13 +10,13 @@ import TargetSelector from '../components/TargetSelector.vue'
 
 const { uploads, addFiles, pauseUpload, resumeUpload, retryUpload, cancelUpload } = useTusUpload()
 const uploadList = ref<InstanceType<typeof UploadList> | null>(null)
-const targets = ref<{ name: string; path: string }[]>([])
+const targets = ref<string[]>([])
 const target = ref('')
 
 onMounted(async () => {
   const res = await fetch('/api/targets')
   targets.value = await res.json()
-  target.value = targets.value[0]?.name ?? ''
+  target.value = targets.value[0] ?? ''
 })
 
 function onFiles(files: FileList) {
