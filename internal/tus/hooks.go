@@ -218,12 +218,14 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 	// we never leave metadata describing a rejected file; a sidecar write failure
 	// is logged but does not fail the upload — the file is the primary artifact.
 	if hasForm && dstPath != "" && !integrityFailed {
+		uploaderID := info.MetaData["userid"]
 		payload := sidecarPayload{
 			OriginalFilename: rawFilename,
 			Target:           targetName,
 			FormKey:          form.Key,
 			Fields:           formValues,
-			UploaderID:       info.MetaData["userid"],
+			UploaderID:       uploaderID,
+			UploaderEmail:    ep.uploaderEmail(uploaderID),
 			SHA256:           expectedHash,
 			UploadedAt:       completedAt.UTC().Format(time.RFC3339),
 		}
@@ -377,8 +379,28 @@ type sidecarPayload struct {
 	FormKey          string            `json:"formKey"`
 	Fields           map[string]string `json:"fields"`
 	UploaderID       string            `json:"uploaderId"`
+	UploaderEmail    string            `json:"uploaderEmail,omitempty"`
 	SHA256           string            `json:"sha256,omitempty"`
 	UploadedAt       string            `json:"uploadedAt"`
+}
+
+// uploaderEmail resolves the email for a canonical user_id ("<provider>:<subject>",
+// e.g. "guest:<ulid>") by looking up the user record. Returns "" when the id is
+// malformed, the user is unknown, or the email is unset — the sidecar omits an
+// empty email rather than failing the upload.
+func (ep *EventProcessor) uploaderEmail(userID string) string {
+	provider, subject, ok := strings.Cut(userID, ":")
+	if !ok {
+		return ""
+	}
+	u, err := ep.queries.GetUserByProviderSubject(context.Background(), db.GetUserByProviderSubjectParams{
+		Provider: provider,
+		Subject:  subject,
+	})
+	if err != nil {
+		return ""
+	}
+	return u.Email.String
 }
 
 // parseFormData decodes the TUS "formdata" metadata JSON into a value map,
