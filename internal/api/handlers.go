@@ -57,8 +57,16 @@ func toResponse(u db.Upload) UploadResponse {
 	return r
 }
 
-// ListTargets returns the names of upload targets the caller is allowed to
-// write to. Authenticated callers are filtered by the grants table:
+// targetOption is the upload-target shape returned to the picker: enough to
+// render a card (name + path). The selected name remains the contract carried
+// through tus metadata to the upload pipeline.
+type targetOption struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+// ListTargets returns the upload targets the caller is allowed to write to.
+// Authenticated callers are filtered by the grants table:
 //   - role=admin or any grant with all_targets=1 → all targets
 //   - otherwise → union of target_ids across all matching grants
 //
@@ -78,11 +86,11 @@ func (h *Handlers) ListTargets(w http.ResponseWriter, r *http.Request) {
 	if caller == nil {
 		// Unauthenticated — the LoginGate prevents the UI from rendering this
 		// state, but return everything so the picker isn't empty in dev.
-		names := make([]string, len(all))
+		opts := make([]targetOption, len(all))
 		for i, t := range all {
-			names[i] = t.Name
+			opts[i] = targetOption{Name: t.Name, Path: t.Path}
 		}
-		_ = json.NewEncoder(w).Encode(names)
+		_ = json.NewEncoder(w).Encode(opts)
 		return
 	}
 
@@ -93,21 +101,21 @@ func (h *Handlers) ListTargets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if allowed.All {
-		names := make([]string, len(all))
+		opts := make([]targetOption, len(all))
 		for i, t := range all {
-			names[i] = t.Name
+			opts[i] = targetOption{Name: t.Name, Path: t.Path}
 		}
-		_ = json.NewEncoder(w).Encode(names)
+		_ = json.NewEncoder(w).Encode(opts)
 		return
 	}
 
-	names := make([]string, 0, len(allowed.IDs))
+	opts := make([]targetOption, 0, len(allowed.IDs))
 	for _, t := range all {
 		if _, ok := allowed.IDs[t.ID]; ok {
-			names = append(names, t.Name)
+			opts = append(opts, targetOption{Name: t.Name, Path: t.Path})
 		}
 	}
-	_ = json.NewEncoder(w).Encode(names)
+	_ = json.NewEncoder(w).Encode(opts)
 }
 
 // ListUploads returns the history for the calling user. When the request is

@@ -6,16 +6,17 @@ import UploadProgress from '../components/UploadProgress.vue'
 import UploadList from '../components/UploadList.vue'
 import AppLogo from '../components/AppLogo.vue'
 import AuthMenu from '../components/AuthMenu.vue'
+import TargetSelector from '../components/TargetSelector.vue'
 
 const { uploads, addFiles, pauseUpload, resumeUpload, retryUpload, cancelUpload } = useTusUpload()
 const uploadList = ref<InstanceType<typeof UploadList> | null>(null)
-const targets = ref<string[]>([])
+const targets = ref<{ name: string; path: string }[]>([])
 const target = ref('')
 
 onMounted(async () => {
   const res = await fetch('/api/targets')
   targets.value = await res.json()
-  target.value = targets.value[0] ?? ''
+  target.value = targets.value[0]?.name ?? ''
 })
 
 function onFiles(files: FileList) {
@@ -42,14 +43,8 @@ watch(
       </div>
 
       <div class="mb-6">
-        <label for="target" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
-        <select
-          id="target"
-          v-model="target"
-          class="block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-        >
-          <option v-for="t in targets" :key="t" :value="t">{{ t }}</option>
-        </select>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target</label>
+        <TargetSelector v-model="target" :targets="targets" />
       </div>
 
       <FileUploader @files="onFiles" />
