@@ -37,7 +37,10 @@ async function detectParallelUploads(): Promise<number> {
   if (detectedParallelUploads !== null) return detectedParallelUploads
 
   try {
-    await fetch('/files/', { method: 'HEAD' })
+    // OPTIONS (not HEAD) — tusd's collection endpoint only allows POST, so HEAD
+    // returns a noisy 405. OPTIONS answers 204 and still populates the resource
+    // timing entry we read nextHopProtocol from.
+    await fetch('/files/', { method: 'OPTIONS' })
     const entry = performance
       .getEntriesByType('resource')
       .reverse()

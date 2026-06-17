@@ -91,6 +91,27 @@ func TestBuildFilenameOptionalSegments(t *testing.T) {
 	}
 }
 
+func TestBuildFilenameOslofjord(t *testing.T) {
+	f, ok := Get("oslofjord_delivery")
+	if !ok {
+		t.Fatal("oslofjord_delivery not registered")
+	}
+	// All present.
+	got := BuildFilename(f, map[string]string{
+		"arrangement": "SMR", "subEvent": "MOT", "post": "12", "type": "VIDEO", "navn": "temafilm",
+	}, ".mov")
+	if want := "SMR_MOT_12_VIDEO_temafilm.mov"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	// Sub event "-" (empty) + no post/type collapse out.
+	got = BuildFilename(f, map[string]string{
+		"arrangement": "SMR", "subEvent": "", "navn": "temafilm",
+	}, ".mov")
+	if want := "SMR_temafilm.mov"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestGetUnknown(t *testing.T) {
 	if _, ok := Get("nope"); ok {
 		t.Error("expected unknown key to return false")
@@ -99,7 +120,13 @@ func TestGetUnknown(t *testing.T) {
 
 func TestKeysSorted(t *testing.T) {
 	keys := Keys()
-	if len(keys) != 2 || keys[0] != "bcc_media" || keys[1] != "camera_dailies" {
-		t.Errorf("unexpected keys: %v", keys)
+	want := []string{"bcc_media", "camera_dailies", "oslofjord_delivery"}
+	if len(keys) != len(want) {
+		t.Fatalf("unexpected keys: %v", keys)
+	}
+	for i, k := range want {
+		if keys[i] != k {
+			t.Errorf("keys[%d] = %q, want %q (full: %v)", i, keys[i], k, keys)
+		}
 	}
 }

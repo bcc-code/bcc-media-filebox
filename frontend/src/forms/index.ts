@@ -24,9 +24,12 @@ export interface Field {
   maxLength?: number
   placeholder?: string
   options?: Option[]
-  // optionsSource names a DB-backed catalog (e.g. "projects") the select options
-  // come from instead of the static `options` above.
+  // optionsSource names a DB-backed catalog (e.g. "projects", "arrangements")
+  // the select options come from instead of the static `options` above.
   optionsSource?: string
+  // optionsScope makes the select dependent on another field: its options are
+  // fetched for that field's value (e.g. sub-events for the chosen arrangement).
+  optionsScope?: string
   // suggest enables free-text autocomplete sourced from prior uploads, scoped by
   // the value of the suggestScope field (e.g. season suggestions per project).
   suggest?: boolean
@@ -124,6 +127,58 @@ export const registry: Record<string, Form> = {
         minLength: 5,
         maxLength: 50,
         placeholder: 'For example: cold open',
+      },
+    ],
+  },
+  oslofjord_delivery: {
+    key: 'oslofjord_delivery',
+    label: 'Oslofjord Delivery',
+    description: 'Add event details before uploading',
+    maxFiles: 1,
+    template: '{arrangement}_{subEvent}_{post}_{type}_{navn}',
+    resetFields: ['post', 'navn'],
+    fields: [
+      {
+        key: 'arrangement',
+        label: 'Arrangement',
+        type: 'select',
+        required: true,
+        placeholder: 'Velg arrangement...',
+        optionsSource: 'arrangements',
+      },
+      {
+        // Not required: the "-" (empty) choice means none and is dropped from
+        // the filename. Options are the sub-events of the chosen arrangement.
+        key: 'subEvent',
+        label: 'Sub event',
+        type: 'select',
+        required: false,
+        placeholder: '-',
+        optionsSource: 'subEvents',
+        optionsScope: 'arrangement',
+      },
+      { key: 'post', label: 'Post-nr.', type: 'text', required: false, maxLength: 10 },
+      {
+        key: 'type',
+        label: 'Type',
+        type: 'select',
+        required: false,
+        placeholder: '— Ingen —',
+        options: [
+          { code: 'VIDEO', label: 'Video' },
+          { code: 'LED', label: 'LED Background' },
+          { code: 'CLICK', label: 'ClickTrack' },
+          { code: 'PRES', label: 'Presentation' },
+        ],
+      },
+      {
+        key: 'navn',
+        label: 'Navn',
+        type: 'text',
+        required: true,
+        minLength: 5,
+        maxLength: 50,
+        placeholder: 'For example: temafilm',
       },
     ],
   },

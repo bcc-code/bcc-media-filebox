@@ -16,6 +16,20 @@ export interface Project {
   createdAt: string
 }
 
+export interface SubEvent {
+  id: number
+  name: string
+  code: string
+}
+
+export interface Arrangement {
+  id: number
+  name: string
+  code: string
+  createdAt: string
+  subEvents: SubEvent[]
+}
+
 export interface Group {
   id: number
   name: string
@@ -70,6 +84,7 @@ export interface AdminUserDetail extends AdminUser {
 
 const targets = ref<Target[]>([])
 const projects = ref<Project[]>([])
+const arrangements = ref<Arrangement[]>([])
 const groups = ref<Group[]>([])
 const grants = ref<Grant[]>([])
 const users = ref<AdminUser[]>([])
@@ -110,15 +125,17 @@ async function loadAll() {
   loading.value = true
   lastError.value = null
   try {
-    const [t, p, g, gr, u] = await Promise.all([
+    const [t, p, ar, g, gr, u] = await Promise.all([
       jsonFetch<Target[]>('/api/admin/targets'),
       jsonFetch<Project[]>('/api/admin/projects'),
+      jsonFetch<Arrangement[]>('/api/admin/arrangements'),
       jsonFetch<Group[]>('/api/admin/groups'),
       jsonFetch<Grant[]>('/api/admin/grants'),
       jsonFetch<AdminUser[]>('/api/admin/users'),
     ])
     targets.value = t
     projects.value = p
+    arrangements.value = ar
     groups.value = g
     grants.value = gr
     users.value = u
@@ -218,6 +235,77 @@ async function deleteProject(id: number) {
     await jsonFetch(`/api/admin/projects/${id}`, { method: 'DELETE' })
     projects.value = projects.value.filter(x => x.id !== id)
     showToast(`Removed “${p?.name ?? 'project'}”`, true)
+  } catch (e) {
+    showToast((e as Error).message, true)
+  }
+}
+
+// Arrangements & sub-events --------------------------------------------
+
+async function createArrangement(body: { name: string; code: string }) {
+  try {
+    const a = await jsonFetch<Arrangement>('/api/admin/arrangements', { method: 'POST', body: JSON.stringify(body) })
+    arrangements.value.push({ ...a, subEvents: a.subEvents ?? [] })
+    showToast(`Added arrangement “${a.name}”`)
+  } catch (e) {
+    showToast((e as Error).message, true)
+  }
+}
+
+async function updateArrangement(id: number, body: { name: string; code: string }) {
+  try {
+    const a = await jsonFetch<Arrangement>(`/api/admin/arrangements/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
+    const i = arrangements.value.findIndex(x => x.id === id)
+    // The PATCH response carries no sub-events; keep the ones we already hold.
+    if (i >= 0) arrangements.value[i] = { ...a, subEvents: arrangements.value[i].subEvents }
+    showToast(`Saved “${a.name}”`)
+  } catch (e) {
+    showToast((e as Error).message, true)
+  }
+}
+
+async function deleteArrangement(id: number) {
+  const a = arrangements.value.find(x => x.id === id)
+  try {
+    await jsonFetch(`/api/admin/arrangements/${id}`, { method: 'DELETE' })
+    arrangements.value = arrangements.value.filter(x => x.id !== id)
+    showToast(`Removed “${a?.name ?? 'arrangement'}”`, true)
+  } catch (e) {
+    showToast((e as Error).message, true)
+  }
+}
+
+async function createSubEvent(arrangementId: number, body: { name: string; code: string }) {
+  try {
+    const s = await jsonFetch<SubEvent>(`/api/admin/arrangements/${arrangementId}/sub-events`, { method: 'POST', body: JSON.stringify(body) })
+    const arr = arrangements.value.find(x => x.id === arrangementId)
+    if (arr) arr.subEvents.push(s)
+    showToast(`Added sub event “${s.name}”`)
+  } catch (e) {
+    showToast((e as Error).message, true)
+  }
+}
+
+async function updateSubEvent(arrangementId: number, id: number, body: { name: string; code: string }) {
+  try {
+    const s = await jsonFetch<SubEvent>(`/api/admin/sub-events/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
+    const arr = arrangements.value.find(x => x.id === arrangementId)
+    if (arr) {
+      const i = arr.subEvents.findIndex(x => x.id === id)
+      if (i >= 0) arr.subEvents[i] = s
+    }
+    showToast(`Saved “${s.name}”`)
+  } catch (e) {
+    showToast((e as Error).message, true)
+  }
+}
+
+async function deleteSubEvent(arrangementId: number, id: number) {
+  try {
+    await jsonFetch(`/api/admin/sub-events/${id}`, { method: 'DELETE' })
+    const arr = arrangements.value.find(x => x.id === arrangementId)
+    if (arr) arr.subEvents = arr.subEvents.filter(x => x.id !== id)
+    showToast('Removed sub event', true)
   } catch (e) {
     showToast((e as Error).message, true)
   }
@@ -323,6 +411,7 @@ export function useAdmin() {
   return {
     targets,
     projects,
+    arrangements,
     groups,
     grants,
     users,
@@ -341,6 +430,12 @@ export function useAdmin() {
     createProject,
     updateProject,
     deleteProject,
+    createArrangement,
+    updateArrangement,
+    deleteArrangement,
+    createSubEvent,
+    updateSubEvent,
+    deleteSubEvent,
     createGroup,
     updateGroup,
     deleteGroup,

@@ -44,6 +44,14 @@ func (h *AdminHandlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/admin/projects/{id}", wrap(h.UpdateProject))
 	mux.HandleFunc("DELETE /api/admin/projects/{id}", wrap(h.DeleteProject))
 
+	mux.HandleFunc("GET /api/admin/arrangements", wrap(h.ListArrangements))
+	mux.HandleFunc("POST /api/admin/arrangements", wrap(h.CreateArrangement))
+	mux.HandleFunc("PATCH /api/admin/arrangements/{id}", wrap(h.UpdateArrangement))
+	mux.HandleFunc("DELETE /api/admin/arrangements/{id}", wrap(h.DeleteArrangement))
+	mux.HandleFunc("POST /api/admin/arrangements/{id}/sub-events", wrap(h.CreateSubEvent))
+	mux.HandleFunc("PATCH /api/admin/sub-events/{id}", wrap(h.UpdateSubEvent))
+	mux.HandleFunc("DELETE /api/admin/sub-events/{id}", wrap(h.DeleteSubEvent))
+
 	mux.HandleFunc("GET /api/admin/users", wrap(h.ListUsers))
 	mux.HandleFunc("GET /api/admin/users/{id}", wrap(h.GetUser))
 
@@ -383,6 +391,193 @@ func (h *AdminHandlers) DeleteProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.queries.DeleteProject(r.Context(), id); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---------- Arrangements & sub-events ----------
+
+type subEventDTO struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+	Code string `json:"code"`
+}
+
+type arrangementDTO struct {
+	ID        int64         `json:"id"`
+	Name      string        `json:"name"`
+	Code      string        `json:"code"`
+	CreatedAt string        `json:"createdAt"`
+	SubEvents []subEventDTO `json:"subEvents"`
+}
+
+type nameCodeRequest struct {
+	Name string `json:"name"`
+	Code string `json:"code"`
+}
+
+func validateNameCode(req nameCodeRequest) error {
+	if req.Name == "" {
+		return errors.New("name is required")
+	}
+	if req.Code == "" {
+		return errors.New("code is required")
+	}
+	if !projectCodePattern.MatchString(req.Code) {
+		return errors.New("code may contain only letters, digits, '-' and '_'")
+	}
+	return nil
+}
+
+func (h *AdminHandlers) ListArrangements(w http.ResponseWriter, r *http.Request) {
+	arrs, err := h.queries.ListArrangements(r.Context())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	subs, err := h.queries.ListSubEvents(r.Context())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	byArr := map[int64][]subEventDTO{}
+	for _, s := range subs {
+		byArr[s.ArrangementID] = append(byArr[s.ArrangementID], subEventDTO{ID: s.ID, Name: s.Name, Code: s.Code})
+	}
+	out := make([]arrangementDTO, len(arrs))
+	for i, a := range arrs {
+		subList := byArr[a.ID]
+		if subList == nil {
+			subList = []subEventDTO{}
+		}
+		out[i] = arrangementDTO{ID: a.ID, Name: a.Name, Code: a.Code, CreatedAt: a.CreatedAt.Format(time.RFC3339), SubEvents: subList}
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (h *AdminHandlers) CreateArrangement(w http.ResponseWriter, r *http.Request) {
+	var req nameCodeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Code = strings.TrimSpace(req.Code)
+	if err := validateNameCode(req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	a, err := h.queries.CreateArrangement(r.Context(), db.CreateArrangementParams{Name: req.Name, Code: req.Code})
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, arrangementDTO{ID: a.ID, Name: a.Name, Code: a.Code, CreatedAt: a.CreatedAt.Format(time.RFC3339), SubEvents: []subEventDTO{}})
+}
+
+func (h *AdminHandlers) UpdateArrangement(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	var req nameCodeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Code = strings.TrimSpace(req.Code)
+	if err := validateNameCode(req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	a, err := h.queries.UpdateArrangement(r.Context(), db.UpdateArrangementParams{Name: req.Name, Code: req.Code, ID: id})
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, arrangementDTO{ID: a.ID, Name: a.Name, Code: a.Code, CreatedAt: a.CreatedAt.Format(time.RFC3339), SubEvents: []subEventDTO{}})
+}
+
+func (h *AdminHandlers) DeleteArrangement(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	// Remove children first so the delete works regardless of whether SQLite
+	// foreign-key enforcement is enabled on the connection.
+	if err := h.queries.DeleteSubEventsByArrangement(r.Context(), id); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := h.queries.DeleteArrangement(r.Context(), id); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AdminHandlers) CreateSubEvent(w http.ResponseWriter, r *http.Request) {
+	arrID, err := parseID(r)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	var req nameCodeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Code = strings.TrimSpace(req.Code)
+	if err := validateNameCode(req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s, err := h.queries.CreateSubEvent(r.Context(), db.CreateSubEventParams{ArrangementID: arrID, Name: req.Name, Code: req.Code})
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, subEventDTO{ID: s.ID, Name: s.Name, Code: s.Code})
+}
+
+func (h *AdminHandlers) UpdateSubEvent(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	var req nameCodeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Code = strings.TrimSpace(req.Code)
+	if err := validateNameCode(req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s, err := h.queries.UpdateSubEvent(r.Context(), db.UpdateSubEventParams{Name: req.Name, Code: req.Code, ID: id})
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, subEventDTO{ID: s.ID, Name: s.Name, Code: s.Code})
+}
+
+func (h *AdminHandlers) DeleteSubEvent(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	if err := h.queries.DeleteSubEvent(r.Context(), id); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

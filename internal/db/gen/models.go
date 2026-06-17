@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+type Arrangement struct {
+	ID        int64
+	Name      string
+	Code      string
+	CreatedAt time.Time
+}
+
 type Grant struct {
 	ID             int64
 	PrincipalKind  string
@@ -48,6 +55,14 @@ type Session struct {
 	UserID    int64
 	ExpiresAt time.Time
 	CreatedAt time.Time
+}
+
+type SubEvent struct {
+	ID            int64
+	ArrangementID int64
+	Name          string
+	Code          string
+	CreatedAt     time.Time
 }
 
 type Target struct {

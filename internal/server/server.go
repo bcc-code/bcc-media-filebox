@@ -168,6 +168,8 @@ func (s *Server) setupAPI() {
 	s.mux.HandleFunc("GET /api/targets", h.ListTargets)
 	s.mux.HandleFunc("GET /api/projects", h.ListProjects)
 	s.mux.HandleFunc("GET /api/projects/{code}/suggestions", h.ProjectSuggestions)
+	s.mux.HandleFunc("GET /api/arrangements", h.ListArrangements)
+	s.mux.HandleFunc("GET /api/arrangements/{code}/sub-events", h.ListSubEvents)
 	s.mux.HandleFunc("GET /api/uploads", h.ListUploads)
 
 	admin := api.NewAdminHandlers(s.queries)

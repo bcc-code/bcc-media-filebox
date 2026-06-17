@@ -38,8 +38,12 @@ type Field struct {
 	Placeholder string    `json:"placeholder,omitempty"`
 	Options     []Option  `json:"options,omitempty"`
 	// OptionsSource names a DB-backed catalog the select options come from
-	// (e.g. "projects") instead of the static Options above.
+	// (e.g. "projects", "arrangements") instead of the static Options above.
 	OptionsSource string `json:"optionsSource,omitempty"`
+	// OptionsScope makes the select dependent on another field: its options are
+	// fetched for the value of that field (e.g. sub-events for the chosen
+	// "arrangement"). Empty means a top-level (unscoped) catalog.
+	OptionsScope string `json:"optionsScope,omitempty"`
 	// Suggest enables free-text autocomplete sourced from prior uploads. The
 	// suggestions are scoped by the value of the SuggestScope field (e.g. season
 	// suggestions for the chosen "project").
@@ -159,6 +163,65 @@ var Registry = map[string]Form{
 				MinLength:   5,
 				MaxLength:   50,
 				Placeholder: "For example: cold open",
+			},
+		},
+	},
+	"oslofjord_delivery": {
+		Key:         "oslofjord_delivery",
+		Label:       "Oslofjord Delivery",
+		Description: "Add event details before uploading",
+		MaxFiles:    1,
+		Template:    "{arrangement}_{subEvent}_{post}_{type}_{navn}",
+		ResetFields: []string{"post", "navn"},
+		Fields: []Field{
+			{
+				Key:           "arrangement",
+				Label:         "Arrangement",
+				Type:          FieldSelect,
+				Required:      true,
+				Placeholder:   "Velg arrangement...",
+				OptionsSource: "arrangements",
+			},
+			{
+				// Not required: the "-" (empty) choice means "no sub-event" and
+				// is dropped from the filename. Options are the sub-events of the
+				// chosen arrangement.
+				Key:           "subEvent",
+				Label:         "Sub event",
+				Type:          FieldSelect,
+				Required:      false,
+				Placeholder:   "-",
+				OptionsSource: "subEvents",
+				OptionsScope:  "arrangement",
+			},
+			{
+				Key:       "post",
+				Label:     "Post-nr.",
+				Type:      FieldText,
+				Required:  false,
+				MaxLength: 10,
+			},
+			{
+				Key:      "type",
+				Label:    "Type",
+				Type:     FieldSelect,
+				Required: false,
+				Placeholder: "— Ingen —",
+				Options: []Option{
+					{Code: "VIDEO", Label: "Video"},
+					{Code: "LED", Label: "LED Background"},
+					{Code: "CLICK", Label: "ClickTrack"},
+					{Code: "PRES", Label: "Presentation"},
+				},
+			},
+			{
+				Key:         "navn",
+				Label:       "Navn",
+				Type:        FieldText,
+				Required:    true,
+				MinLength:   5,
+				MaxLength:   50,
+				Placeholder: "For example: temafilm",
 			},
 		},
 	},

@@ -174,6 +174,44 @@ func (h *Handlers) ProjectSuggestions(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string][]string{"seasons": seasons, "episodes": episodes})
 }
 
+// nameCodeView is the user-facing shape for catalog dropdowns (arrangements,
+// sub-events): visible name + the code embedded in the filename.
+type nameCodeView struct {
+	Name string `json:"name"`
+	Code string `json:"code"`
+}
+
+// ListArrangements returns all arrangements for the Arrangement select field.
+func (h *Handlers) ListArrangements(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	rows, err := h.queries.ListArrangements(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	out := make([]nameCodeView, len(rows))
+	for i, a := range rows {
+		out[i] = nameCodeView{Name: a.Name, Code: a.Code}
+	}
+	_ = json.NewEncoder(w).Encode(out)
+}
+
+// ListSubEvents returns the sub-events belonging to one arrangement (by code),
+// powering the dependent Sub event dropdown.
+func (h *Handlers) ListSubEvents(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	rows, err := h.queries.ListSubEventsByArrangementCode(r.Context(), r.PathValue("code"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	out := make([]nameCodeView, len(rows))
+	for i, s := range rows {
+		out[i] = nameCodeView{Name: s.Name, Code: s.Code}
+	}
+	_ = json.NewEncoder(w).Encode(out)
+}
+
 // ListUploads returns the history for the calling user. When the request is
 // authenticated, the session's canonical user_id is authoritative and the
 // user_id query parameter is ignored. Guests must supply user_id, but cannot

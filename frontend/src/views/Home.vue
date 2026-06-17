@@ -18,28 +18,55 @@ const target = ref('')
 // Per-target form field values, keyed by target name so switching back and
 // forth keeps what the user typed.
 const formValues = ref<Record<string, Record<string, string>>>({})
-// DB-backed projects for any field with optionsSource "projects".
-const projects = ref<Option[]>([])
-// Autocomplete suggestions for the current project, keyed by field key.
+// Top-level DB catalogs (no scope), keyed by optionsSource name.
+const catalogs = ref<Record<string, Option[]>>({})
+// Dependent (scoped) options, keyed by field key.
+const scopedOptions = ref<Record<string, Option[]>>({})
+// Last scope value fetched per dependent field, to avoid refetching.
+const scopeLoaded: Record<string, string> = {}
+// Autocomplete suggestions for the current scope, keyed by field key.
 const suggestions = ref<Record<string, string[]>>({})
 
+// Endpoints for catalog-backed select options.
+const catalogEndpoints: Record<string, string> = {
+  projects: '/api/projects',
+  arrangements: '/api/arrangements',
+}
+const scopedEndpoints: Record<string, (code: string) => string> = {
+  subEvents: (code) => `/api/arrangements/${encodeURIComponent(code)}/sub-events`,
+}
+
+function toOptions(rows: { name: string; code: string }[]): Option[] {
+  return rows.map((r) => ({ code: r.code, label: r.name }))
+}
+
+async function loadCatalog(source: string) {
+  if (catalogs.value[source] || !catalogEndpoints[source]) return
+  try {
+    const res = await fetch(catalogEndpoints[source])
+    catalogs.value = { ...catalogs.value, [source]: toOptions(await res.json()) }
+  } catch {
+    /* leave empty on failure */
+  }
+}
+
 onMounted(async () => {
-  const [tRes, pRes] = await Promise.all([fetch('/api/targets'), fetch('/api/projects')])
-  targets.value = await tRes.json()
+  const res = await fetch('/api/targets')
+  targets.value = await res.json()
   target.value = targets.value[0]?.name ?? ''
-  const proj: { name: string; code: string }[] = await pRes.json()
-  projects.value = proj.map((p) => ({ code: p.code, label: p.name }))
 })
 
 const selectedTarget = computed(() => targets.value.find((t) => t.name === target.value) ?? null)
 const activeForm = computed(() => getForm(selectedTarget.value?.formKey))
 const currentValues = computed(() => formValues.value[target.value] ?? {})
 
-// Supply project options to any field whose optionsSource is "projects".
+// Supply select options: scoped fields use their fetched per-scope list, plain
+// catalog fields use the top-level catalog.
 const dynamicOptions = computed<Record<string, Option[]>>(() => {
   const map: Record<string, Option[]> = {}
   for (const f of activeForm.value?.fields ?? []) {
-    if (f.optionsSource === 'projects') map[f.key] = projects.value
+    if (!f.optionsSource) continue
+    map[f.key] = f.optionsScope ? (scopedOptions.value[f.key] ?? []) : (catalogs.value[f.optionsSource] ?? [])
   }
   return map
 })
@@ -50,6 +77,51 @@ const scopeFieldKey = computed(() => activeForm.value?.fields.find((f) => f.sugg
 function setValues(values: Record<string, string>) {
   formValues.value = { ...formValues.value, [target.value]: values }
 }
+
+// When the active form changes, load its top-level catalogs and reset scoped state.
+watch(
+  activeForm,
+  (f) => {
+    scopedOptions.value = {}
+    for (const k of Object.keys(scopeLoaded)) delete scopeLoaded[k]
+    for (const field of f?.fields ?? []) {
+      if (field.optionsSource && !field.optionsScope) loadCatalog(field.optionsSource)
+    }
+  },
+  { immediate: true },
+)
+
+// Fetch dependent options when their scope field's value changes, and clear the
+// dependent field so a stale child selection can't survive a parent change.
+watch(
+  [activeForm, currentValues],
+  () => {
+    const f = activeForm.value
+    if (!f) return
+    for (const field of f.fields) {
+      if (!field.optionsSource || !field.optionsScope) continue
+      const scopeVal = currentValues.value[field.optionsScope] ?? ''
+      if (scopeLoaded[field.key] === scopeVal) continue
+      scopeLoaded[field.key] = scopeVal
+      if (currentValues.value[field.key]) {
+        setValues({ ...currentValues.value, [field.key]: '' })
+      }
+      if (!scopeVal) {
+        scopedOptions.value = { ...scopedOptions.value, [field.key]: [] }
+        continue
+      }
+      const ep = scopedEndpoints[field.optionsSource]
+      if (!ep) continue
+      fetch(ep(scopeVal))
+        .then((r) => r.json())
+        .then((rows) => {
+          scopedOptions.value = { ...scopedOptions.value, [field.key]: toOptions(rows) }
+        })
+        .catch(() => {})
+    }
+  },
+  { immediate: true },
+)
 
 // Refetch season/episode suggestions whenever the scoping project changes.
 watch(
