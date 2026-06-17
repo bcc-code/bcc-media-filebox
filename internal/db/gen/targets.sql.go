@@ -21,7 +21,9 @@ func (q *Queries) CountTargets(ctx context.Context) (int64, error) {
 }
 
 const createTarget = `-- name: CreateTarget :one
-INSERT INTO targets (name, path) VALUES (?, ?) RETURNING id, name, path, created_at
+INSERT INTO targets (name, path, position)
+VALUES (?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM targets))
+RETURNING id, name, path, created_at, position
 `
 
 type CreateTargetParams struct {
@@ -37,6 +39,7 @@ func (q *Queries) CreateTarget(ctx context.Context, arg CreateTargetParams) (Tar
 		&i.Name,
 		&i.Path,
 		&i.CreatedAt,
+		&i.Position,
 	)
 	return i, err
 }
@@ -51,7 +54,7 @@ func (q *Queries) DeleteTarget(ctx context.Context, id int64) error {
 }
 
 const getTarget = `-- name: GetTarget :one
-SELECT id, name, path, created_at FROM targets WHERE id = ?
+SELECT id, name, path, created_at, position FROM targets WHERE id = ?
 `
 
 func (q *Queries) GetTarget(ctx context.Context, id int64) (Target, error) {
@@ -62,12 +65,13 @@ func (q *Queries) GetTarget(ctx context.Context, id int64) (Target, error) {
 		&i.Name,
 		&i.Path,
 		&i.CreatedAt,
+		&i.Position,
 	)
 	return i, err
 }
 
 const getTargetByName = `-- name: GetTargetByName :one
-SELECT id, name, path, created_at FROM targets WHERE name = ?
+SELECT id, name, path, created_at, position FROM targets WHERE name = ?
 `
 
 func (q *Queries) GetTargetByName(ctx context.Context, name string) (Target, error) {
@@ -78,12 +82,13 @@ func (q *Queries) GetTargetByName(ctx context.Context, name string) (Target, err
 		&i.Name,
 		&i.Path,
 		&i.CreatedAt,
+		&i.Position,
 	)
 	return i, err
 }
 
 const listTargets = `-- name: ListTargets :many
-SELECT id, name, path, created_at FROM targets ORDER BY name
+SELECT id, name, path, created_at, position FROM targets ORDER BY position, id
 `
 
 func (q *Queries) ListTargets(ctx context.Context) ([]Target, error) {
@@ -100,6 +105,7 @@ func (q *Queries) ListTargets(ctx context.Context) ([]Target, error) {
 			&i.Name,
 			&i.Path,
 			&i.CreatedAt,
+			&i.Position,
 		); err != nil {
 			return nil, err
 		}
@@ -115,7 +121,7 @@ func (q *Queries) ListTargets(ctx context.Context) ([]Target, error) {
 }
 
 const updateTarget = `-- name: UpdateTarget :one
-UPDATE targets SET name = ?, path = ? WHERE id = ? RETURNING id, name, path, created_at
+UPDATE targets SET name = ?, path = ? WHERE id = ? RETURNING id, name, path, created_at, position
 `
 
 type UpdateTargetParams struct {
@@ -132,6 +138,21 @@ func (q *Queries) UpdateTarget(ctx context.Context, arg UpdateTargetParams) (Tar
 		&i.Name,
 		&i.Path,
 		&i.CreatedAt,
+		&i.Position,
 	)
 	return i, err
+}
+
+const updateTargetPosition = `-- name: UpdateTargetPosition :exec
+UPDATE targets SET position = ? WHERE id = ?
+`
+
+type UpdateTargetPositionParams struct {
+	Position int64
+	ID       int64
+}
+
+func (q *Queries) UpdateTargetPosition(ctx context.Context, arg UpdateTargetPositionParams) error {
+	_, err := q.db.ExecContext(ctx, updateTargetPosition, arg.Position, arg.ID)
+	return err
 }

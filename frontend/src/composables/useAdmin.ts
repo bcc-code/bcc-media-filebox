@@ -4,6 +4,7 @@ export interface Target {
   id: number
   name: string
   path: string
+  position: number
   createdAt: string
 }
 
@@ -159,6 +160,24 @@ async function duplicateTarget(t: Target) {
   await createTarget({ name: `${t.name} (copy)`, path: t.path })
 }
 
+async function reorderTargets(ids: number[]) {
+  const prev = targets.value
+  // Optimistic: reorder locally so the row jumps immediately under the cursor.
+  const byId = new Map(prev.map(t => [t.id, t]))
+  targets.value = ids.map(id => byId.get(id)).filter((t): t is Target => !!t)
+  try {
+    const t = await jsonFetch<Target[]>('/api/admin/targets/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    })
+    targets.value = t
+    showToast('Reordered targets')
+  } catch (e) {
+    targets.value = prev
+    showToast((e as Error).message, true)
+  }
+}
+
 // Groups ----------------------------------------------------------------
 
 async function createGroup(body: { name: string; description: string; members: string[] }) {
@@ -272,6 +291,7 @@ export function useAdmin() {
     updateTarget,
     deleteTarget,
     duplicateTarget,
+    reorderTargets,
     createGroup,
     updateGroup,
     deleteGroup,

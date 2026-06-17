@@ -1,5 +1,5 @@
 -- name: ListTargets :many
-SELECT * FROM targets ORDER BY name;
+SELECT * FROM targets ORDER BY position, id;
 
 -- name: GetTarget :one
 SELECT * FROM targets WHERE id = ?;
@@ -8,10 +8,15 @@ SELECT * FROM targets WHERE id = ?;
 SELECT * FROM targets WHERE name = ?;
 
 -- name: CreateTarget :one
-INSERT INTO targets (name, path) VALUES (?, ?) RETURNING *;
+INSERT INTO targets (name, path, position)
+VALUES (?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM targets))
+RETURNING *;
 
 -- name: UpdateTarget :one
 UPDATE targets SET name = ?, path = ? WHERE id = ? RETURNING *;
+
+-- name: UpdateTargetPosition :exec
+UPDATE targets SET position = ? WHERE id = ?;
 
 -- name: DeleteTarget :exec
 DELETE FROM targets WHERE id = ?;

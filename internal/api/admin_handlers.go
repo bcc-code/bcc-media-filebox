@@ -33,6 +33,7 @@ func (h *AdminHandlers) Register(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /api/admin/targets", wrap(h.ListTargets))
 	mux.HandleFunc("POST /api/admin/targets", wrap(h.CreateTarget))
+	mux.HandleFunc("POST /api/admin/targets/reorder", wrap(h.ReorderTargets))
 	mux.HandleFunc("PATCH /api/admin/targets/{id}", wrap(h.UpdateTarget))
 	mux.HandleFunc("DELETE /api/admin/targets/{id}", wrap(h.DeleteTarget))
 
@@ -82,6 +83,7 @@ type targetDTO struct {
 	ID        int64  `json:"id"`
 	Name      string `json:"name"`
 	Path      string `json:"path"`
+	Position  int64  `json:"position"`
 	CreatedAt string `json:"createdAt"`
 }
 
@@ -90,6 +92,7 @@ func targetToDTO(t db.Target) targetDTO {
 		ID:        t.ID,
 		Name:      t.Name,
 		Path:      t.Path,
+		Position:  t.Position,
 		CreatedAt: t.CreatedAt.Format(time.RFC3339),
 	}
 }
@@ -155,6 +158,65 @@ func (h *AdminHandlers) UpdateTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, targetToDTO(t))
+}
+
+type reorderTargetsRequest struct {
+	IDs []int64 `json:"ids"`
+}
+
+// ReorderTargets persists a new global ordering for targets. The request body
+// must contain the full id set in the desired order — any missing, extra, or
+// duplicate id is rejected with 400. Positions are renumbered 1..N.
+func (h *AdminHandlers) ReorderTargets(w http.ResponseWriter, r *http.Request) {
+	var req reorderTargetsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	existing, err := h.queries.ListTargets(r.Context())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if len(req.IDs) != len(existing) {
+		writeJSONError(w, http.StatusBadRequest, "ids must match the existing target set")
+		return
+	}
+	have := make(map[int64]struct{}, len(existing))
+	for _, t := range existing {
+		have[t.ID] = struct{}{}
+	}
+	seen := make(map[int64]struct{}, len(req.IDs))
+	for _, id := range req.IDs {
+		if _, dup := seen[id]; dup {
+			writeJSONError(w, http.StatusBadRequest, "duplicate id in request")
+			return
+		}
+		if _, ok := have[id]; !ok {
+			writeJSONError(w, http.StatusBadRequest, "unknown target id in request")
+			return
+		}
+		seen[id] = struct{}{}
+	}
+	for i, id := range req.IDs {
+		if err := h.queries.UpdateTargetPosition(r.Context(), db.UpdateTargetPositionParams{
+			Position: int64(i + 1),
+			ID:       id,
+		}); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	rows, err := h.queries.ListTargets(r.Context())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	out := make([]targetDTO, len(rows))
+	for i, t := range rows {
+		out[i] = targetToDTO(t)
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (h *AdminHandlers) DeleteTarget(w http.ResponseWriter, r *http.Request) {

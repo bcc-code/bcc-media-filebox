@@ -48,6 +48,7 @@ type Target struct {
 	Name      string
 	Path      string
 	CreatedAt time.Time
+	Position  int64
 }
 
 type Upload struct {
