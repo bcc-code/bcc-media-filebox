@@ -65,66 +65,8 @@ type Form struct {
 
 // Registry holds every hardcoded form keyed by Form.Key.
 var Registry = map[string]Form{
-	"bcc_media": {
-		Key:         "bcc_media",
-		Label:       "BCC Media",
-		Description: "Add event details before uploading",
-		MaxFiles:    1,
-		Template:    "{arrangement}_{subEvent}_{navn}",
-		Fields: []Field{
-			{
-				Key:         "arrangement",
-				Label:       "Arrangement",
-				Type:        FieldSelect,
-				Required:    true,
-				Placeholder: "Velg arrangement...",
-				Options: []Option{
-					{Code: "ARR", Label: "Arrangement"},
-					{Code: "SMR", Label: "Sommerstevne"},
-					{Code: "VIN", Label: "Vinterstevne"},
-				},
-			},
-			{
-				Key:         "subEvent",
-				Label:       "Sub event",
-				Type:        FieldSelect,
-				Required:    true,
-				Placeholder: "Velg arrangement først",
-				Options: []Option{
-					{Code: "SUB", Label: "Sub event"},
-					{Code: "MØT", Label: "Møte"},
-					{Code: "SEM", Label: "Seminar"},
-				},
-			},
-			{
-				Key:      "post",
-				Label:    "Post-nr.",
-				Type:     FieldNumber,
-				Required: false,
-			},
-			{
-				Key:      "type",
-				Label:    "Type",
-				Type:     FieldSelect,
-				Required: false,
-				Options: []Option{
-					{Code: "", Label: "— Ingen —"},
-					{Code: "VID", Label: "Video"},
-					{Code: "AUD", Label: "Audio"},
-				},
-			},
-			{
-				Key:         "navn",
-				Label:       "Navn",
-				Type:        FieldText,
-				Required:    true,
-				MaxLength:   50,
-				Placeholder: "For example: temafilm",
-			},
-		},
-	},
-	"camera_dailies": {
-		Key:         "camera_dailies",
+	"masters": {
+		Key:         "masters",
 		Label:       "BCC Media Masters",
 		Description: "Add project details before uploading",
 		MaxFiles:    1,

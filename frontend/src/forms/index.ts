@@ -48,61 +48,8 @@ export interface Form {
 }
 
 export const registry: Record<string, Form> = {
-  bcc_media: {
-    key: 'bcc_media',
-    label: 'BCC Media',
-    description: 'Add event details before uploading',
-    maxFiles: 1,
-    template: '{arrangement}_{subEvent}_{navn}',
-    fields: [
-      {
-        key: 'arrangement',
-        label: 'Arrangement',
-        type: 'select',
-        required: true,
-        placeholder: 'Velg arrangement...',
-        options: [
-          { code: 'ARR', label: 'Arrangement' },
-          { code: 'SMR', label: 'Sommerstevne' },
-          { code: 'VIN', label: 'Vinterstevne' },
-        ],
-      },
-      {
-        key: 'subEvent',
-        label: 'Sub event',
-        type: 'select',
-        required: true,
-        placeholder: 'Velg arrangement først',
-        options: [
-          { code: 'SUB', label: 'Sub event' },
-          { code: 'MØT', label: 'Møte' },
-          { code: 'SEM', label: 'Seminar' },
-        ],
-      },
-      { key: 'post', label: 'Post-nr.', type: 'number', required: false },
-      {
-        key: 'type',
-        label: 'Type',
-        type: 'select',
-        required: false,
-        options: [
-          { code: '', label: '— Ingen —' },
-          { code: 'VID', label: 'Video' },
-          { code: 'AUD', label: 'Audio' },
-        ],
-      },
-      {
-        key: 'navn',
-        label: 'Navn',
-        type: 'text',
-        required: true,
-        maxLength: 50,
-        placeholder: 'For example: temafilm',
-      },
-    ],
-  },
-  camera_dailies: {
-    key: 'camera_dailies',
+  masters: {
+    key: 'masters',
     label: 'BCC Media Masters',
     description: 'Add project details before uploading',
     maxFiles: 1,
