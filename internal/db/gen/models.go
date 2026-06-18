@@ -66,12 +66,13 @@ type SubEvent struct {
 }
 
 type Target struct {
-	ID        int64
-	Name      string
-	Path      string
-	CreatedAt time.Time
-	Position  int64
-	FormKey   sql.NullString
+	ID         int64
+	Name       string
+	Path       string
+	CreatedAt  time.Time
+	Position   int64
+	FormKey    sql.NullString
+	WebhookUrl sql.NullString
 }
 
 type Upload struct {

@@ -6,10 +6,10 @@ import { registry } from '../../forms'
 const props = defineProps<{ target: Target | null }>()
 const emit = defineEmits<{
   (e: 'cancel'): void
-  (e: 'save', body: { name: string; path: string; formKey: string | null }): void
+  (e: 'save', body: { name: string; path: string; formKey: string | null; webhookUrl: string | null }): void
 }>()
 
-const draft = reactive({ name: '', path: '', formKey: '' })
+const draft = reactive({ name: '', path: '', formKey: '', webhookUrl: '' })
 
 const formOptions = computed(() => Object.values(registry).map((f) => ({ key: f.key, label: f.label })))
 
@@ -19,6 +19,7 @@ watch(
     draft.name = t?.name ?? ''
     draft.path = t?.path ?? ''
     draft.formKey = t?.formKey ?? ''
+    draft.webhookUrl = t?.webhookUrl ?? ''
   },
   { immediate: true },
 )
@@ -32,6 +33,7 @@ function onSave() {
     name: draft.name.trim(),
     path: draft.path.trim(),
     formKey: draft.formKey || null,
+    webhookUrl: draft.webhookUrl.trim() || null,
   })
 }
 </script>
@@ -60,6 +62,15 @@ function onSave() {
           <option v-for="f in formOptions" :key="f.key" :value="f.key">{{ f.label }}</option>
         </select>
         <div class="hint">Forms collect structured details and derive the filename from them.</div>
+      </div>
+
+      <div class="field">
+        <label>Webhook URL</label>
+        <input class="mono" v-model="draft.webhookUrl" placeholder="https://example.com/hook" />
+        <div class="hint">
+          POSTed a JSON body with the sidecar name and path when an upload completes.
+          Only fires for targets bound to a form, which produce a JSON sidecar.
+        </div>
       </div>
 
       <div class="modal-actions">

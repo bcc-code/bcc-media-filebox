@@ -8,12 +8,12 @@ SELECT * FROM targets WHERE id = ?;
 SELECT * FROM targets WHERE name = ?;
 
 -- name: CreateTarget :one
-INSERT INTO targets (name, path, form_key, position)
-VALUES (?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM targets))
+INSERT INTO targets (name, path, form_key, webhook_url, position)
+VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM targets))
 RETURNING *;
 
 -- name: UpdateTarget :one
-UPDATE targets SET name = ?, path = ?, form_key = ? WHERE id = ? RETURNING *;
+UPDATE targets SET name = ?, path = ?, form_key = ?, webhook_url = ? WHERE id = ? RETURNING *;
 
 -- name: UpdateTargetPosition :exec
 UPDATE targets SET position = ? WHERE id = ?;

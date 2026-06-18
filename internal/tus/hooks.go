@@ -18,6 +18,7 @@ import (
 
 	db "filebox/internal/db/gen"
 	"filebox/internal/forms"
+	"filebox/internal/webhook"
 
 	"github.com/tus/tusd/v2/pkg/handler"
 )
@@ -153,8 +154,10 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 	var form forms.Form
 	hasForm := false
 	var formValues map[string]string
+	var webhookURL string
 	if t, err := ep.queries.GetTargetByName(context.Background(), targetName); err == nil {
 		targetDir = t.Path
+		webhookURL = t.WebhookUrl.String
 		if t.FormKey.Valid && t.FormKey.String != "" {
 			if f, ok := forms.Get(t.FormKey.String); ok {
 				form = f
@@ -221,6 +224,7 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 		uploaderID := info.MetaData["userid"]
 		payload := sidecarPayload{
 			OriginalFilename: rawFilename,
+			Filename:         filepath.Base(dstPath),
 			Target:           targetName,
 			FormKey:          form.Key,
 			Fields:           formValues,
@@ -231,6 +235,13 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 		}
 		if err := ep.writeSidecar(dstPath, targetDir, payload); err != nil {
 			log.Printf("warning: failed to write sidecar for %s: %v", dstPath, err)
+		} else if webhookURL != "" {
+			// Notify the target's webhook that a new file (and sidecar) landed.
+			// Fire-and-forget: like the sidecar write, this is best-effort — the
+			// file is the primary artifact and a slow or failing receiver must
+			// not stall finalization.
+			sidecarPath := dstPath + ".json"
+			ep.fireWebhook(webhookURL, filepath.Base(sidecarPath), ep.relPath(sidecarPath))
 		}
 	}
 
@@ -375,6 +386,7 @@ func crossDeviceMove(src, dst string) error {
 // submitted field values and provenance.
 type sidecarPayload struct {
 	OriginalFilename string            `json:"originalFilename"`
+	Filename         string            `json:"filename"`
 	Target           string            `json:"target"`
 	FormKey          string            `json:"formKey"`
 	Fields           map[string]string `json:"fields"`
@@ -442,6 +454,32 @@ func (ep *EventProcessor) writeSidecar(dstPath, targetDir string, payload sideca
 	}
 	log.Printf("sidecar written: %s", sidecarPath)
 	return nil
+}
+
+// relPath returns path relative to the upload root, used as the webhook "path"
+// field (e.g. "RawMaterial/ARR_SUB_NAME.mov.json"). Falls back to the absolute
+// path when the target dir lives outside the upload root.
+func (ep *EventProcessor) relPath(path string) string {
+	rel, err := filepath.Rel(ep.uploadDir, path)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if abs, aerr := filepath.Abs(path); aerr == nil {
+			return abs
+		}
+		return path
+	}
+	return rel
+}
+
+// fireWebhook sends the upload notification in a background goroutine so a slow
+// receiver never blocks finalization. Success and failure are logged.
+func (ep *EventProcessor) fireWebhook(url, sidecarName, relPath string) {
+	go func() {
+		if err := webhook.Send(context.Background(), url, webhook.Payload{Sidecar: sidecarName, Path: relPath}); err != nil {
+			log.Printf("warning: webhook to %s failed for %s: %v", url, sidecarName, err)
+			return
+		}
+		log.Printf("webhook delivered to %s for %s", url, sidecarName)
+	}()
 }
 
 func (ep *EventProcessor) uniquePath(dir, filename string) string {

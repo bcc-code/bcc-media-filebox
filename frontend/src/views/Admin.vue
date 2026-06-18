@@ -7,6 +7,7 @@ import { initials } from '../composables/adminHelpers'
 import TargetsTab from '../components/admin/TargetsTab.vue'
 import ProjectsTab from '../components/admin/ProjectsTab.vue'
 import ArrangementsTab from '../components/admin/ArrangementsTab.vue'
+import UploadsTab from '../components/admin/UploadsTab.vue'
 import UsersTab from '../components/admin/UsersTab.vue'
 import GroupsTab from '../components/admin/GroupsTab.vue'
 import AccessTab from '../components/admin/AccessTab.vue'
@@ -19,7 +20,7 @@ import GrantModal from '../components/admin/GrantModal.vue'
 import AppLogo from '../components/AppLogo.vue'
 import '../assets/admin.css'
 
-type Tab = 'targets' | 'projects' | 'arrangements' | 'users' | 'groups' | 'access'
+type Tab = 'targets' | 'projects' | 'arrangements' | 'uploads' | 'users' | 'groups' | 'access'
 
 const router = useRouter()
 const { state } = useAuth()
@@ -96,7 +97,7 @@ async function saveArrangement(body: { name: string; code: string }) {
   }
   arrangementModalOpen.value = false
 }
-async function saveTarget(body: { name: string; path: string; formKey: string | null }) {
+async function saveTarget(body: { name: string; path: string; formKey: string | null; webhookUrl: string | null }) {
   if (editingTarget.value) {
     await admin.updateTarget(editingTarget.value.id, body)
   } else {
@@ -212,6 +213,10 @@ async function revokeUser(u: AdminUserDetail) {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>
         Arrangements <span class="count">{{ admin.arrangements.value.length }}</span>
       </button>
+      <button :class="{ active: tab === 'uploads' }" @click="tab = 'uploads'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        Uploads <span class="count">{{ admin.adminUploads.value.length }}</span>
+      </button>
       <button :class="{ active: tab === 'users' }" @click="tab = 'users'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1.5-3.6 4-5 7-5s5.5 1.4 7 5"/></svg>
         Users <span class="count">{{ admin.users.value.length }}</span>
@@ -227,9 +232,10 @@ async function revokeUser(u: AdminUserDetail) {
     </div>
 
     <div class="page">
-      <TargetsTab v-if="tab === 'targets'" @new="openNewTarget" @open="openEditTarget" @edit="(t) => admin.updateTarget(t.id, { name: t.name, path: t.path, formKey: t.formKey })" />
+      <TargetsTab v-if="tab === 'targets'" @new="openNewTarget" @open="openEditTarget" @edit="(t) => admin.updateTarget(t.id, { name: t.name, path: t.path, formKey: t.formKey, webhookUrl: t.webhookUrl })" />
       <ProjectsTab v-else-if="tab === 'projects'" @new="openNewProject" @edit="openEditProject" />
       <ArrangementsTab v-else-if="tab === 'arrangements'" @new="openNewArrangement" @edit="openEditArrangement" />
+      <UploadsTab v-else-if="tab === 'uploads'" />
       <UsersTab v-else-if="tab === 'users'" @open="openUser" />
       <GroupsTab v-else-if="tab === 'groups'" @new="openNewGroup" @edit="openEditGroup" />
       <AccessTab v-else @new="openNewGrant" @edit="openEditGrant" />

@@ -22,19 +22,25 @@ func (q *Queries) CountTargets(ctx context.Context) (int64, error) {
 }
 
 const createTarget = `-- name: CreateTarget :one
-INSERT INTO targets (name, path, form_key, position)
-VALUES (?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM targets))
-RETURNING id, name, path, created_at, position, form_key
+INSERT INTO targets (name, path, form_key, webhook_url, position)
+VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM targets))
+RETURNING id, name, path, created_at, position, form_key, webhook_url
 `
 
 type CreateTargetParams struct {
-	Name    string
-	Path    string
-	FormKey sql.NullString
+	Name       string
+	Path       string
+	FormKey    sql.NullString
+	WebhookUrl sql.NullString
 }
 
 func (q *Queries) CreateTarget(ctx context.Context, arg CreateTargetParams) (Target, error) {
-	row := q.db.QueryRowContext(ctx, createTarget, arg.Name, arg.Path, arg.FormKey)
+	row := q.db.QueryRowContext(ctx, createTarget,
+		arg.Name,
+		arg.Path,
+		arg.FormKey,
+		arg.WebhookUrl,
+	)
 	var i Target
 	err := row.Scan(
 		&i.ID,
@@ -43,6 +49,7 @@ func (q *Queries) CreateTarget(ctx context.Context, arg CreateTargetParams) (Tar
 		&i.CreatedAt,
 		&i.Position,
 		&i.FormKey,
+		&i.WebhookUrl,
 	)
 	return i, err
 }
@@ -57,7 +64,7 @@ func (q *Queries) DeleteTarget(ctx context.Context, id int64) error {
 }
 
 const getTarget = `-- name: GetTarget :one
-SELECT id, name, path, created_at, position, form_key FROM targets WHERE id = ?
+SELECT id, name, path, created_at, position, form_key, webhook_url FROM targets WHERE id = ?
 `
 
 func (q *Queries) GetTarget(ctx context.Context, id int64) (Target, error) {
@@ -70,12 +77,13 @@ func (q *Queries) GetTarget(ctx context.Context, id int64) (Target, error) {
 		&i.CreatedAt,
 		&i.Position,
 		&i.FormKey,
+		&i.WebhookUrl,
 	)
 	return i, err
 }
 
 const getTargetByName = `-- name: GetTargetByName :one
-SELECT id, name, path, created_at, position, form_key FROM targets WHERE name = ?
+SELECT id, name, path, created_at, position, form_key, webhook_url FROM targets WHERE name = ?
 `
 
 func (q *Queries) GetTargetByName(ctx context.Context, name string) (Target, error) {
@@ -88,12 +96,13 @@ func (q *Queries) GetTargetByName(ctx context.Context, name string) (Target, err
 		&i.CreatedAt,
 		&i.Position,
 		&i.FormKey,
+		&i.WebhookUrl,
 	)
 	return i, err
 }
 
 const listTargets = `-- name: ListTargets :many
-SELECT id, name, path, created_at, position, form_key FROM targets ORDER BY position, id
+SELECT id, name, path, created_at, position, form_key, webhook_url FROM targets ORDER BY position, id
 `
 
 func (q *Queries) ListTargets(ctx context.Context) ([]Target, error) {
@@ -112,6 +121,7 @@ func (q *Queries) ListTargets(ctx context.Context) ([]Target, error) {
 			&i.CreatedAt,
 			&i.Position,
 			&i.FormKey,
+			&i.WebhookUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -127,14 +137,15 @@ func (q *Queries) ListTargets(ctx context.Context) ([]Target, error) {
 }
 
 const updateTarget = `-- name: UpdateTarget :one
-UPDATE targets SET name = ?, path = ?, form_key = ? WHERE id = ? RETURNING id, name, path, created_at, position, form_key
+UPDATE targets SET name = ?, path = ?, form_key = ?, webhook_url = ? WHERE id = ? RETURNING id, name, path, created_at, position, form_key, webhook_url
 `
 
 type UpdateTargetParams struct {
-	Name    string
-	Path    string
-	FormKey sql.NullString
-	ID      int64
+	Name       string
+	Path       string
+	FormKey    sql.NullString
+	WebhookUrl sql.NullString
+	ID         int64
 }
 
 func (q *Queries) UpdateTarget(ctx context.Context, arg UpdateTargetParams) (Target, error) {
@@ -142,6 +153,7 @@ func (q *Queries) UpdateTarget(ctx context.Context, arg UpdateTargetParams) (Tar
 		arg.Name,
 		arg.Path,
 		arg.FormKey,
+		arg.WebhookUrl,
 		arg.ID,
 	)
 	var i Target
@@ -152,6 +164,7 @@ func (q *Queries) UpdateTarget(ctx context.Context, arg UpdateTargetParams) (Tar
 		&i.CreatedAt,
 		&i.Position,
 		&i.FormKey,
+		&i.WebhookUrl,
 	)
 	return i, err
 }

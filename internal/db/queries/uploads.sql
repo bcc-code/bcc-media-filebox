@@ -44,6 +44,13 @@ UPDATE uploads SET filename = ? WHERE id = ?;
 -- name: ListUploads :many
 SELECT * FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = ? ORDER BY created_at DESC;
 
+-- name: ListCompletedFormUploads :many
+SELECT id, filename, size, target_name, user_id, completed_at, created_at
+FROM uploads
+WHERE is_partial = 0 AND status = 'completed' AND form_data IS NOT NULL
+ORDER BY completed_at DESC
+LIMIT 100;
+
 -- name: DeleteUpload :exec
 DELETE FROM uploads WHERE id = ?;
 

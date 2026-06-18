@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const completeUpload = `-- name: CompleteUpload :exec
@@ -110,6 +111,55 @@ func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
 		&i.FormData,
 	)
 	return i, err
+}
+
+const listCompletedFormUploads = `-- name: ListCompletedFormUploads :many
+SELECT id, filename, size, target_name, user_id, completed_at, created_at
+FROM uploads
+WHERE is_partial = 0 AND status = 'completed' AND form_data IS NOT NULL
+ORDER BY completed_at DESC
+LIMIT 100
+`
+
+type ListCompletedFormUploadsRow struct {
+	ID          string
+	Filename    string
+	Size        int64
+	TargetName  sql.NullString
+	UserID      string
+	CompletedAt sql.NullTime
+	CreatedAt   time.Time
+}
+
+func (q *Queries) ListCompletedFormUploads(ctx context.Context) ([]ListCompletedFormUploadsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listCompletedFormUploads)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListCompletedFormUploadsRow
+	for rows.Next() {
+		var i ListCompletedFormUploadsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Filename,
+			&i.Size,
+			&i.TargetName,
+			&i.UserID,
+			&i.CompletedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listUploads = `-- name: ListUploads :many

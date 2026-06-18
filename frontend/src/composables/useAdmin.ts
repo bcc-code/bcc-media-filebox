@@ -5,6 +5,7 @@ export interface Target {
   name: string
   path: string
   formKey: string | null
+  webhookUrl: string | null
   position: number
   createdAt: string
 }
@@ -75,6 +76,16 @@ export interface RecentUpload {
   when: string
 }
 
+export interface AdminUpload {
+  id: string
+  filename: string
+  size: number
+  targetName: string
+  uploaderEmail: string
+  when: string
+  webhookConfigured: boolean
+}
+
 export interface AdminUserDetail extends AdminUser {
   recent: RecentUpload[]
   directGrants: Grant[]
@@ -88,6 +99,7 @@ const arrangements = ref<Arrangement[]>([])
 const groups = ref<Group[]>([])
 const grants = ref<Grant[]>([])
 const users = ref<AdminUser[]>([])
+const adminUploads = ref<AdminUpload[]>([])
 const loading = ref(false)
 const lastError = ref<string | null>(null)
 
@@ -148,7 +160,7 @@ async function loadAll() {
 
 // Targets ---------------------------------------------------------------
 
-async function createTarget(body: { name: string; path: string; formKey?: string | null }) {
+async function createTarget(body: { name: string; path: string; formKey?: string | null; webhookUrl?: string | null }) {
   try {
     const t = await jsonFetch<Target>('/api/admin/targets', { method: 'POST', body: JSON.stringify(body) })
     targets.value.push(t)
@@ -158,7 +170,7 @@ async function createTarget(body: { name: string; path: string; formKey?: string
   }
 }
 
-async function updateTarget(id: number, body: { name: string; path: string; formKey?: string | null }) {
+async function updateTarget(id: number, body: { name: string; path: string; formKey?: string | null; webhookUrl?: string | null }) {
   try {
     const t = await jsonFetch<Target>(`/api/admin/targets/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
     const i = targets.value.findIndex(x => x.id === id)
@@ -185,7 +197,7 @@ async function deleteTarget(id: number) {
 }
 
 async function duplicateTarget(t: Target) {
-  await createTarget({ name: `${t.name} (copy)`, path: t.path, formKey: t.formKey })
+  await createTarget({ name: `${t.name} (copy)`, path: t.path, formKey: t.formKey, webhookUrl: t.webhookUrl })
 }
 
 async function reorderTargets(ids: number[]) {
@@ -402,6 +414,25 @@ async function loadUserDetail(id: number): Promise<AdminUserDetail | null> {
   }
 }
 
+// Uploads / Webhooks ----------------------------------------------------
+
+async function loadAdminUploads() {
+  try {
+    adminUploads.value = await jsonFetch<AdminUpload[]>('/api/admin/uploads')
+  } catch (e) {
+    showToast((e as Error).message, true)
+  }
+}
+
+async function retriggerWebhook(id: string) {
+  try {
+    await jsonFetch(`/api/admin/uploads/${id}/webhook`, { method: 'POST' })
+    showToast('Webhook re-triggered')
+  } catch (e) {
+    showToast((e as Error).message, true)
+  }
+}
+
 // Derived ---------------------------------------------------------------
 
 const builtinGroups = computed(() => groups.value.filter(g => g.kind === 'builtin'))
@@ -415,6 +446,7 @@ export function useAdmin() {
     groups,
     grants,
     users,
+    adminUploads,
     builtinGroups,
     customGroups,
     loading,
@@ -443,5 +475,7 @@ export function useAdmin() {
     updateGrant,
     deleteGrant,
     loadUserDetail,
+    loadAdminUploads,
+    retriggerWebhook,
   }
 }

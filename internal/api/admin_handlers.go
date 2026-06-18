@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,15 +18,17 @@ import (
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
 	"filebox/internal/forms"
+	"filebox/internal/webhook"
 )
 
 // AdminHandlers exposes /api/admin/* endpoints, all gated by users.role=='admin'.
 type AdminHandlers struct {
-	queries *db.Queries
+	queries   *db.Queries
+	uploadDir string
 }
 
-func NewAdminHandlers(queries *db.Queries) *AdminHandlers {
-	return &AdminHandlers{queries: queries}
+func NewAdminHandlers(queries *db.Queries, uploadDir string) *AdminHandlers {
+	return &AdminHandlers{queries: queries, uploadDir: uploadDir}
 }
 
 // Register wires every admin route under /api/admin/ behind the requireAdmin
@@ -51,6 +54,9 @@ func (h *AdminHandlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/admin/arrangements/{id}/sub-events", wrap(h.CreateSubEvent))
 	mux.HandleFunc("PATCH /api/admin/sub-events/{id}", wrap(h.UpdateSubEvent))
 	mux.HandleFunc("DELETE /api/admin/sub-events/{id}", wrap(h.DeleteSubEvent))
+
+	mux.HandleFunc("GET /api/admin/uploads", wrap(h.ListUploads))
+	mux.HandleFunc("POST /api/admin/uploads/{id}/webhook", wrap(h.RetriggerWebhook))
 
 	mux.HandleFunc("GET /api/admin/users", wrap(h.ListUsers))
 	mux.HandleFunc("GET /api/admin/users/{id}", wrap(h.GetUser))
@@ -95,12 +101,13 @@ func parseID(r *http.Request) (int64, error) {
 // ---------- Targets ----------
 
 type targetDTO struct {
-	ID        int64   `json:"id"`
-	Name      string  `json:"name"`
-	Path      string  `json:"path"`
-	FormKey   *string `json:"formKey"`
-	Position  int64   `json:"position"`
-	CreatedAt string  `json:"createdAt"`
+	ID         int64   `json:"id"`
+	Name       string  `json:"name"`
+	Path       string  `json:"path"`
+	FormKey    *string `json:"formKey"`
+	WebhookUrl *string `json:"webhookUrl"`
+	Position   int64   `json:"position"`
+	CreatedAt  string  `json:"createdAt"`
 }
 
 func targetToDTO(t db.Target) targetDTO {
@@ -113,6 +120,9 @@ func targetToDTO(t db.Target) targetDTO {
 	}
 	if t.FormKey.Valid && t.FormKey.String != "" {
 		dto.FormKey = &t.FormKey.String
+	}
+	if t.WebhookUrl.Valid && t.WebhookUrl.String != "" {
+		dto.WebhookUrl = &t.WebhookUrl.String
 	}
 	return dto
 }
@@ -131,9 +141,10 @@ func (h *AdminHandlers) ListTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 type targetWriteRequest struct {
-	Name    string  `json:"name"`
-	Path    string  `json:"path"`
-	FormKey *string `json:"formKey"`
+	Name       string  `json:"name"`
+	Path       string  `json:"path"`
+	FormKey    *string `json:"formKey"`
+	WebhookUrl *string `json:"webhookUrl"`
 }
 
 // formKeyParam normalizes the request's form key into the nullable column value,
@@ -143,6 +154,15 @@ func (req targetWriteRequest) formKeyParam() sql.NullString {
 		return sql.NullString{}
 	}
 	return sql.NullString{String: strings.TrimSpace(*req.FormKey), Valid: true}
+}
+
+// webhookURLParam normalizes the request's webhook URL into the nullable column
+// value, treating an empty string the same as "no webhook".
+func (req targetWriteRequest) webhookURLParam() sql.NullString {
+	if req.WebhookUrl == nil || strings.TrimSpace(*req.WebhookUrl) == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: strings.TrimSpace(*req.WebhookUrl), Valid: true}
 }
 
 func (h *AdminHandlers) CreateTarget(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +177,7 @@ func (h *AdminHandlers) CreateTarget(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	t, err := h.queries.CreateTarget(r.Context(), db.CreateTargetParams{Name: req.Name, Path: req.Path, FormKey: req.formKeyParam()})
+	t, err := h.queries.CreateTarget(r.Context(), db.CreateTargetParams{Name: req.Name, Path: req.Path, FormKey: req.formKeyParam(), WebhookUrl: req.webhookURLParam()})
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
@@ -182,7 +202,7 @@ func (h *AdminHandlers) UpdateTarget(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	t, err := h.queries.UpdateTarget(r.Context(), db.UpdateTargetParams{Name: req.Name, Path: req.Path, FormKey: req.formKeyParam(), ID: id})
+	t, err := h.queries.UpdateTarget(r.Context(), db.UpdateTargetParams{Name: req.Name, Path: req.Path, FormKey: req.formKeyParam(), WebhookUrl: req.webhookURLParam(), ID: id})
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
@@ -262,6 +282,123 @@ func (h *AdminHandlers) DeleteTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---------- Uploads / Webhooks ----------
+
+type adminUploadDTO struct {
+	ID                string `json:"id"`
+	Filename          string `json:"filename"`
+	Size              int64  `json:"size"`
+	TargetName        string `json:"targetName"`
+	UploaderEmail     string `json:"uploaderEmail"`
+	When              string `json:"when"`
+	WebhookConfigured bool   `json:"webhookConfigured"`
+}
+
+// ListUploads returns recent completed form uploads (those that produced a JSON
+// sidecar) across all users, annotated with the uploader email and whether the
+// upload's target has a webhook URL configured — i.e. whether re-triggering is
+// possible.
+func (h *AdminHandlers) ListUploads(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.queries.ListCompletedFormUploads(r.Context())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Build target name -> webhook-configured and user_id -> email maps once,
+	// rather than querying per upload row.
+	targets, err := h.queries.ListTargets(r.Context())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	webhookByTarget := make(map[string]bool, len(targets))
+	for _, t := range targets {
+		webhookByTarget[t.Name] = t.WebhookUrl.Valid && t.WebhookUrl.String != ""
+	}
+	users, err := h.queries.ListUsers(r.Context())
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	emailByUser := make(map[string]string, len(users))
+	for _, u := range users {
+		emailByUser[u.Provider+":"+u.Subject] = u.Email.String
+	}
+
+	out := make([]adminUploadDTO, len(rows))
+	for i, ru := range rows {
+		when := ru.CreatedAt
+		if ru.CompletedAt.Valid {
+			when = ru.CompletedAt.Time
+		}
+		out[i] = adminUploadDTO{
+			ID:                ru.ID,
+			Filename:          ru.Filename,
+			Size:              ru.Size,
+			TargetName:        ru.TargetName.String,
+			UploaderEmail:     emailByUser[ru.UserID],
+			When:              when.Format(time.RFC3339),
+			WebhookConfigured: webhookByTarget[ru.TargetName.String],
+		}
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// RetriggerWebhook re-sends the upload webhook for a past upload, reconstructing
+// the exact same request the live upload path sends. The sidecar name and path
+// are derived identically (target dir + "<filename>.json", relative to the
+// upload root) so the receiver sees an indistinguishable notification.
+func (h *AdminHandlers) RetriggerWebhook(w http.ResponseWriter, r *http.Request) {
+	uploadID := r.PathValue("id")
+	upload, err := h.queries.GetUpload(r.Context(), uploadID)
+	if err != nil {
+		writeJSONError(w, http.StatusNotFound, "upload not found")
+		return
+	}
+	if !upload.TargetName.Valid || upload.TargetName.String == "" {
+		writeJSONError(w, http.StatusBadRequest, "upload has no target")
+		return
+	}
+	target, err := h.queries.GetTargetByName(r.Context(), upload.TargetName.String)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "target not found")
+		return
+	}
+	if !target.WebhookUrl.Valid || target.WebhookUrl.String == "" {
+		writeJSONError(w, http.StatusBadRequest, "no webhook configured for this target")
+		return
+	}
+
+	sidecarName := upload.Filename + ".json"
+	sidecarPath := filepath.Join(target.Path, sidecarName)
+	if _, err := os.Stat(sidecarPath); os.IsNotExist(err) {
+		writeJSONError(w, http.StatusNotFound, "sidecar file not found on disk")
+		return
+	}
+
+	payload := webhook.Payload{Sidecar: sidecarName, Path: h.relPath(sidecarPath)}
+	if err := webhook.Send(r.Context(), target.WebhookUrl.String, payload); err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "sent"})
+}
+
+// relPath returns path relative to the upload root for the webhook "path" field,
+// falling back to the absolute path when the target dir lives outside the root.
+// Mirrors the logic in internal/tus so live and re-triggered payloads match.
+func (h *AdminHandlers) relPath(path string) string {
+	rel, err := filepath.Rel(h.uploadDir, path)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if abs, aerr := filepath.Abs(path); aerr == nil {
+			return abs
+		}
+		return path
+	}
+	return rel
 }
 
 func validateTarget(req targetWriteRequest) error {

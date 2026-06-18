@@ -44,7 +44,7 @@ func New(queries *db.Queries, uploadDir string, baseURL string, frontendFS fs.FS
 	if err := s.setupTus(uploadDir, baseURL); err != nil {
 		return nil, err
 	}
-	s.setupAPI()
+	s.setupAPI(uploadDir)
 	s.setupAuth()
 	s.setupFrontend(frontendFS)
 
@@ -163,7 +163,7 @@ func (s *Server) resolveUploadUserID(hook tushandler.HookEvent) (string, error) 
 	return "guest:" + raw, nil
 }
 
-func (s *Server) setupAPI() {
+func (s *Server) setupAPI(uploadDir string) {
 	h := api.NewHandlers(s.queries)
 	s.mux.HandleFunc("GET /api/targets", h.ListTargets)
 	s.mux.HandleFunc("GET /api/projects", h.ListProjects)
@@ -172,7 +172,7 @@ func (s *Server) setupAPI() {
 	s.mux.HandleFunc("GET /api/arrangements/{code}/sub-events", h.ListSubEvents)
 	s.mux.HandleFunc("GET /api/uploads", h.ListUploads)
 
-	admin := api.NewAdminHandlers(s.queries)
+	admin := api.NewAdminHandlers(s.queries, uploadDir)
 	admin.Register(s.mux)
 }
 
