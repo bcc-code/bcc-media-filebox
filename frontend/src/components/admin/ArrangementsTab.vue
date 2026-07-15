@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { useAdmin, type Arrangement } from '../../composables/useAdmin'
+import SubEventImportModal from './SubEventImportModal.vue'
 
 const emit = defineEmits<{ (e: 'new'): void; (e: 'edit', a: Arrangement): void }>()
 const { arrangements, deleteArrangement, createSubEvent, updateSubEvent, deleteSubEvent } = useAdmin()
 
 const expanded = ref<Set<number>>(new Set())
+// Arrangement the bulk-import modal is currently open for.
+const importFor = ref<Arrangement | null>(null)
 // Inline-edit drafts for existing sub events, keyed by sub-event id.
 const editById = reactive<Record<number, { name: string; code: string }>>({})
 // "Add sub event" drafts, keyed by arrangement id.
@@ -104,10 +107,15 @@ async function onDeleteArrangement(a: Arrangement) {
           <input v-model="newSub[a.id].name" class="inline-edit sub-name" placeholder="New sub event name" @keyup.enter="addSub(a)" />
           <input v-model="newSub[a.id].code" class="inline-edit mono sub-code" placeholder="CODE" @keyup.enter="addSub(a)" />
           <button class="btn btn-sm btn-primary" @click="addSub(a)">Add</button>
+          <button class="btn btn-sm btn-ghost" @click="importFor = a">Import list…</button>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Outside the .fb-fade wrapper: its transform animation would otherwise
+       become the containing block for the modal's position:fixed overlay. -->
+  <SubEventImportModal v-if="importFor" :arrangement="importFor" @close="importFor = null" />
 </template>
 
 <style scoped>

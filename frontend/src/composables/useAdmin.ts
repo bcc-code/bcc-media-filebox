@@ -298,6 +298,23 @@ async function createSubEvent(arrangementId: number, body: { name: string; code:
   }
 }
 
+async function importSubEvents(arrangementId: number, items: { name: string; code: string }[]): Promise<boolean> {
+  try {
+    const res = await jsonFetch<{ created: SubEvent[]; skipped: number }>(
+      `/api/admin/arrangements/${arrangementId}/sub-events/import`,
+      { method: 'POST', body: JSON.stringify({ items }) },
+    )
+    const arr = arrangements.value.find(x => x.id === arrangementId)
+    if (arr) arr.subEvents.push(...res.created)
+    const skipped = res.skipped > 0 ? ` (${res.skipped} already existed)` : ''
+    showToast(`Imported ${res.created.length} sub event${res.created.length === 1 ? '' : 's'}${skipped}`)
+    return true
+  } catch (e) {
+    showToast((e as Error).message, true)
+    return false
+  }
+}
+
 async function updateSubEvent(arrangementId: number, id: number, body: { name: string; code: string }) {
   try {
     const s = await jsonFetch<SubEvent>(`/api/admin/sub-events/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
@@ -466,6 +483,7 @@ export function useAdmin() {
     updateArrangement,
     deleteArrangement,
     createSubEvent,
+    importSubEvents,
     updateSubEvent,
     deleteSubEvent,
     createGroup,

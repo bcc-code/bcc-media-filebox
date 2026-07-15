@@ -52,6 +52,7 @@ func (h *AdminHandlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/admin/arrangements/{id}", wrap(h.UpdateArrangement))
 	mux.HandleFunc("DELETE /api/admin/arrangements/{id}", wrap(h.DeleteArrangement))
 	mux.HandleFunc("POST /api/admin/arrangements/{id}/sub-events", wrap(h.CreateSubEvent))
+	mux.HandleFunc("POST /api/admin/arrangements/{id}/sub-events/import", wrap(h.ImportSubEvents))
 	mux.HandleFunc("PATCH /api/admin/sub-events/{id}", wrap(h.UpdateSubEvent))
 	mux.HandleFunc("DELETE /api/admin/sub-events/{id}", wrap(h.DeleteSubEvent))
 
@@ -681,6 +682,87 @@ func (h *AdminHandlers) CreateSubEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, subEventDTO{ID: s.ID, Name: s.Name, Code: s.Code})
+}
+
+type importSubEventsRequest struct {
+	Items []nameCodeRequest `json:"items"`
+}
+
+type importSubEventsResponse struct {
+	Created []subEventDTO `json:"created"`
+	Skipped int           `json:"skipped"`
+}
+
+// ImportSubEvents bulk-creates sub events from a pasted name/code list. Items
+// whose name or code already exists in the arrangement are skipped, so
+// re-importing an updated version of the same list is safe.
+func (h *AdminHandlers) ImportSubEvents(w http.ResponseWriter, r *http.Request) {
+	arrID, err := parseID(r)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	var req importSubEventsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	if len(req.Items) == 0 {
+		writeJSONError(w, http.StatusBadRequest, "items are required")
+		return
+	}
+	// FK enforcement may be off on this connection, so check the arrangement
+	// exists before inserting anything into it.
+	if _, err := h.queries.GetArrangement(r.Context(), arrID); err != nil {
+		writeJSONError(w, http.StatusNotFound, "arrangement not found")
+		return
+	}
+	seenNames := map[string]bool{}
+	seenCodes := map[string]bool{}
+	for i := range req.Items {
+		req.Items[i].Name = strings.TrimSpace(req.Items[i].Name)
+		req.Items[i].Code = strings.TrimSpace(req.Items[i].Code)
+		it := req.Items[i]
+		if err := validateNameCode(it); err != nil {
+			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("item %d (%q): %s", i+1, it.Name, err))
+			return
+		}
+		if seenNames[strings.ToLower(it.Name)] {
+			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("duplicate name %q in the list", it.Name))
+			return
+		}
+		if seenCodes[strings.ToLower(it.Code)] {
+			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("duplicate code %q in the list", it.Code))
+			return
+		}
+		seenNames[strings.ToLower(it.Name)] = true
+		seenCodes[strings.ToLower(it.Code)] = true
+	}
+	existing, err := h.queries.ListSubEventsByArrangement(r.Context(), arrID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	existingNames := map[string]bool{}
+	existingCodes := map[string]bool{}
+	for _, s := range existing {
+		existingNames[strings.ToLower(s.Name)] = true
+		existingCodes[strings.ToLower(s.Code)] = true
+	}
+	resp := importSubEventsResponse{Created: []subEventDTO{}}
+	for _, it := range req.Items {
+		if existingNames[strings.ToLower(it.Name)] || existingCodes[strings.ToLower(it.Code)] {
+			resp.Skipped++
+			continue
+		}
+		s, err := h.queries.CreateSubEvent(r.Context(), db.CreateSubEventParams{ArrangementID: arrID, Name: it.Name, Code: it.Code})
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		resp.Created = append(resp.Created, subEventDTO{ID: s.ID, Name: s.Name, Code: s.Code})
+	}
+	writeJSON(w, http.StatusCreated, resp)
 }
 
 func (h *AdminHandlers) UpdateSubEvent(w http.ResponseWriter, r *http.Request) {
