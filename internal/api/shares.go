@@ -269,7 +269,31 @@ func (h *Handlers) ListSharesByUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// DeleteShare deletes a share
+// DeleteShare revokes a share. Only the share's creator may delete it.
 func (h *Handlers) DeleteShare(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement
+	caller := auth.CallerFrom(r.Context())
+	if caller == nil {
+		writeJSONError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+
+	shareID := r.PathValue("id")
+
+	share, err := h.queries.GetShareByID(r.Context(), shareID)
+	if err != nil {
+		writeJSONError(w, http.StatusNotFound, "share not found")
+		return
+	}
+
+	if share.CreatedByUserID != caller.UserID {
+		writeJSONError(w, http.StatusForbidden, "not authorized to delete this share")
+		return
+	}
+
+	if err := h.queries.DeleteShare(r.Context(), shareID); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to delete share")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

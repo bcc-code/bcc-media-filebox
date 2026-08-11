@@ -173,6 +173,7 @@ func (s *Server) setupAPI(uploadDir string) {
 	s.mux.HandleFunc("GET /api/uploads", h.ListUploads)
 	s.mux.HandleFunc("GET /api/shares", h.ListSharesByUser)
 	s.mux.HandleFunc("GET /api/shares/{id}", h.GetShare)
+	s.mux.HandleFunc("DELETE /api/shares/{id}", h.DeleteShare)
 
 	admin := api.NewAdminHandlers(s.queries, uploadDir)
 	admin.Register(s.mux)
