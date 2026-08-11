@@ -164,13 +164,15 @@ func (s *Server) resolveUploadUserID(hook tushandler.HookEvent) (string, error) 
 }
 
 func (s *Server) setupAPI(uploadDir string) {
-	h := api.NewHandlers(s.queries)
+	h := api.NewHandlers(s.queries, uploadDir)
 	s.mux.HandleFunc("GET /api/targets", h.ListTargets)
 	s.mux.HandleFunc("GET /api/projects", h.ListProjects)
 	s.mux.HandleFunc("GET /api/projects/{code}/suggestions", h.ProjectSuggestions)
 	s.mux.HandleFunc("GET /api/arrangements", h.ListArrangements)
 	s.mux.HandleFunc("GET /api/arrangements/{code}/sub-events", h.ListSubEvents)
 	s.mux.HandleFunc("GET /api/uploads", h.ListUploads)
+	s.mux.HandleFunc("GET /api/shares", h.ListSharesByUser)
+	s.mux.HandleFunc("GET /api/shares/{id}", h.GetShare)
 
 	admin := api.NewAdminHandlers(s.queries, uploadDir)
 	admin.Register(s.mux)

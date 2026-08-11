@@ -5,11 +5,20 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
+)
+
+const (
+	defaultSharesPageSize = 20
+	maxSharesPageSize     = 100
 )
 
 type CreateShareRequest struct {
@@ -118,9 +127,55 @@ func generateShareID() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// GetShare retrieves a share by ID
+// GetShare retrieves a share by ID and serves the underlying file, provided
+// the share hasn't expired and, for shares requiring BCC auth, the caller is
+// logged in via the "bcc" provider.
 func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement
+	shareID := r.PathValue("id")
+
+	share, err := h.queries.GetActiveShareByID(r.Context(), shareID)
+	if err != nil {
+		writeJSONError(w, http.StatusNotFound, "share not found or expired")
+		return
+	}
+
+	if share.RequiresAuth == "bcc" {
+		caller := auth.CallerFrom(r.Context())
+		if caller == nil || caller.Provider != "bcc" {
+			writeJSONError(w, http.StatusForbidden, "authentication required")
+			return
+		}
+	}
+
+	upload, err := h.queries.GetUpload(r.Context(), share.UploadID)
+	if err != nil {
+		writeJSONError(w, http.StatusNotFound, "file not found")
+		return
+	}
+
+	// Mirrors the directory resolution in internal/tus's finalizeUpload: files
+	// land under the target's configured path, or uploadDir/RawMaterial when
+	// the upload has no target.
+	targetDir := filepath.Join(h.uploadDir, "RawMaterial")
+	if upload.TargetName.Valid && upload.TargetName.String != "" {
+		if target, err := h.queries.GetTargetByName(r.Context(), upload.TargetName.String); err == nil {
+			targetDir = target.Path
+		}
+	}
+	filePath := filepath.Join(targetDir, upload.Filename)
+
+	if _, err := os.Stat(filePath); err != nil {
+		writeJSONError(w, http.StatusNotFound, "file not found on disk")
+		return
+	}
+
+	if _, err := h.queries.UpdateShareAccessCount(r.Context(), shareID); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to record access")
+		return
+	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", upload.Filename))
+	http.ServeFile(w, r, filePath)
 }
 
 // ListSharesByUpload lists all shares for an upload
@@ -128,9 +183,90 @@ func (h *Handlers) ListSharesByUpload(w http.ResponseWriter, r *http.Request) {
 	// TODO: Implement
 }
 
-// ListSharesByUser lists all shares created by a user
+type ShareListItem struct {
+	ShareID     string  `json:"shareId"`
+	UploadID    string  `json:"uploadId"`
+	Filename    string  `json:"filename"`
+	CreatedAt   string  `json:"createdAt"`
+	ExpiresAt   *string `json:"expiresAt"`
+	IsExpired   bool    `json:"isExpired"`
+	AccessCount int64   `json:"accessCount"`
+}
+
+type ListSharesResponse struct {
+	Shares   []ShareListItem `json:"shares"`
+	Page     int             `json:"page"`
+	PageSize int             `json:"pageSize"`
+	Total    int64           `json:"total"`
+}
+
+// ListSharesByUser lists the shares created by the authenticated caller, paginated.
 func (h *Handlers) ListSharesByUser(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement
+	caller := auth.CallerFrom(r.Context())
+	if caller == nil {
+		writeJSONError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+
+	page := 1
+	if raw := r.URL.Query().Get("page"); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil && v > 0 {
+			page = v
+		}
+	}
+
+	pageSize := defaultSharesPageSize
+	if raw := r.URL.Query().Get("pageSize"); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil && v > 0 {
+			pageSize = v
+		}
+	}
+	if pageSize > maxSharesPageSize {
+		pageSize = maxSharesPageSize
+	}
+
+	total, err := h.queries.CountSharesByUserID(r.Context(), caller.UserID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to count shares")
+		return
+	}
+
+	rows, err := h.queries.ListSharesByUserPaginated(r.Context(), db.ListSharesByUserPaginatedParams{
+		CreatedByUserID: caller.UserID,
+		Limit:           int64(pageSize),
+		Offset:          int64((page - 1) * pageSize),
+	})
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to list shares")
+		return
+	}
+
+	now := time.Now()
+	shares := make([]ShareListItem, len(rows))
+	for i, row := range rows {
+		var expiresAt *string
+		isExpired := false
+		if row.ExpiresAt.Valid {
+			expiresAt = new(row.ExpiresAt.Time.Format("2006-01-02T15:04:05Z"))
+			isExpired = row.ExpiresAt.Time.Before(now)
+		}
+		shares[i] = ShareListItem{
+			ShareID:     row.ShareID,
+			UploadID:    row.UploadID,
+			Filename:    row.Filename,
+			CreatedAt:   row.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			ExpiresAt:   expiresAt,
+			IsExpired:   isExpired,
+			AccessCount: row.AccessCount,
+		}
+	}
+
+	writeJSON(w, http.StatusOK, ListSharesResponse{
+		Shares:   shares,
+		Page:     page,
+		PageSize: pageSize,
+		Total:    total,
+	})
 }
 
 // DeleteShare deletes a share

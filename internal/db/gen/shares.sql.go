@@ -8,7 +8,19 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
+
+const countSharesByUserID = `-- name: CountSharesByUserID :one
+SELECT COUNT(*) FROM shares WHERE created_by_user_id = ?
+`
+
+func (q *Queries) CountSharesByUserID(ctx context.Context, createdByUserID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSharesByUserID, createdByUserID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const createShare = `-- name: CreateShare :one
 INSERT INTO shares (id, created_by_user_id, upload_id, expires_at, requires_auth)
@@ -159,6 +171,60 @@ func (q *Queries) GetSharesByUserID(ctx context.Context, createdByUserID int64) 
 			&i.AccessCount,
 			&i.RequiresAuth,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSharesByUserPaginated = `-- name: ListSharesByUserPaginated :many
+SELECT s.id AS share_id, s.upload_id, u.filename, s.created_at, s.expires_at, s.access_count
+FROM shares s
+JOIN uploads u ON u.id = s.upload_id
+WHERE s.created_by_user_id = ?
+ORDER BY s.created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type ListSharesByUserPaginatedParams struct {
+	CreatedByUserID int64
+	Limit           int64
+	Offset          int64
+}
+
+type ListSharesByUserPaginatedRow struct {
+	ShareID     string
+	UploadID    string
+	Filename    string
+	CreatedAt   time.Time
+	ExpiresAt   sql.NullTime
+	AccessCount int64
+}
+
+func (q *Queries) ListSharesByUserPaginated(ctx context.Context, arg ListSharesByUserPaginatedParams) ([]ListSharesByUserPaginatedRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSharesByUserPaginated, arg.CreatedByUserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSharesByUserPaginatedRow
+	for rows.Next() {
+		var i ListSharesByUserPaginatedRow
+		if err := rows.Scan(
+			&i.ShareID,
+			&i.UploadID,
+			&i.Filename,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.AccessCount,
 		); err != nil {
 			return nil, err
 		}

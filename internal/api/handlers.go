@@ -11,11 +11,12 @@ import (
 )
 
 type Handlers struct {
-	queries *db.Queries
+	queries   *db.Queries
+	uploadDir string
 }
 
-func NewHandlers(queries *db.Queries) *Handlers {
-	return &Handlers{queries: queries}
+func NewHandlers(queries *db.Queries, uploadDir string) *Handlers {
+	return &Handlers{queries: queries, uploadDir: uploadDir}
 }
 
 type UploadResponse struct {
