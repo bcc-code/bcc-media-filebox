@@ -178,9 +178,39 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filePath)
 }
 
-// ListSharesByUpload lists all shares for an upload
+// ListSharesByUpload lists all shares for an upload. Only the upload's owner may view them.
 func (h *Handlers) ListSharesByUpload(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement
+	caller := auth.CallerFrom(r.Context())
+	if caller == nil {
+		writeJSONError(w, http.StatusForbidden, "authentication required")
+		return
+	}
+
+	uploadID := r.PathValue("id")
+
+	upload, err := h.queries.GetUpload(r.Context(), uploadID)
+	if err != nil {
+		writeJSONError(w, http.StatusNotFound, "upload not found")
+		return
+	}
+
+	if upload.UserID != caller.CanonicalUserID() {
+		writeJSONError(w, http.StatusForbidden, "not authorized to view shares for this upload")
+		return
+	}
+
+	shares, err := h.queries.GetSharesByUploadID(r.Context(), uploadID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to list shares")
+		return
+	}
+
+	result := make([]ShareResponse, len(shares))
+	for i, s := range shares {
+		result[i] = toShareResponse(s)
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }
 
 type ShareListItem struct {

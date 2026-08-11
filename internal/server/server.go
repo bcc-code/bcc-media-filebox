@@ -171,7 +171,9 @@ func (s *Server) setupAPI(uploadDir string) {
 	s.mux.HandleFunc("GET /api/arrangements", h.ListArrangements)
 	s.mux.HandleFunc("GET /api/arrangements/{code}/sub-events", h.ListSubEvents)
 	s.mux.HandleFunc("GET /api/uploads", h.ListUploads)
+	s.mux.HandleFunc("GET /api/uploads/{id}/shares", h.ListSharesByUpload)
 	s.mux.HandleFunc("GET /api/shares", h.ListSharesByUser)
+	s.mux.HandleFunc("POST /api/shares", h.CreateShare)
 	s.mux.HandleFunc("GET /api/shares/{id}", h.GetShare)
 	s.mux.HandleFunc("DELETE /api/shares/{id}", h.DeleteShare)
 
