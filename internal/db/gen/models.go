@@ -43,6 +43,32 @@ type GroupMember struct {
 	Email   string
 }
 
+type Package struct {
+	ID                 string
+	CreatedByUserID    int64
+	Name               string
+	Message            string
+	VerificationMethod string
+	PasswordHash       sql.NullString
+	ExpiresAt          time.Time
+	MaxDownloads       sql.NullInt64
+	DownloadCount      int64
+	NotifyOnDownload   int64
+	Status             string
+	CreatedAt          time.Time
+}
+
+type PackageRecipient struct {
+	ID             int64
+	PackageID      string
+	Email          string
+	OtpCodeHash    sql.NullString
+	OtpExpiresAt   sql.NullTime
+	MagicLinkToken sql.NullString
+	VerifiedAt     sql.NullTime
+	CreatedAt      time.Time
+}
+
 type Project struct {
 	ID        int64
 	Name      string
@@ -58,14 +84,10 @@ type Session struct {
 }
 
 type Share struct {
-	ID              string
-	CreatedByUserID int64
-	UploadID        string
-	ExpiresAt       sql.NullTime
-	AccessCount     int64
-	RequiresAuth    string
-	CreatedAt       time.Time
-	MaxAccessCount  sql.NullInt64
+	ID        string
+	PackageID string
+	UploadID  string
+	CreatedAt time.Time
 }
 
 type SubEvent struct {
