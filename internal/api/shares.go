@@ -39,12 +39,21 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if pkg.MaxDownloads.Valid && pkg.DownloadCount >= pkg.MaxDownloads.Int64 {
-		writeJSONError(w, http.StatusGone, "package download limit reached")
+	// max_downloads is a per-file budget, not a shared pool: it's configured
+	// once on the package (the UI only ever exposes one field), but checked
+	// against this specific share's own access_count. Otherwise downloading
+	// any N files across a multi-file package would permanently lock out
+	// every other file once the package-wide total hit the limit, even ones
+	// never touched.
+	if pkg.MaxDownloads.Valid && share.AccessCount >= pkg.MaxDownloads.Int64 {
+		writeJSONError(w, http.StatusGone, "file download limit reached")
 		return
 	}
 
-	// TODO: package verification method (password/email_otp/magic_link/bcc_login)
+	if !h.packageVerified(r, pkg) {
+		writeJSONError(w, http.StatusForbidden, "verification required")
+		return
+	}
 
 	upload, err := h.queries.GetUpload(r.Context(), share.UploadID)
 	if err != nil {
@@ -68,6 +77,13 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Two counters: the share's own access_count (used for the per-file gate
+	// above) and the package's download_count (an aggregate shown to the
+	// owner, e.g. "2/10 downloads" — display-only, not used for gating).
+	if _, err := h.queries.IncrementShareAccessCount(r.Context(), shareID); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to record access")
+		return
+	}
 	if _, err := h.queries.IncrementPackageDownloadCount(r.Context(), share.PackageID); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "failed to record access")
 		return

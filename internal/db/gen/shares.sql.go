@@ -12,7 +12,7 @@ import (
 const createShare = `-- name: CreateShare :one
 INSERT INTO shares (id, package_id, upload_id)
 VALUES (?, ?, ?)
-RETURNING id, package_id, upload_id, created_at
+RETURNING id, package_id, upload_id, access_count, created_at
 `
 
 type CreateShareParams struct {
@@ -28,13 +28,14 @@ func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share
 		&i.ID,
 		&i.PackageID,
 		&i.UploadID,
+		&i.AccessCount,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getShareByID = `-- name: GetShareByID :one
-SELECT id, package_id, upload_id, created_at FROM shares WHERE id = ?
+SELECT id, package_id, upload_id, access_count, created_at FROM shares WHERE id = ?
 `
 
 func (q *Queries) GetShareByID(ctx context.Context, id string) (Share, error) {
@@ -44,6 +45,27 @@ func (q *Queries) GetShareByID(ctx context.Context, id string) (Share, error) {
 		&i.ID,
 		&i.PackageID,
 		&i.UploadID,
+		&i.AccessCount,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const incrementShareAccessCount = `-- name: IncrementShareAccessCount :one
+UPDATE shares
+SET access_count = access_count + 1
+WHERE id = ?
+RETURNING id, package_id, upload_id, access_count, created_at
+`
+
+func (q *Queries) IncrementShareAccessCount(ctx context.Context, id string) (Share, error) {
+	row := q.db.QueryRowContext(ctx, incrementShareAccessCount, id)
+	var i Share
+	err := row.Scan(
+		&i.ID,
+		&i.PackageID,
+		&i.UploadID,
+		&i.AccessCount,
 		&i.CreatedAt,
 	)
 	return i, err

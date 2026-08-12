@@ -69,6 +69,13 @@ type PackageRecipient struct {
 	CreatedAt      time.Time
 }
 
+type PackageVerification struct {
+	ID        string
+	PackageID string
+	ExpiresAt time.Time
+	CreatedAt time.Time
+}
+
 type Project struct {
 	ID        int64
 	Name      string
@@ -84,10 +91,11 @@ type Session struct {
 }
 
 type Share struct {
-	ID        string
-	PackageID string
-	UploadID  string
-	CreatedAt time.Time
+	ID          string
+	PackageID   string
+	UploadID    string
+	AccessCount int64
+	CreatedAt   time.Time
 }
 
 type SubEvent struct {
