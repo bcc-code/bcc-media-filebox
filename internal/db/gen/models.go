@@ -65,6 +65,7 @@ type Share struct {
 	AccessCount     int64
 	RequiresAuth    string
 	CreatedAt       time.Time
+	MaxAccessCount  sql.NullInt64
 }
 
 type SubEvent struct {

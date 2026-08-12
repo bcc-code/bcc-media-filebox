@@ -19,28 +19,32 @@ import (
 const (
 	defaultSharesPageSize = 20
 	maxSharesPageSize     = 100
+	maxShareExpiryDays    = 30
 )
 
 type CreateShareRequest struct {
-	UploadID      string `json:"uploadId"`
-	ExpiresInDays *int   `json:"expiresInDays"`
-	RequiresAuth  string `json:"requiresAuth"`
+	UploadID       string `json:"uploadId"`
+	ExpiresInDays  int    `json:"expiresInDays"`
+	RequiresAuth   string `json:"requiresAuth"`
+	MaxAccessCount *int   `json:"maxAccessCount"`
 }
 
 type CreateShareResponse struct {
-	ShareID   string  `json:"shareId"`
-	ShareURL  string  `json:"shareUrl"`
-	ExpiresAt *string `json:"expiresAt"`
+	ShareID        string `json:"shareId"`
+	ShareURL       string `json:"shareUrl"`
+	ExpiresAt      string `json:"expiresAt"`
+	MaxAccessCount *int64 `json:"maxAccessCount"`
 }
 
 type ShareResponse struct {
-	ID           string  `json:"id"`
-	UploadID     string  `json:"uploadId"`
-	CreatedByID  int64   `json:"createdById"`
-	ExpiresAt    *string `json:"expiresAt"`
-	AccessCount  int64   `json:"accessCount"`
-	RequiresAuth string  `json:"requiresAuth"`
-	CreatedAt    string  `json:"createdAt"`
+	ID             string  `json:"id"`
+	UploadID       string  `json:"uploadId"`
+	CreatedByID    int64   `json:"createdById"`
+	ExpiresAt      *string `json:"expiresAt"`
+	AccessCount    int64   `json:"accessCount"`
+	MaxAccessCount *int64  `json:"maxAccessCount"`
+	RequiresAuth   string  `json:"requiresAuth"`
+	CreatedAt      string  `json:"createdAt"`
 }
 
 func toShareResponse(s db.Share) ShareResponse {
@@ -48,14 +52,19 @@ func toShareResponse(s db.Share) ShareResponse {
 	if s.ExpiresAt.Valid {
 		expiresAt = new(s.ExpiresAt.Time.Format("2006-01-02T15:04:05Z"))
 	}
+	var maxAccessCount *int64
+	if s.MaxAccessCount.Valid {
+		maxAccessCount = new(s.MaxAccessCount.Int64)
+	}
 	return ShareResponse{
-		ID:           s.ID,
-		UploadID:     s.UploadID,
-		CreatedByID:  s.CreatedByUserID,
-		ExpiresAt:    expiresAt,
-		AccessCount:  s.AccessCount,
-		RequiresAuth: s.RequiresAuth,
-		CreatedAt:    s.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:             s.ID,
+		UploadID:       s.UploadID,
+		CreatedByID:    s.CreatedByUserID,
+		ExpiresAt:      expiresAt,
+		AccessCount:    s.AccessCount,
+		MaxAccessCount: maxAccessCount,
+		RequiresAuth:   s.RequiresAuth,
+		CreatedAt:      s.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }
 
@@ -80,6 +89,11 @@ func (h *Handlers) CreateShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.ExpiresInDays <= 0 || req.ExpiresInDays > maxShareExpiryDays {
+		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("expiresInDays is required and must be between 1 and %d", maxShareExpiryDays))
+		return
+	}
+
 	if req.RequiresAuth == "" {
 		req.RequiresAuth = "none"
 	}
@@ -90,20 +104,22 @@ func (h *Handlers) CreateShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var expiresAt sql.NullTime
-	var expiresAtStr *string
-	if req.ExpiresInDays != nil && *req.ExpiresInDays > 0 {
-		expTime := time.Now().AddDate(0, 0, *req.ExpiresInDays)
-		expiresAt = sql.NullTime{Time: expTime, Valid: true}
-		expiresAtStr = new(expTime.Format("2006-01-02T15:04:05Z"))
+	expTime := time.Now().AddDate(0, 0, req.ExpiresInDays)
+	expiresAt := sql.NullTime{Time: expTime, Valid: true}
+	expiresAtStr := expTime.Format("2006-01-02T15:04:05Z")
+
+	var maxAccessCount sql.NullInt64
+	if req.MaxAccessCount != nil && *req.MaxAccessCount > 0 {
+		maxAccessCount = sql.NullInt64{Int64: int64(*req.MaxAccessCount), Valid: true}
 	}
 
 	params := db.CreateShareParams{
-		ID:               shareID,
-		CreatedByUserID:  caller.UserID,
-		UploadID:         req.UploadID,
-		ExpiresAt:        expiresAt,
-		RequiresAuth:     req.RequiresAuth,
+		ID:              shareID,
+		CreatedByUserID: caller.UserID,
+		UploadID:        req.UploadID,
+		ExpiresAt:       expiresAt,
+		RequiresAuth:    req.RequiresAuth,
+		MaxAccessCount:  maxAccessCount,
 	}
 
 	share, err := h.queries.CreateShare(r.Context(), params)
@@ -112,10 +128,16 @@ func (h *Handlers) CreateShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var maxAccessCountResp *int64
+	if share.MaxAccessCount.Valid {
+		maxAccessCountResp = new(share.MaxAccessCount.Int64)
+	}
+
 	writeJSON(w, http.StatusCreated, CreateShareResponse{
-		ShareID:   share.ID,
-		ShareURL:  shareID,
-		ExpiresAt: expiresAtStr,
+		ShareID:        share.ID,
+		ShareURL:       shareID,
+		ExpiresAt:      expiresAtStr,
+		MaxAccessCount: maxAccessCountResp,
 	})
 }
 
@@ -133,9 +155,19 @@ func generateShareID() (string, error) {
 func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 	shareID := r.PathValue("id")
 
-	share, err := h.queries.GetActiveShareByID(r.Context(), shareID)
+	share, err := h.queries.GetShareByID(r.Context(), shareID)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, "share not found or expired")
+		writeJSONError(w, http.StatusNotFound, "share not found")
+		return
+	}
+
+	if share.ExpiresAt.Valid && !share.ExpiresAt.Time.After(time.Now()) {
+		writeJSONError(w, http.StatusGone, "share has expired")
+		return
+	}
+
+	if share.MaxAccessCount.Valid && share.AccessCount >= share.MaxAccessCount.Int64 {
+		writeJSONError(w, http.StatusGone, "share access limit reached")
 		return
 	}
 
@@ -214,13 +246,14 @@ func (h *Handlers) ListSharesByUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 type ShareListItem struct {
-	ShareID     string  `json:"shareId"`
-	UploadID    string  `json:"uploadId"`
-	Filename    string  `json:"filename"`
-	CreatedAt   string  `json:"createdAt"`
-	ExpiresAt   *string `json:"expiresAt"`
-	IsExpired   bool    `json:"isExpired"`
-	AccessCount int64   `json:"accessCount"`
+	ShareID        string  `json:"shareId"`
+	UploadID       string  `json:"uploadId"`
+	Filename       string  `json:"filename"`
+	CreatedAt      string  `json:"createdAt"`
+	ExpiresAt      *string `json:"expiresAt"`
+	IsExpired      bool    `json:"isExpired"`
+	AccessCount    int64   `json:"accessCount"`
+	MaxAccessCount *int64  `json:"maxAccessCount"`
 }
 
 type ListSharesResponse struct {
@@ -280,14 +313,19 @@ func (h *Handlers) ListSharesByUser(w http.ResponseWriter, r *http.Request) {
 			expiresAt = new(row.ExpiresAt.Time.Format("2006-01-02T15:04:05Z"))
 			isExpired = row.ExpiresAt.Time.Before(now)
 		}
+		var maxAccessCount *int64
+		if row.MaxAccessCount.Valid {
+			maxAccessCount = new(row.MaxAccessCount.Int64)
+		}
 		shares[i] = ShareListItem{
-			ShareID:     row.ShareID,
-			UploadID:    row.UploadID,
-			Filename:    row.Filename,
-			CreatedAt:   row.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			ExpiresAt:   expiresAt,
-			IsExpired:   isExpired,
-			AccessCount: row.AccessCount,
+			ShareID:        row.ShareID,
+			UploadID:       row.UploadID,
+			Filename:       row.Filename,
+			CreatedAt:      row.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			ExpiresAt:      expiresAt,
+			IsExpired:      isExpired,
+			AccessCount:    row.AccessCount,
+			MaxAccessCount: maxAccessCount,
 		}
 	}
 

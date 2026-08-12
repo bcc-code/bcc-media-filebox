@@ -23,9 +23,9 @@ func (q *Queries) CountSharesByUserID(ctx context.Context, createdByUserID int64
 }
 
 const createShare = `-- name: CreateShare :one
-INSERT INTO shares (id, created_by_user_id, upload_id, expires_at, requires_auth)
-VALUES (?, ?, ?, ?, ?)
-RETURNING id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at
+INSERT INTO shares (id, created_by_user_id, upload_id, expires_at, requires_auth, max_access_count)
+VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at, max_access_count
 `
 
 type CreateShareParams struct {
@@ -34,6 +34,7 @@ type CreateShareParams struct {
 	UploadID        string
 	ExpiresAt       sql.NullTime
 	RequiresAuth    string
+	MaxAccessCount  sql.NullInt64
 }
 
 func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share, error) {
@@ -43,6 +44,7 @@ func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share
 		arg.UploadID,
 		arg.ExpiresAt,
 		arg.RequiresAuth,
+		arg.MaxAccessCount,
 	)
 	var i Share
 	err := row.Scan(
@@ -53,6 +55,7 @@ func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share
 		&i.AccessCount,
 		&i.RequiresAuth,
 		&i.CreatedAt,
+		&i.MaxAccessCount,
 	)
 	return i, err
 }
@@ -75,29 +78,8 @@ func (q *Queries) DeleteShare(ctx context.Context, id string) error {
 	return err
 }
 
-const getActiveShareByID = `-- name: GetActiveShareByID :one
-SELECT id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at FROM shares
-WHERE id = ?
-  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-`
-
-func (q *Queries) GetActiveShareByID(ctx context.Context, id string) (Share, error) {
-	row := q.db.QueryRowContext(ctx, getActiveShareByID, id)
-	var i Share
-	err := row.Scan(
-		&i.ID,
-		&i.CreatedByUserID,
-		&i.UploadID,
-		&i.ExpiresAt,
-		&i.AccessCount,
-		&i.RequiresAuth,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const getShareByID = `-- name: GetShareByID :one
-SELECT id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at FROM shares WHERE id = ?
+SELECT id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at, max_access_count FROM shares WHERE id = ?
 `
 
 func (q *Queries) GetShareByID(ctx context.Context, id string) (Share, error) {
@@ -111,12 +93,13 @@ func (q *Queries) GetShareByID(ctx context.Context, id string) (Share, error) {
 		&i.AccessCount,
 		&i.RequiresAuth,
 		&i.CreatedAt,
+		&i.MaxAccessCount,
 	)
 	return i, err
 }
 
 const getSharesByUploadID = `-- name: GetSharesByUploadID :many
-SELECT id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at FROM shares WHERE upload_id = ?
+SELECT id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at, max_access_count FROM shares WHERE upload_id = ?
 `
 
 func (q *Queries) GetSharesByUploadID(ctx context.Context, uploadID string) ([]Share, error) {
@@ -136,6 +119,7 @@ func (q *Queries) GetSharesByUploadID(ctx context.Context, uploadID string) ([]S
 			&i.AccessCount,
 			&i.RequiresAuth,
 			&i.CreatedAt,
+			&i.MaxAccessCount,
 		); err != nil {
 			return nil, err
 		}
@@ -151,7 +135,7 @@ func (q *Queries) GetSharesByUploadID(ctx context.Context, uploadID string) ([]S
 }
 
 const getSharesByUserID = `-- name: GetSharesByUserID :many
-SELECT id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at FROM shares WHERE created_by_user_id = ?
+SELECT id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at, max_access_count FROM shares WHERE created_by_user_id = ?
 `
 
 func (q *Queries) GetSharesByUserID(ctx context.Context, createdByUserID int64) ([]Share, error) {
@@ -171,6 +155,7 @@ func (q *Queries) GetSharesByUserID(ctx context.Context, createdByUserID int64) 
 			&i.AccessCount,
 			&i.RequiresAuth,
 			&i.CreatedAt,
+			&i.MaxAccessCount,
 		); err != nil {
 			return nil, err
 		}
@@ -186,7 +171,7 @@ func (q *Queries) GetSharesByUserID(ctx context.Context, createdByUserID int64) 
 }
 
 const listSharesByUserPaginated = `-- name: ListSharesByUserPaginated :many
-SELECT s.id AS share_id, s.upload_id, u.filename, s.created_at, s.expires_at, s.access_count
+SELECT s.id AS share_id, s.upload_id, u.filename, s.created_at, s.expires_at, s.access_count, s.max_access_count
 FROM shares s
 JOIN uploads u ON u.id = s.upload_id
 WHERE s.created_by_user_id = ?
@@ -201,12 +186,13 @@ type ListSharesByUserPaginatedParams struct {
 }
 
 type ListSharesByUserPaginatedRow struct {
-	ShareID     string
-	UploadID    string
-	Filename    string
-	CreatedAt   time.Time
-	ExpiresAt   sql.NullTime
-	AccessCount int64
+	ShareID        string
+	UploadID       string
+	Filename       string
+	CreatedAt      time.Time
+	ExpiresAt      sql.NullTime
+	AccessCount    int64
+	MaxAccessCount sql.NullInt64
 }
 
 func (q *Queries) ListSharesByUserPaginated(ctx context.Context, arg ListSharesByUserPaginatedParams) ([]ListSharesByUserPaginatedRow, error) {
@@ -225,6 +211,7 @@ func (q *Queries) ListSharesByUserPaginated(ctx context.Context, arg ListSharesB
 			&i.CreatedAt,
 			&i.ExpiresAt,
 			&i.AccessCount,
+			&i.MaxAccessCount,
 		); err != nil {
 			return nil, err
 		}
@@ -243,7 +230,7 @@ const updateShareAccessCount = `-- name: UpdateShareAccessCount :one
 UPDATE shares
 SET access_count = access_count + 1
 WHERE id = ?
-RETURNING id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at
+RETURNING id, created_by_user_id, upload_id, expires_at, access_count, requires_auth, created_at, max_access_count
 `
 
 func (q *Queries) UpdateShareAccessCount(ctx context.Context, id string) (Share, error) {
@@ -257,6 +244,7 @@ func (q *Queries) UpdateShareAccessCount(ctx context.Context, id string) (Share,
 		&i.AccessCount,
 		&i.RequiresAuth,
 		&i.CreatedAt,
+		&i.MaxAccessCount,
 	)
 	return i, err
 }
