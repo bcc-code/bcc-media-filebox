@@ -66,17 +66,17 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 
 	pkg, err := h.queries.GetPackageByID(r.Context(), packageID)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, "package not found")
+		writeJSONError(w, http.StatusNotFound, "Package not found")
 		return
 	}
 
 	if pkg.Status != "active" {
-		writeJSONError(w, http.StatusGone, "package has been revoked")
+		writeJSONError(w, http.StatusGone, "Package has been revoked")
 		return
 	}
 
 	if !pkg.ExpiresAt.After(time.Now()) {
-		writeJSONError(w, http.StatusGone, "package has expired")
+		writeJSONError(w, http.StatusGone, "Package has expired")
 		return
 	}
 
@@ -103,7 +103,7 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 	if resp.Verified {
 		rows, err := h.queries.ListSharesByPackageID(r.Context(), pkg.ID)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "failed to list package files")
+			writeJSONError(w, http.StatusInternalServerError, "Failed to list package files")
 			return
 		}
 		files := make([]packageFileView, len(rows))
@@ -135,44 +135,44 @@ func (h *Handlers) VerifyPackage(w http.ResponseWriter, r *http.Request) {
 
 	pkg, err := h.queries.GetPackageByID(r.Context(), packageID)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, "package not found")
+		writeJSONError(w, http.StatusNotFound, "Package not found")
 		return
 	}
 
 	if pkg.Status != "active" {
-		writeJSONError(w, http.StatusGone, "package has been revoked")
+		writeJSONError(w, http.StatusGone, "Package has been revoked")
 		return
 	}
 
 	if !pkg.ExpiresAt.After(time.Now()) {
-		writeJSONError(w, http.StatusGone, "package has expired")
+		writeJSONError(w, http.StatusGone, "Package has expired")
 		return
 	}
 
 	if pkg.VerificationMethod != "password" {
-		writeJSONError(w, http.StatusBadRequest, "package does not use password verification")
+		writeJSONError(w, http.StatusBadRequest, "Package does not use password verification")
 		return
 	}
 
 	var req verifyPackageRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "invalid request")
+		writeJSONError(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
 	if req.Password == "" {
-		writeJSONError(w, http.StatusBadRequest, "password is required")
+		writeJSONError(w, http.StatusBadRequest, "Password is required")
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(pkg.PasswordHash.String), []byte(req.Password)); err != nil {
-		writeJSONError(w, http.StatusForbidden, "incorrect password")
+		writeJSONError(w, http.StatusForbidden, "Incorrect password")
 		return
 	}
 
 	token, err := generateShareID()
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "failed to generate verification token")
+		writeJSONError(w, http.StatusInternalServerError, "Failed to generate verification token")
 		return
 	}
 
@@ -181,7 +181,7 @@ func (h *Handlers) VerifyPackage(w http.ResponseWriter, r *http.Request) {
 		PackageID: pkg.ID,
 		ExpiresAt: pkg.ExpiresAt,
 	}); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "failed to record verification")
+		writeJSONError(w, http.StatusInternalServerError, "Failed to record verification")
 		return
 	}
 

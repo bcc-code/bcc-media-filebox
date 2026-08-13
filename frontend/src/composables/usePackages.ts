@@ -57,8 +57,8 @@ export interface PackagePreview {
 async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
   const res = await fetch(input, {
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
   })
   if (!res.ok) {
     let msg = `Request failed (${res.status})`
