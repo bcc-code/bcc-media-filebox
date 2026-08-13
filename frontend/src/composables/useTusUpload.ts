@@ -75,6 +75,7 @@ export function useTusUpload() {
         bytesTotal: file.size,
         speed: 0,
         error: reason,
+        uploadId: null,
       })
       uploads.value.push(item)
       if (!reason) startUpload(item, target, formData)
@@ -116,6 +117,10 @@ export function useTusUpload() {
         item.status = 'completed'
         item.progress = 100
         item.speed = 0
+        // The tus resource URL's last path segment is the server-assigned
+        // upload ID (same value tusd hands to the backend as info.ID).
+        const segments = upload.url?.split('/').filter(Boolean) ?? []
+        item.uploadId = segments.length ? segments[segments.length - 1] : null
       },
       onError(error: Error) {
         item.status = 'failed'

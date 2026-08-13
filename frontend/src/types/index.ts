@@ -14,6 +14,9 @@ export interface UploadItem {
   bytesTotal: number
   speed: number
   error: string | null
+  // Server-assigned upload ID, set once the tus upload completes. Needed to
+  // reference this file elsewhere (e.g. bundling it into a Send package).
+  uploadId: string | null
 }
 
 export interface UploadRecord {
