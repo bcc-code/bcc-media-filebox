@@ -164,9 +164,23 @@ export function useTusUpload() {
   }
 
   function cancelUpload(item: UploadItem) {
-    if (item.tusUpload) {
-      item.tusUpload.abort(true)
+    // Only terminate the server-side resource for an upload being abandoned.
+    // A 'completed' upload has already been finalized — and may already be
+    // referenced by a package — so aborting it would just 404 and, worse, is
+    // the wrong thing to attempt at all. Use forgetUpload for those.
+    if (item.tusUpload && item.status !== 'completed') {
+      item.tusUpload.abort(true).catch(() => {})
     }
+    const idx = uploads.value.indexOf(item)
+    if (idx !== -1) {
+      uploads.value.splice(idx, 1)
+    }
+  }
+
+  // Drops a completed upload from the local list only — never contacts the
+  // server. For clearing the form after its uploads have been packaged, where
+  // the files must stay in place for the package to keep working.
+  function forgetUpload(item: UploadItem) {
     const idx = uploads.value.indexOf(item)
     if (idx !== -1) {
       uploads.value.splice(idx, 1)
@@ -180,5 +194,6 @@ export function useTusUpload() {
     resumeUpload,
     retryUpload,
     cancelUpload,
+    forgetUpload,
   }
 }

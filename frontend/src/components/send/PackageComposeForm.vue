@@ -1,35 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useTusUpload } from '../../composables/useTusUpload'
 import { usePackages, type VerificationMethod } from '../../composables/usePackages'
 import PackageFileRow from './PackageFileRow.vue'
 import RecipientChipInput from './RecipientChipInput.vue'
 import VerificationMethodPicker from './VerificationMethodPicker.vue'
-import type { TargetInfo } from '../../types'
 
 const emit = defineEmits<{ sent: [packageId: string] }>()
 
-const { uploads, addFiles, cancelUpload } = useTusUpload()
+const { uploads, addFiles, cancelUpload, forgetUpload } = useTusUpload()
 const { createPackage } = usePackages()
 
-// Files uploaded via Send always land against whichever target is named
-// "send" (case-insensitive), falling back to the first configured target —
-// same one-line fallback Home.vue uses for its own target picker. An admin
-// can optionally add a dedicated "Send" target later; no backend change is
-// required either way.
-const targetName = ref('')
-onMounted(async () => {
-  const res = await fetch('/api/targets')
-  const targets: TargetInfo[] = await res.json()
-  targetName.value = targets.find((t) => t.name.toLowerCase() === 'send')?.name ?? targets[0]?.name ?? ''
-})
-
+// No target is passed here — Send never shows the caller a picker, so the
+// backend's tus pre-create hook defaults an empty target to whichever one is
+// named "send" (else the first configured target).
 const isDragging = ref(false)
 const filePicker = ref<HTMLInputElement | null>(null)
 
 function onDrop(e: DragEvent) {
   isDragging.value = false
-  if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files, targetName.value)
+  if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files, '')
 }
 function onDragOver(e: DragEvent) {
   e.preventDefault()
@@ -37,7 +27,7 @@ function onDragOver(e: DragEvent) {
 }
 function onFilesPicked(e: Event) {
   const input = e.target as HTMLInputElement
-  if (input.files?.length) addFiles(input.files, targetName.value)
+  if (input.files?.length) addFiles(input.files, '')
   input.value = ''
 }
 
@@ -112,8 +102,13 @@ async function send() {
       notifyOnDownload: notify.value,
     })
     emit('sent', result.packageId)
-    // reset
-    for (const u of [...uploads.value]) cancelUpload(u)
+    // reset — completed uploads are now owned by the package and must stay on
+    // the server; anything else here (e.g. a stray paused upload) never made
+    // it into the package and should actually be cleaned up.
+    for (const u of [...uploads.value]) {
+      if (u.status === 'completed') forgetUpload(u)
+      else cancelUpload(u)
+    }
     name.value = ''
     recipients.value = []
     message.value = ''

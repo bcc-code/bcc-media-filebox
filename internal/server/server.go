@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -135,7 +136,30 @@ func (s *Server) preUploadCreate(hook tushandler.HookEvent) (tushandler.HTTPResp
 	}
 	newMeta["userid"] = canonical
 
+	// Callers that don't offer a target picker (e.g. Send) submit no "target"
+	// at all — default to whichever target is named "send", else the first
+	// configured one. Left blank if none are configured yet; the target name
+	// is only a label on the upload row today, not a write-access check.
+	if newMeta["target"] == "" {
+		if resolved, ok := s.resolveDefaultTarget(hook.Context); ok {
+			newMeta["target"] = resolved
+		}
+	}
+
 	return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{MetaData: newMeta}, nil
+}
+
+func (s *Server) resolveDefaultTarget(ctx context.Context) (string, bool) {
+	all, err := s.queries.ListTargets(ctx)
+	if err != nil || len(all) == 0 {
+		return "", false
+	}
+	for _, t := range all {
+		if strings.EqualFold(t.Name, "send") {
+			return t.Name, true
+		}
+	}
+	return all[0].Name, true
 }
 
 func (s *Server) resolveUploadUserID(hook tushandler.HookEvent) (string, error) {
