@@ -49,6 +49,8 @@ export function usePackagePreview() {
         return
       }
       await load(packageId)
+    } catch {
+      verifyError.value = 'Failed to verify. Check your connection and try again.'
     } finally {
       verifying.value = false
     }
