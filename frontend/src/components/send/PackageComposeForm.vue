@@ -199,7 +199,15 @@ async function send() {
             <div class="tname">Notify me on download</div>
             <div class="tdesc">Email me each time a recipient downloads this package.</div>
           </div>
-          <div class="switch" :class="{ on: notify }" @click="notify = !notify"><span class="knob"></span></div>
+          <button
+            type="button"
+            class="switch"
+            :class="{ on: notify }"
+            role="switch"
+            :aria-checked="notify"
+            aria-label="Notify me on download"
+            @click="notify = !notify"
+          ><span class="knob"></span></button>
         </div>
       </div>
 
