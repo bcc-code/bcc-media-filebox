@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { usePackages } from '../../composables/usePackages'
 import SentPackageCard from './SentPackageCard.vue'
 
@@ -31,8 +31,10 @@ async function revoke(packageId: string, name: string) {
   }
 }
 
-onMounted(fetchPackages)
-
+// No fetch on mount here — usePackages() is a shared singleton, and Send.vue
+// (this component's only parent) already fetches on its own mount, before
+// this tab can even be selected. `loading`/`packages` below are the same
+// shared refs, so the "Loading…" state still renders correctly either way.
 defineExpose({ refresh: fetchPackages })
 </script>
 
