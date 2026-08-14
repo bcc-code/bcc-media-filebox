@@ -15,7 +15,8 @@ const { preview, loading, error, verifying, verifyError, load, verifyPassword, r
 onMounted(() => load(packageId))
 
 function signInBcc() {
-  window.location.href = '/auth/login/bcc'
+  const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
+  window.location.href = `/auth/login/bcc?returnTo=${returnTo}`
 }
 </script>
 

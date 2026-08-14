@@ -119,7 +119,11 @@ export function useTusUpload() {
         item.speed = 0
         // The tus resource URL's last path segment is the server-assigned
         // upload ID (same value tusd hands to the backend as info.ID).
-        const segments = upload.url?.split('/').filter(Boolean) ?? []
+        // Parsed via URL/pathname (not a raw string split) so a query
+        // string or hash on upload.url can never leak into the ID.
+        const segments = upload.url
+          ? new URL(upload.url, location.origin).pathname.split('/').filter(Boolean)
+          : []
         item.uploadId = segments.length ? segments[segments.length - 1] : null
       },
       onError(error: Error) {

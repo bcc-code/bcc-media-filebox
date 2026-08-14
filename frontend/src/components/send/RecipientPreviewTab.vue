@@ -24,12 +24,17 @@ watch(
   },
 )
 
-watch(selected, (id) => {
-  if (id) load(id)
-})
+watch(
+  selected,
+  (id) => {
+    if (id) load(id)
+  },
+  { immediate: true },
+)
 
 function signInBcc() {
-  window.location.href = '/auth/login/bcc'
+  const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
+  window.location.href = `/auth/login/bcc?returnTo=${returnTo}`
 }
 </script>
 

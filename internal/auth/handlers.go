@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"strings"
 
 	db "filebox/internal/db/gen"
@@ -121,6 +122,24 @@ type oauthStateCookie struct {
 	Nonce    string `json:"n"`
 	Verifier string `json:"v"`
 	Redirect string `json:"r"`
+	ReturnTo string `json:"rt"`
+}
+
+// sanitizeReturnTo restricts a caller-supplied return-to path to a same-site
+// relative path, so a crafted /auth/login/...?returnTo= link can never turn
+// a real login into an open redirect (e.g. returnTo=https://evil.example,
+// returnTo=//evil.example, or the //-via-backslash browser quirk).
+func sanitizeReturnTo(raw string) string {
+	if raw == "" || raw[0] != '/' {
+		return "/"
+	}
+	if len(raw) > 1 && (raw[1] == '/' || raw[1] == '\\') {
+		return "/"
+	}
+	if u, err := url.Parse(raw); err != nil || u.Scheme != "" || u.Host != "" {
+		return "/"
+	}
+	return raw
 }
 
 func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
@@ -152,6 +171,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	challenge := pkceChallenge(verifier)
 	redirectURL := p.RedirectURL(h.baseURL, r)
+	returnTo := sanitizeReturnTo(r.URL.Query().Get("returnTo"))
 
 	raw, err := json.Marshal(oauthStateCookie{
 		Provider: providerID,
@@ -159,6 +179,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		Nonce:    nonce,
 		Verifier: verifier,
 		Redirect: redirectURL,
+		ReturnTo: returnTo,
 	})
 	if err != nil {
 		http.Error(w, "", http.StatusInternalServerError)
@@ -283,7 +304,10 @@ func (h *Handlers) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/", http.StatusFound)
+	// Re-validated rather than trusted outright: a state cookie issued by a
+	// previous deploy (before this field existed) would decode with an empty
+	// ReturnTo, which sanitizeReturnTo turns back into a safe default.
+	http.Redirect(w, r, sanitizeReturnTo(sc.ReturnTo), http.StatusFound)
 }
 
 func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
