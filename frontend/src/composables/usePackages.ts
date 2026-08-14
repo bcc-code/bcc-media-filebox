@@ -46,6 +46,7 @@ export interface PackageFile {
 
 export interface PackagePreview {
   name: string
+  senderName: string
   message: string
   verificationMethod: VerificationMethod
   expiresAt: string

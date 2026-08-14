@@ -4,6 +4,7 @@ import type { PackageFile } from '../../composables/usePackages'
 
 const props = defineProps<{
   packageName: string
+  senderName: string
   message: string
   files: PackageFile[]
   expiresAt: string
@@ -60,7 +61,14 @@ function downloadAll() {
 </script>
 
 <template>
-  <div class="public-from">You've received files</div>
+  <div class="public-from">
+    <template v-if="senderName">
+      <strong>{{ senderName }}</strong> sent you a package
+    </template>
+    <template v-else>
+      You've received files
+    </template>
+  </div>
   <h2 class="public-pkgname">{{ packageName }}</h2>
   <div v-if="message" class="public-msg">{{ message }}</div>
 

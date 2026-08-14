@@ -77,6 +77,7 @@ function signInBcc() {
           <PackageDownloadScreen
             v-else
             :package-name="preview.name"
+            :sender-name="preview.senderName"
             :message="preview.message"
             :files="preview.files ?? []"
             :expires-at="preview.expiresAt"

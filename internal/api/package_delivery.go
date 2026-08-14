@@ -48,6 +48,7 @@ type packageFileView struct {
 
 type packagePreviewResponse struct {
 	Name               string            `json:"name"`
+	SenderName         string            `json:"senderName"`
 	Message            string            `json:"message"`
 	VerificationMethod string            `json:"verificationMethod"`
 	ExpiresAt          string            `json:"expiresAt"`
@@ -97,8 +98,15 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sender, err := h.queries.GetUser(r.Context(), pkg.CreatedByUserID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Failed to load package sender")
+		return
+	}
+
 	resp := packagePreviewResponse{
 		Name:               pkg.Name,
+		SenderName:         sender.Name.String,
 		Message:            pkg.Message,
 		VerificationMethod: pkg.VerificationMethod,
 		ExpiresAt:          pkg.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
