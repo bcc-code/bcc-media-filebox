@@ -25,11 +25,17 @@ WHERE id = ?
 RETURNING *;
 
 -- name: ListSharesByPackageID :many
-SELECT s.id AS share_id, s.upload_id, u.filename, u.size
+SELECT s.id AS share_id, s.upload_id, u.filename, u.size, s.access_count
 FROM shares s
 JOIN uploads u ON u.id = s.upload_id
 WHERE s.package_id = ?
 ORDER BY s.created_at ASC;
+
+-- name: GetPackageMaxAccessCount :one
+-- max_downloads is a per-file budget (see GetShare), so the download count
+-- shown to the package owner should reflect whichever file has been
+-- downloaded the most, not the sum of downloads across every file.
+SELECT CAST(COALESCE(MAX(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?;
 
 -- name: CreatePackageRecipient :one
 INSERT INTO package_recipients (package_id, email)

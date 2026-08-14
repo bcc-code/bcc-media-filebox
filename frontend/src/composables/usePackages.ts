@@ -41,6 +41,7 @@ export interface PackageFile {
   shareId: string
   filename: string
   size: number
+  accessCount: number
 }
 
 export interface PackagePreview {

@@ -40,9 +40,10 @@ func (h *Handlers) packageVerified(r *http.Request, pkg db.Package) bool {
 }
 
 type packageFileView struct {
-	ShareID  string `json:"shareId"`
-	Filename string `json:"filename"`
-	Size     int64  `json:"size"`
+	ShareID     string `json:"shareId"`
+	Filename    string `json:"filename"`
+	Size        int64  `json:"size"`
+	AccessCount int64  `json:"accessCount"`
 }
 
 type packagePreviewResponse struct {
@@ -90,13 +91,19 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 		maxDownloads = &pkg.MaxDownloads.Int64
 	}
 
+	maxAccessCount, err := h.queries.GetPackageMaxAccessCount(r.Context(), pkg.ID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Failed to compute package downloads")
+		return
+	}
+
 	resp := packagePreviewResponse{
 		Name:               pkg.Name,
 		Message:            pkg.Message,
 		VerificationMethod: pkg.VerificationMethod,
 		ExpiresAt:          pkg.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
 		MaxDownloads:       maxDownloads,
-		DownloadCount:      pkg.DownloadCount,
+		DownloadCount:      maxAccessCount,
 		Verified:           h.packageVerified(r, pkg),
 	}
 
@@ -109,9 +116,10 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 		files := make([]packageFileView, len(rows))
 		for i, row := range rows {
 			files[i] = packageFileView{
-				ShareID:  row.ShareID,
-				Filename: row.Filename,
-				Size:     row.Size,
+				ShareID:     row.ShareID,
+				Filename:    row.Filename,
+				Size:        row.Size,
+				AccessCount: row.AccessCount,
 			}
 		}
 		resp.Files = files

@@ -263,6 +263,12 @@ func (h *Handlers) ListPackagesByUser(w http.ResponseWriter, r *http.Request) {
 			totalSize += f.Size
 		}
 
+		maxAccessCount, err := h.queries.GetPackageMaxAccessCount(r.Context(), row.ID)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "failed to compute package downloads")
+			return
+		}
+
 		recipientRows, err := h.queries.ListPackageRecipientsByPackageID(r.Context(), row.ID)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "failed to list package recipients")
@@ -286,7 +292,7 @@ func (h *Handlers) ListPackagesByUser(w http.ResponseWriter, r *http.Request) {
 			Recipients:         recipients,
 			FileCount:          len(files),
 			TotalSize:          totalSize,
-			DownloadCount:      row.DownloadCount,
+			DownloadCount:      maxAccessCount,
 			MaxDownloads:       maxDownloads,
 			ExpiresAt:          row.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
 			IsExpired:          row.Status == "active" && row.ExpiresAt.Before(now),

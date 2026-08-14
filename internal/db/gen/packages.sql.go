@@ -119,6 +119,20 @@ func (q *Queries) GetPackageByID(ctx context.Context, id string) (Package, error
 	return i, err
 }
 
+const getPackageMaxAccessCount = `-- name: GetPackageMaxAccessCount :one
+SELECT CAST(COALESCE(MAX(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?
+`
+
+// max_downloads is a per-file budget (see GetShare), so the download count
+// shown to the package owner should reflect whichever file has been
+// downloaded the most, not the sum of downloads across every file.
+func (q *Queries) GetPackageMaxAccessCount(ctx context.Context, packageID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getPackageMaxAccessCount, packageID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const getPackageRecipientByEmail = `-- name: GetPackageRecipientByEmail :one
 SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at FROM package_recipients WHERE package_id = ? AND email = ?
 `
@@ -277,7 +291,7 @@ func (q *Queries) ListPackagesByUser(ctx context.Context, arg ListPackagesByUser
 }
 
 const listSharesByPackageID = `-- name: ListSharesByPackageID :many
-SELECT s.id AS share_id, s.upload_id, u.filename, u.size
+SELECT s.id AS share_id, s.upload_id, u.filename, u.size, s.access_count
 FROM shares s
 JOIN uploads u ON u.id = s.upload_id
 WHERE s.package_id = ?
@@ -285,10 +299,11 @@ ORDER BY s.created_at ASC
 `
 
 type ListSharesByPackageIDRow struct {
-	ShareID  string
-	UploadID string
-	Filename string
-	Size     int64
+	ShareID     string
+	UploadID    string
+	Filename    string
+	Size        int64
+	AccessCount int64
 }
 
 func (q *Queries) ListSharesByPackageID(ctx context.Context, packageID string) ([]ListSharesByPackageIDRow, error) {
@@ -305,6 +320,7 @@ func (q *Queries) ListSharesByPackageID(ctx context.Context, packageID string) (
 			&i.UploadID,
 			&i.Filename,
 			&i.Size,
+			&i.AccessCount,
 		); err != nil {
 			return nil, err
 		}
