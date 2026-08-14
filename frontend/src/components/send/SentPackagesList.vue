@@ -5,7 +5,7 @@ import SentPackageCard from './SentPackageCard.vue'
 
 const emit = defineEmits<{ preview: [packageId: string] }>()
 
-const { packages, loading, fetchPackages, revokePackage } = usePackages()
+const { packages, loading, revokePackage } = usePackages()
 const toast = ref('')
 let toastTimer: number | null = null
 
@@ -31,11 +31,9 @@ async function revoke(packageId: string, name: string) {
   }
 }
 
-// No fetch on mount here — usePackages() is a shared singleton, and Send.vue
-// (this component's only parent) already fetches on its own mount, before
-// this tab can even be selected. `loading`/`packages` below are the same
-// shared refs, so the "Loading…" state still renders correctly either way.
-defineExpose({ refresh: fetchPackages })
+// No fetch on mount here — usePackages() is a shared singleton. Send.vue
+// fetches on its own mount and again after a package is sent, so `packages`/
+// `loading` below are already current by the time this tab can be selected.
 </script>
 
 <template>

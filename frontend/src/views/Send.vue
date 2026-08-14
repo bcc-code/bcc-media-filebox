@@ -11,7 +11,6 @@ import '../assets/send.css'
 type View = 'compose' | 'sent' | 'preview'
 const view = ref<View>('compose')
 const { total, fetchPackages } = usePackages()
-const sentList = ref<InstanceType<typeof SentPackagesList> | null>(null)
 const previewPackageId = ref<string | undefined>(undefined)
 
 onMounted(fetchPackages)
@@ -19,7 +18,7 @@ onMounted(fetchPackages)
 function onSent() {
   previewPackageId.value = undefined
   view.value = 'sent'
-  sentList.value?.refresh()
+  fetchPackages()
 }
 
 function onPreview(packageId: string) {
@@ -56,7 +55,7 @@ function onPreview(packageId: string) {
       </div>
 
       <PackageComposeForm v-if="view === 'compose'" @sent="onSent" />
-      <SentPackagesList v-else-if="view === 'sent'" ref="sentList" @preview="onPreview" />
+      <SentPackagesList v-else-if="view === 'sent'" @preview="onPreview" />
       <RecipientPreviewTab v-else :selected-package-id="previewPackageId" />
     </div>
   </div>

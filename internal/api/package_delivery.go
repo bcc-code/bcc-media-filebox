@@ -94,7 +94,7 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 		Name:               pkg.Name,
 		Message:            pkg.Message,
 		VerificationMethod: pkg.VerificationMethod,
-		ExpiresAt:          pkg.ExpiresAt.Format("2006-01-02T15:04:05Z"),
+		ExpiresAt:          pkg.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
 		MaxDownloads:       maxDownloads,
 		DownloadCount:      pkg.DownloadCount,
 		Verified:           h.packageVerified(r, pkg),

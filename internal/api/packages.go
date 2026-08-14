@@ -180,7 +180,7 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, CreatePackageResponse{
 		PackageID:  pkg.ID,
 		PackageURL: packageID,
-		ExpiresAt:  expTime.Format("2006-01-02T15:04:05Z"),
+		ExpiresAt:  expTime.UTC().Format("2006-01-02T15:04:05Z"),
 	})
 }
 
@@ -288,7 +288,7 @@ func (h *Handlers) ListPackagesByUser(w http.ResponseWriter, r *http.Request) {
 			TotalSize:          totalSize,
 			DownloadCount:      row.DownloadCount,
 			MaxDownloads:       maxDownloads,
-			ExpiresAt:          row.ExpiresAt.Format("2006-01-02T15:04:05Z"),
+			ExpiresAt:          row.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
 			IsExpired:          row.Status == "active" && row.ExpiresAt.Before(now),
 			IsDownloadLimitHit: row.MaxDownloads.Valid && row.DownloadCount >= row.MaxDownloads.Int64,
 			Status:             row.Status,
