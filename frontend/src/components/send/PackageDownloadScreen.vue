@@ -14,6 +14,14 @@ const props = defineProps<{
   interactive: boolean
 }>()
 
+// The actual download is a plain <a href download> so the browser can
+// stream it natively (no in-memory blob, so no cost for large files) — but
+// that means nothing here observes it completing. The server increments
+// access_count synchronously as soon as the request comes in (shares.go),
+// essentially at click time, so emitting on click and updating the count
+// optimistically in the parent is accurate for the normal success path.
+const emit = defineEmits<{ downloaded: [shareId: string] }>()
+
 const totalSize = computed(() => props.files.reduce((sum, f) => sum + f.size, 0))
 
 function fmtBytes(bytes: number): string {
@@ -46,6 +54,7 @@ function downloadAll() {
     document.body.appendChild(a)
     a.click()
     a.remove()
+    emit('downloaded', f.shareId)
   }
 }
 </script>
@@ -67,6 +76,7 @@ function downloadAll() {
         :href="`/api/shares/${encodeURIComponent(f.shareId)}`"
         :download="f.filename"
         title="Download this file"
+        @click="emit('downloaded', f.shareId)"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
       </a>

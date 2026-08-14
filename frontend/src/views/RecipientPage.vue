@@ -10,7 +10,7 @@ import '../assets/send.css'
 const route = useRoute()
 const packageId = route.params.packageId as string
 
-const { preview, loading, error, verifying, verifyError, load, verifyPassword } = usePackagePreview()
+const { preview, loading, error, verifying, verifyError, load, verifyPassword, recordDownload } = usePackagePreview()
 
 onMounted(() => load(packageId))
 
@@ -52,6 +52,7 @@ function signInBcc() {
             :expires-at="preview.expiresAt"
             :max-downloads="preview.maxDownloads"
             :interactive="true"
+            @downloaded="recordDownload"
           />
         </template>
       </div>

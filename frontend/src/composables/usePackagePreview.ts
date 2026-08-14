@@ -33,6 +33,11 @@ export function usePackagePreview() {
     }
   }
 
+  function recordDownload(shareId: string) {
+    const file = preview.value?.files?.find((f) => f.shareId === shareId)
+    if (file) file.accessCount++
+  }
+
   async function verifyPassword(packageId: string, password: string) {
     verifying.value = true
     verifyError.value = null
@@ -56,5 +61,5 @@ export function usePackagePreview() {
     }
   }
 
-  return { preview, loading, error, verifying, verifyError, load, verifyPassword }
+  return { preview, loading, error, verifying, verifyError, load, verifyPassword, recordDownload }
 }
