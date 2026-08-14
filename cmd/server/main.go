@@ -14,6 +14,7 @@ import (
 	"filebox/internal/config"
 	dbpkg "filebox/internal/db"
 	db "filebox/internal/db/gen"
+	"filebox/internal/objectstore"
 	"filebox/internal/server"
 
 	"github.com/joho/godotenv"
@@ -90,6 +91,18 @@ func main() {
 		log.Println("OAuth disabled (no OIDC_* env vars set) — running in guest-only mode")
 	}
 
+	// Send uploads go to S3 when a bucket is configured; without one they fall
+	// back to a local target directory like every other upload.
+	objectStore, err := objectstore.NewFromEnv(context.Background())
+	if err != nil {
+		log.Fatalf("failed to initialise S3 object store: %v", err)
+	}
+	if objectStore != nil {
+		log.Printf("S3 enabled for Send uploads (bucket: %s)", objectStore.Bucket())
+	} else {
+		log.Println("S3 disabled (no S3_BUCKET set) — Send uploads use local targets")
+	}
+
 	var frontendFS fs.FS
 	if ef := embeddedFrontend(); ef != nil {
 		if sub, err := fs.Sub(ef, "frontend_dist"); err == nil {
@@ -97,7 +110,7 @@ func main() {
 		}
 	}
 
-	srv, err := server.New(queries, uploadDir, baseURL, frontendFS, authManager, sessionStore)
+	srv, err := server.New(queries, uploadDir, baseURL, frontendFS, authManager, sessionStore, objectStore)
 	if err != nil {
 		log.Fatalf("failed to create server: %v", err)
 	}

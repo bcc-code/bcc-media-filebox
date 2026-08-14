@@ -31,6 +31,10 @@ All configuration is via environment variables.
 | `BASE_URL`       | _(empty)_        | Absolute base URL used to build TUS upload URLs and OAuth callback URLs when behind a reverse proxy (e.g. `https://upload.example.com`). |
 | `TARGET_N_NAME`  | —                | Name of upload target `N` (starting at 1). Referenced by the client via the TUS `target` metadata field.      |
 | `TARGET_N_DIR`   | —                | Filesystem directory for target `N`. Must exist and be a directory. Completed uploads are moved here.         |
+| `S3_BUCKET`      | _(empty)_        | When set, Send uploads are stored in this S3 bucket and recipients download via presigned URLs. Unset disables S3; Send then writes to a local target. See [S3 storage for Send](#s3-storage-for-send). |
+| `S3_KEY_PREFIX`  | `send/`          | Key prefix for objects written to `S3_BUCKET`. A trailing `/` is added if missing.                             |
+| `AWS_REGION`     | —                | Region of `S3_BUCKET`. Required when `S3_BUCKET` is set.                                                      |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | — | Credentials for the app's IAM user. Optional when running on AWS with an attached instance/task role. |
 | `SESSION_KEY`    | —                | 32+ byte secret used for session storage. Required only when at least one OAuth provider is configured.       |
 | `BOOTSTRAP_ADMIN_EMAIL` | —         | Optional. On startup, if the `users` table is empty, seeds an admin grant for this email (all targets, admin flag). Ignored once any user has signed in. See [Bootstrapping the first admin](#bootstrapping-the-first-admin). |
 | `OIDC_BCC_*` / `OIDC_AZURE_*` | — | See [Authentication](#authentication). All `OIDC_*` variables are optional; OAuth is disabled when none are set. |
@@ -45,6 +49,34 @@ TARGET_1_DIR=/srv/uploads/raw
 TARGET_2_NAME=Processed
 TARGET_2_DIR=/srv/uploads/processed
 ```
+
+### S3 storage for Send
+
+Files shared through **Send** can be stored in S3 rather than on the server's own disk, so that neither the upload's final resting place nor the recipients' download traffic touches local infrastructure. Set `S3_BUCKET` (plus `AWS_REGION` and credentials) to enable it; leave `S3_BUCKET` unset and Send behaves as before, writing into a local target directory.
+
+How it works when enabled:
+
+- Uploads still arrive over TUS and are assembled in `UPLOAD_DIR/.tmp`, so resumability is unchanged. Once complete, the SHA-256 is verified **before** the transfer, and the file is then streamed to S3 (multipart for large files) and removed from the temp directory.
+- Send uploads are tagged with the reserved target name `s3` instead of a configured target. This name is never a row in the `targets` table, so it can't be created, renamed, or deleted from the admin UI.
+- Object keys are `<S3_KEY_PREFIX><uploadID>/<filename>`. Namespacing by upload ID means same-named files never collide, and the key is derivable from the `uploads` row — so S3-backed shares need no extra columns.
+- `GET /api/shares/{id}` performs all the same package checks (revocation, expiry, per-file download limit, verification), records the access, and then responds `302` to a presigned S3 URL valid for 15 minutes. The bucket itself stays entirely private.
+
+The app's IAM user needs only these actions, scoped to the prefix:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:AbortMultipartUpload"],
+      "Resource": "arn:aws:s3:::<bucket>/send/*"
+    }
+  ]
+}
+```
+
+Recommended bucket settings: Block Public Access **on**, ACLs disabled, default encryption (SSE-S3) on. Optionally add a lifecycle rule expiring the `send/` prefix after ~35 days as a backstop to the 30-day maximum package expiry.
 
 ## HTTP API
 

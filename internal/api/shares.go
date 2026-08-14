@@ -8,7 +8,15 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"filebox/internal/objectstore"
 )
+
+// presignTTL bounds how long a generated S3 download URL stays valid. It only
+// needs to outlive the browser's own start-of-download, not the whole
+// transfer — S3 checks the signature when the request is made, not while the
+// body streams — so this can stay short without breaking large downloads.
+const presignTTL = 15 * time.Minute
 
 // GetShare retrieves a share by ID and serves the underlying file. A share
 // carries no policy of its own — expiry, download limits, and verification
@@ -61,20 +69,36 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mirrors the directory resolution in internal/tus's finalizeUpload: files
-	// land under the target's configured path, or uploadDir/RawMaterial when
-	// the upload has no target.
-	targetDir := filepath.Join(h.uploadDir, "RawMaterial")
-	if upload.TargetName.Valid && upload.TargetName.String != "" {
-		if target, err := h.queries.GetTargetByName(r.Context(), upload.TargetName.String); err == nil {
-			targetDir = target.Path
+	// Work out where the bytes live *before* recording the access, so a file
+	// that's gone missing doesn't burn a download from the recipient's budget.
+	var signedURL, filePath string
+	if h.store != nil && upload.TargetName.String == objectstore.TargetName {
+		signedURL, err = h.store.PresignDownload(
+			r.Context(),
+			h.store.Key(upload.ID, upload.Filename),
+			upload.Filename,
+			presignTTL,
+		)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "failed to prepare download")
+			return
 		}
-	}
-	filePath := filepath.Join(targetDir, upload.Filename)
+	} else {
+		// Mirrors the directory resolution in internal/tus's storeToDisk: files
+		// land under the target's configured path, or uploadDir/RawMaterial when
+		// the upload has no target.
+		targetDir := filepath.Join(h.uploadDir, "RawMaterial")
+		if upload.TargetName.Valid && upload.TargetName.String != "" {
+			if target, err := h.queries.GetTargetByName(r.Context(), upload.TargetName.String); err == nil {
+				targetDir = target.Path
+			}
+		}
+		filePath = filepath.Join(targetDir, upload.Filename)
 
-	if _, err := os.Stat(filePath); err != nil {
-		writeJSONError(w, http.StatusNotFound, "file not found on disk")
-		return
+		if _, err := os.Stat(filePath); err != nil {
+			writeJSONError(w, http.StatusNotFound, "file not found on disk")
+			return
+		}
 	}
 
 	// Two counters: the share's own access_count (used for the per-file gate
@@ -86,6 +110,14 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := h.queries.IncrementPackageDownloadCount(r.Context(), share.PackageID); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "failed to record access")
+		return
+	}
+
+	// S3-backed files are handed off to S3 directly, so the download traffic
+	// never transits this server. The signed URL carries its own
+	// Content-Disposition, so no header is needed here.
+	if signedURL != "" {
+		http.Redirect(w, r, signedURL, http.StatusFound)
 		return
 	}
 

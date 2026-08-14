@@ -8,15 +8,19 @@ import (
 
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
+	"filebox/internal/objectstore"
 )
 
 type Handlers struct {
 	queries   *db.Queries
 	uploadDir string
+	store     *objectstore.Client
 }
 
-func NewHandlers(queries *db.Queries, uploadDir string) *Handlers {
-	return &Handlers{queries: queries, uploadDir: uploadDir}
+// NewHandlers builds the public API handlers. store may be nil, meaning S3 is
+// unconfigured and all share downloads are served from local target dirs.
+func NewHandlers(queries *db.Queries, uploadDir string, store *objectstore.Client) *Handlers {
+	return &Handlers{queries: queries, uploadDir: uploadDir, store: store}
 }
 
 type UploadResponse struct {

@@ -18,6 +18,7 @@ import (
 
 	db "filebox/internal/db/gen"
 	"filebox/internal/forms"
+	"filebox/internal/objectstore"
 	"filebox/internal/webhook"
 
 	"github.com/tus/tusd/v2/pkg/handler"
@@ -27,10 +28,14 @@ type EventProcessor struct {
 	queries   *db.Queries
 	uploadDir string
 	tempDir   string
+	store     *objectstore.Client
 }
 
-func NewEventProcessor(queries *db.Queries, uploadDir, tempDir string) *EventProcessor {
-	return &EventProcessor{queries: queries, uploadDir: uploadDir, tempDir: tempDir}
+// NewEventProcessor wires the upload event loop. store may be nil, in which
+// case every upload finalizes to a local target directory; when non-nil,
+// uploads tagged with the reserved objectstore.TargetName go to S3 instead.
+func NewEventProcessor(queries *db.Queries, uploadDir, tempDir string, store *objectstore.Client) *EventProcessor {
+	return &EventProcessor{queries: queries, uploadDir: uploadDir, tempDir: tempDir, store: store}
 }
 
 // Run processes all tus events in a single goroutine to avoid race conditions.
@@ -144,7 +149,109 @@ func (ep *EventProcessor) handleComplete(event handler.HookEvent) {
 	go ep.finalizeUpload(info, completedAt)
 }
 
+// finalizeUpload promotes a completed upload out of the temp area and into its
+// final home, then does the bookkeeping that applies regardless of where the
+// bytes landed.
 func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time.Time) {
+	if ep.store != nil && info.MetaData["target"] == objectstore.TargetName {
+		ep.storeToS3(info)
+	} else {
+		ep.storeToDisk(info, completedAt)
+	}
+
+	// For concatenated uploads, fix the duration to measure from the earliest
+	// partial upload's creation time (the final upload is created and completed
+	// in the same request, so its created_at == completed_at).
+	if info.PartialUploads != nil {
+		var earliest time.Time
+		for _, partialID := range info.PartialUploads {
+			p, err := ep.queries.GetUpload(context.Background(), partialID)
+			if err != nil {
+				continue
+			}
+			if earliest.IsZero() || p.CreatedAt.Before(earliest) {
+				earliest = p.CreatedAt
+			}
+		}
+		if !earliest.IsZero() {
+			durationMs := completedAt.Sub(earliest).Milliseconds()
+			ep.queries.UpdateDurationMs(context.Background(), db.UpdateDurationMsParams{
+				DurationMs: sql.NullInt64{Int64: durationMs, Valid: true},
+				ID:         info.ID,
+			})
+		}
+
+		// Clean up partial files and .info files
+		for _, partialID := range info.PartialUploads {
+			os.Remove(filepath.Join(ep.tempDir, partialID))
+			os.Remove(filepath.Join(ep.tempDir, partialID+".info"))
+		}
+		// Delete partial DB records
+		for _, partialID := range info.PartialUploads {
+			ep.queries.DeleteUpload(context.Background(), partialID)
+		}
+	}
+
+	// Remove the .info file for the completed upload
+	os.Remove(filepath.Join(ep.tempDir, info.ID+".info"))
+}
+
+// storeToS3 promotes a Send upload into the object store. Unlike the local
+// path it verifies the SHA-256 *before* transferring, since pushing bytes to
+// S3 costs bandwidth and money that a known-corrupt file shouldn't spend.
+// Forms and sidecars are deliberately not handled here: objectstore.TargetName
+// is never a targets row, so an S3-bound upload can never have a form bound
+// to it.
+func (ep *EventProcessor) storeToS3(info handler.FileInfo) {
+	srcPath := filepath.Join(ep.tempDir, info.ID)
+
+	filename, err := SanitizeFilename(info.MetaData["filename"])
+	if err != nil {
+		log.Printf("rejecting upload %s: %v", info.ID, err)
+		ep.queries.FailUpload(context.Background(), info.ID)
+		os.Remove(srcPath)
+		return
+	}
+
+	if expected := info.MetaData["sha256"]; expected != "" {
+		actual, err := computeFileSHA256(srcPath)
+		if err != nil {
+			log.Printf("error computing SHA-256 for %s: %v", srcPath, err)
+		} else if actual != expected {
+			log.Printf("integrity check FAILED for upload %s: expected %s, got %s", info.ID, expected, actual)
+			ep.queries.FailUpload(context.Background(), info.ID)
+			os.Remove(srcPath)
+			return
+		} else {
+			log.Printf("integrity verified for %s (SHA-256: %s)", info.ID, actual)
+		}
+	}
+
+	// The upload row keeps the sanitized name so the download path can
+	// recompute this exact key — see objectstore.Client.Key.
+	key := ep.store.Key(info.ID, filename)
+	if err := ep.store.Upload(context.Background(), key, srcPath); err != nil {
+		// Leave the temp file in place: the bytes are still intact, so a
+		// future retry (or manual recovery) has something to work with.
+		log.Printf("error uploading %s to S3: %v", info.ID, err)
+		ep.queries.FailUpload(context.Background(), info.ID)
+		return
+	}
+
+	if err := ep.queries.UpdateUploadFilename(context.Background(), db.UpdateUploadFilenameParams{
+		Filename: filename,
+		ID:       info.ID,
+	}); err != nil {
+		log.Printf("warning: failed to update stored filename for %s: %v", info.ID, err)
+	}
+
+	if err := os.Remove(srcPath); err != nil {
+		log.Printf("warning: failed to remove temp file %s after S3 upload: %v", srcPath, err)
+	}
+	log.Printf("upload saved: s3://%s/%s", ep.store.Bucket(), key)
+}
+
+func (ep *EventProcessor) storeToDisk(info handler.FileInfo, completedAt time.Time) {
 	// Resolve the target row from the DB — targets can be added/edited by admins
 	// at runtime, so this can't be cached at startup. When the target is bound to
 	// a hardcoded form, the final filename is derived from the submitted form
@@ -244,42 +351,6 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 			ep.fireWebhook(webhookURL, filepath.Base(sidecarPath), ep.relPath(sidecarPath))
 		}
 	}
-
-	// For concatenated uploads, fix the duration to measure from the earliest
-	// partial upload's creation time (the final upload is created and completed
-	// in the same request, so its created_at == completed_at).
-	if info.PartialUploads != nil {
-		var earliest time.Time
-		for _, partialID := range info.PartialUploads {
-			p, err := ep.queries.GetUpload(context.Background(), partialID)
-			if err != nil {
-				continue
-			}
-			if earliest.IsZero() || p.CreatedAt.Before(earliest) {
-				earliest = p.CreatedAt
-			}
-		}
-		if !earliest.IsZero() {
-			durationMs := completedAt.Sub(earliest).Milliseconds()
-			ep.queries.UpdateDurationMs(context.Background(), db.UpdateDurationMsParams{
-				DurationMs: sql.NullInt64{Int64: durationMs, Valid: true},
-				ID:         info.ID,
-			})
-		}
-
-		// Clean up partial files and .info files
-		for _, partialID := range info.PartialUploads {
-			os.Remove(filepath.Join(ep.tempDir, partialID))
-			os.Remove(filepath.Join(ep.tempDir, partialID+".info"))
-		}
-		// Delete partial DB records
-		for _, partialID := range info.PartialUploads {
-			ep.queries.DeleteUpload(context.Background(), partialID)
-		}
-	}
-
-	// Remove the .info file for the completed upload
-	os.Remove(filepath.Join(ep.tempDir, info.ID+".info"))
 }
 
 func (ep *EventProcessor) handleTerminated(event handler.HookEvent) {

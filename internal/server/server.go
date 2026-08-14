@@ -15,6 +15,7 @@ import (
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
 	"filebox/internal/forms"
+	"filebox/internal/objectstore"
 	"filebox/internal/tus"
 
 	"github.com/tus/tusd/v2/pkg/filelocker"
@@ -28,18 +29,21 @@ type Server struct {
 	manager  *auth.Manager
 	sessions *auth.SessionStore
 	baseURL  string
+	store    *objectstore.Client
 }
 
 // New constructs the HTTP server. The manager and sessions arguments may be
 // nil — in that case all auth routes return guest responses and uploads are
-// tagged with "guest:<ulid>" user_ids.
-func New(queries *db.Queries, uploadDir string, baseURL string, frontendFS fs.FS, manager *auth.Manager, sessions *auth.SessionStore) (*Server, error) {
+// tagged with "guest:<ulid>" user_ids. store may likewise be nil, meaning S3
+// is unconfigured and every upload finalizes to a local target directory.
+func New(queries *db.Queries, uploadDir string, baseURL string, frontendFS fs.FS, manager *auth.Manager, sessions *auth.SessionStore, store *objectstore.Client) (*Server, error) {
 	s := &Server{
 		mux:      http.NewServeMux(),
 		queries:  queries,
 		manager:  manager,
 		sessions: sessions,
 		baseURL:  baseURL,
+		store:    store,
 	}
 
 	if err := s.setupTus(uploadDir, baseURL); err != nil {
@@ -83,7 +87,7 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 		return err
 	}
 
-	ep := tus.NewEventProcessor(s.queries, uploadDir, tempDir)
+	ep := tus.NewEventProcessor(s.queries, uploadDir, tempDir, s.store)
 	go ep.Run(h.UnroutedHandler)
 
 	s.mux.Handle("/files/", http.StripPrefix("/files/", h))
@@ -137,11 +141,14 @@ func (s *Server) preUploadCreate(hook tushandler.HookEvent) (tushandler.HTTPResp
 	newMeta["userid"] = canonical
 
 	// Callers that don't offer a target picker (e.g. Send) submit no "target"
-	// at all — default to whichever target is named "send", else the first
-	// configured one. Left blank if none are configured yet; the target name
-	// is only a label on the upload row today, not a write-access check.
+	// at all. With S3 configured they go to the object store; otherwise fall
+	// back to whichever target is named "send", else the first configured one.
+	// Left blank if none are configured yet; the target name is only a label
+	// on the upload row today, not a write-access check.
 	if newMeta["target"] == "" {
-		if resolved, ok := s.resolveDefaultTarget(hook.Context); ok {
+		if s.store != nil {
+			newMeta["target"] = objectstore.TargetName
+		} else if resolved, ok := s.resolveDefaultTarget(hook.Context); ok {
 			newMeta["target"] = resolved
 		}
 	}
@@ -188,7 +195,7 @@ func (s *Server) resolveUploadUserID(hook tushandler.HookEvent) (string, error) 
 }
 
 func (s *Server) setupAPI(uploadDir string) {
-	h := api.NewHandlers(s.queries, uploadDir)
+	h := api.NewHandlers(s.queries, uploadDir, s.store)
 	s.mux.HandleFunc("GET /api/targets", h.ListTargets)
 	s.mux.HandleFunc("GET /api/projects", h.ListProjects)
 	s.mux.HandleFunc("GET /api/projects/{code}/suggestions", h.ProjectSuggestions)
