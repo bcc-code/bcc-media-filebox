@@ -23,6 +23,11 @@ import (
 	tushandler "github.com/tus/tusd/v2/pkg/handler"
 )
 
+// sendFlowTarget is what the Send UI submits instead of naming a real target,
+// meaning "wherever Send files belong". Kept in sync with SEND_TARGET in
+// frontend/src/components/send/PackageComposeForm.vue.
+const sendFlowTarget = "send"
+
 type Server struct {
 	mux      *http.ServeMux
 	queries  *db.Queries
@@ -140,15 +145,15 @@ func (s *Server) preUploadCreate(hook tushandler.HookEvent) (tushandler.HTTPResp
 	}
 	newMeta["userid"] = canonical
 
-	// Callers that don't offer a target picker (e.g. Send) submit no "target"
-	// at all. With S3 configured they go to the object store; otherwise fall
-	// back to whichever target is named "send", else the first configured one.
-	// Left blank if none are configured yet; the target name is only a label
-	// on the upload row today, not a write-access check.
-	if newMeta["target"] == "" {
+	// Only Send's symbolic target may route to S3. An empty target must not:
+	// Home also submits empty when the user has no granted targets, and doing so
+	// silently diverted ordinary uploads into the object store. Empty is left
+	// untouched so it keeps hitting finalizeUpload's RawMaterial fallback.
+	if newMeta["target"] == sendFlowTarget {
 		if s.store != nil {
 			newMeta["target"] = objectstore.TargetName
 		} else if resolved, ok := s.resolveDefaultTarget(hook.Context); ok {
+			// No S3 configured; resolveDefaultTarget prefers a target named "send".
 			newMeta["target"] = resolved
 		}
 	}

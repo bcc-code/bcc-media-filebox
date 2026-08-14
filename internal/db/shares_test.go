@@ -1,0 +1,154 @@
+package db_test
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"path/filepath"
+	"sync"
+	"testing"
+	"time"
+
+	dbpkg "filebox/internal/db"
+	db "filebox/internal/db/gen"
+
+	"github.com/pressly/goose/v3"
+	_ "modernc.org/sqlite"
+)
+
+// newTestDB opens a throwaway SQLite database with all migrations applied,
+// mirroring the connection settings cmd/server uses so the concurrency
+// behaviour under test matches production.
+func newTestDB(t *testing.T) *db.Queries {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "test.db")
+	conn, err := sql.Open("sqlite", path+"?_journal_mode=WAL&_busy_timeout=5000")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	conn.SetMaxOpenConns(1)
+	t.Cleanup(func() { conn.Close() })
+
+	goose.SetBaseFS(dbpkg.Migrations)
+	goose.SetDialect("sqlite3")
+	goose.SetLogger(goose.NopLogger())
+	if err := goose.Up(conn, "migrations"); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	return db.New(conn)
+}
+
+// TestIncrementShareAccessCountIfUnderLimitIsAtomic is the regression test for
+// the download limit being enforced by a separate read-then-increment, which
+// two overlapping requests could both pass. The recipient UI's "Download all"
+// fires every file's request at once, so this is a routine path rather than a
+// rare interleaving.
+func TestIncrementShareAccessCountIfUnderLimitIsAtomic(t *testing.T) {
+	ctx := context.Background()
+	queries := newTestDB(t)
+
+	const limit = 3
+	const attempts = 25
+
+	if _, err := queries.CreatePackage(ctx, db.CreatePackageParams{
+		ID:                 "pkg1",
+		CreatedByUserID:    1,
+		Name:               "pkg",
+		VerificationMethod: "none",
+		ExpiresAt:          time.Now().Add(time.Hour),
+		MaxDownloads:       sql.NullInt64{Int64: limit, Valid: true},
+	}); err != nil {
+		t.Fatalf("create package: %v", err)
+	}
+	if _, err := queries.CreateShare(ctx, db.CreateShareParams{
+		ID:        "share1",
+		PackageID: "pkg1",
+		UploadID:  "upload1",
+	}); err != nil {
+		t.Fatalf("create share: %v", err)
+	}
+
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		granted  int
+		rejected int
+	)
+	for range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := queries.IncrementShareAccessCountIfUnderLimit(ctx, db.IncrementShareAccessCountIfUnderLimitParams{
+				ID:          "share1",
+				AccessCount: limit,
+			})
+			mu.Lock()
+			defer mu.Unlock()
+			switch {
+			case err == nil:
+				granted++
+			case errors.Is(err, sql.ErrNoRows):
+				rejected++
+			default:
+				t.Errorf("unexpected error: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if granted != limit {
+		t.Errorf("granted %d downloads, want exactly %d", granted, limit)
+	}
+	if rejected != attempts-limit {
+		t.Errorf("rejected %d downloads, want %d", rejected, attempts-limit)
+	}
+
+	share, err := queries.GetShareByID(ctx, "share1")
+	if err != nil {
+		t.Fatalf("get share: %v", err)
+	}
+	if share.AccessCount != limit {
+		t.Errorf("access_count = %d, want %d (limit must never be exceeded)", share.AccessCount, limit)
+	}
+}
+
+// TestIncrementShareAccessCountIfUnderLimitRejectsAtLimit pins the boundary:
+// the claim must fail once access_count has reached the limit, not after it has
+// passed it.
+func TestIncrementShareAccessCountIfUnderLimitRejectsAtLimit(t *testing.T) {
+	ctx := context.Background()
+	queries := newTestDB(t)
+
+	if _, err := queries.CreatePackage(ctx, db.CreatePackageParams{
+		ID:                 "pkg1",
+		CreatedByUserID:    1,
+		Name:               "pkg",
+		VerificationMethod: "none",
+		ExpiresAt:          time.Now().Add(time.Hour),
+		MaxDownloads:       sql.NullInt64{Int64: 1, Valid: true},
+	}); err != nil {
+		t.Fatalf("create package: %v", err)
+	}
+	if _, err := queries.CreateShare(ctx, db.CreateShareParams{
+		ID:        "share1",
+		PackageID: "pkg1",
+		UploadID:  "upload1",
+	}); err != nil {
+		t.Fatalf("create share: %v", err)
+	}
+
+	params := db.IncrementShareAccessCountIfUnderLimitParams{ID: "share1", AccessCount: 1}
+
+	got, err := queries.IncrementShareAccessCountIfUnderLimit(ctx, params)
+	if err != nil {
+		t.Fatalf("first claim should succeed: %v", err)
+	}
+	if got.AccessCount != 1 {
+		t.Errorf("access_count after first claim = %d, want 1", got.AccessCount)
+	}
+
+	if _, err := queries.IncrementShareAccessCountIfUnderLimit(ctx, params); !errors.Is(err, sql.ErrNoRows) {
+		t.Errorf("second claim error = %v, want sql.ErrNoRows", err)
+	}
+}

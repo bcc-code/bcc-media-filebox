@@ -196,12 +196,10 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 	os.Remove(filepath.Join(ep.tempDir, info.ID+".info"))
 }
 
-// storeToS3 promotes a Send upload into the object store. Unlike the local
-// path it verifies the SHA-256 *before* transferring, since pushing bytes to
-// S3 costs bandwidth and money that a known-corrupt file shouldn't spend.
-// Forms and sidecars are deliberately not handled here: objectstore.TargetName
-// is never a targets row, so an S3-bound upload can never have a form bound
-// to it.
+// storeToS3 promotes a Send upload into the object store. It verifies the
+// SHA-256 *before* transferring, unlike the local path, so a corrupt file never
+// costs bandwidth. No form/sidecar handling: objectstore.TargetName is never a
+// targets row, so an S3-bound upload can't have a form.
 func (ep *EventProcessor) storeToS3(info handler.FileInfo) {
 	srcPath := filepath.Join(ep.tempDir, info.ID)
 

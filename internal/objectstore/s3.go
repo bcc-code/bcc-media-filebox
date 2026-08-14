@@ -34,14 +34,11 @@ type Client struct {
 }
 
 // NewFromEnv builds a Client from S3_BUCKET plus an optional S3_KEY_PREFIX
-// (default "send/"). Region and credentials resolve through the AWS SDK's
-// standard chain — AWS_REGION / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY,
-// the shared config files, or an attached instance role — so nothing beyond
-// the bucket name is FileBox-specific configuration.
+// (default "send/"). Region and credentials come from the AWS SDK's standard
+// chain (env vars, shared config, or an instance role).
 //
-// Returns (nil, nil) when S3_BUCKET is unset. A nil *Client means "S3 not
-// configured", and every caller treats that as "keep using local targets",
-// so an existing deploy behaves exactly as it did before this package existed.
+// Returns (nil, nil) when S3_BUCKET is unset; callers treat a nil Client as
+// "keep using local targets", so deploys without S3 are unaffected.
 func NewFromEnv(ctx context.Context) (*Client, error) {
 	bucket := os.Getenv("S3_BUCKET")
 	if bucket == "" {
@@ -75,12 +72,10 @@ func NewFromEnv(ctx context.Context) (*Client, error) {
 // Bucket returns the configured bucket name, for logging.
 func (c *Client) Bucket() string { return c.bucket }
 
-// Key derives the object key for an upload. It is a pure function of values
-// already persisted on the uploads row, which is why S3-backed shares need no
-// extra schema: the download path recomputes the same key the upload path
-// wrote. Namespacing by upload ID also means two files with the same name
-// never collide, so this needs no equivalent of tus.uniquePath's numeric
-// suffixing.
+// Key derives the object key from values already on the uploads row, so the
+// download path recomputes what the upload path wrote — which is why S3-backed
+// shares need no extra schema. Namespacing by upload ID also rules out
+// same-name collisions, so no equivalent of tus.uniquePath is needed.
 func (c *Client) Key(uploadID, filename string) string {
 	return c.prefix + uploadID + "/" + filename
 }
@@ -104,16 +99,13 @@ func (c *Client) Upload(ctx context.Context, key, path string) error {
 	return nil
 }
 
-// PresignDownload returns a URL that grants anonymous GET access to key until
-// expiry elapses. The bucket itself stays private (Block Public Access on);
-// this signed URL is the only way a recipient reaches the bytes, and it is
-// what lets downloads bypass this server entirely.
+// PresignDownload returns a URL granting anonymous GET access to key until
+// expiry. The bucket stays private, so this is the only way a recipient reaches
+// the bytes — and what keeps download traffic off this server.
 //
-// filename is sent as a response-content-disposition override so the browser
-// saves the file under its original name rather than the key's trailing
-// segment. Interpolating it into the header unquoted is safe because every
-// stored filename has already been through tus.SanitizeFilename, which admits
-// only [A-Za-z0-9_-] plus a single dot.
+// filename overrides Content-Disposition so the browser saves the original
+// name. Interpolating it unquoted is safe: stored filenames have been through
+// tus.SanitizeFilename ([A-Za-z0-9_-] plus one dot).
 func (c *Client) PresignDownload(ctx context.Context, key, filename string, expiry time.Duration) (string, error) {
 	req, err := c.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket:                     aws.String(c.bucket),

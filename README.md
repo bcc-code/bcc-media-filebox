@@ -59,7 +59,7 @@ How it works when enabled:
 - Uploads still arrive over TUS and are assembled in `UPLOAD_DIR/.tmp`, so resumability is unchanged. Once complete, the SHA-256 is verified **before** the transfer, and the file is then streamed to S3 (multipart for large files) and removed from the temp directory.
 - Send uploads are tagged with the reserved target name `s3` instead of a configured target. This name is never a row in the `targets` table, so it can't be created, renamed, or deleted from the admin UI.
 - Object keys are `<S3_KEY_PREFIX><uploadID>/<filename>`. Namespacing by upload ID means same-named files never collide, and the key is derivable from the `uploads` row — so S3-backed shares need no extra columns.
-- `GET /api/shares/{id}` performs all the same package checks (revocation, expiry, per-file download limit, verification), records the access, and then responds `302` to a presigned S3 URL valid for 15 minutes. The bucket itself stays entirely private.
+- `GET /api/shares/{id}` performs all the same package checks (revocation, expiry, per-file download limit, verification), records the access, and then responds `302` to a presigned S3 URL valid for 5 minutes. The bucket itself stays entirely private.
 
 The app's IAM user needs only these actions, scoped to the prefix:
 

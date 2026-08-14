@@ -11,15 +11,20 @@ const emit = defineEmits<{ sent: [packageId: string] }>()
 const { uploads, addFiles, cancelUpload, forgetUpload } = useTusUpload()
 const { createPackage } = usePackages()
 
-// No target is passed here — Send never shows the caller a picker, so the
-// backend's tus pre-create hook defaults an empty target to whichever one is
-// named "send" (else the first configured target).
+// Send never shows the caller a target picker, so it names its destination
+// symbolically: SEND_TARGET says "wherever Send files belong" and the backend's
+// tus pre-create hook resolves it (S3 when configured, else a real target).
+// It must be this explicit value rather than an empty string — Home also
+// submits an empty target when the signed-in user has no granted targets, and
+// the backend cannot tell the two apart.
+const SEND_TARGET = 'send'
+
 const isDragging = ref(false)
 const filePicker = ref<HTMLInputElement | null>(null)
 
 function onDrop(e: DragEvent) {
   isDragging.value = false
-  if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files, '')
+  if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files, SEND_TARGET)
 }
 function onDragOver(e: DragEvent) {
   e.preventDefault()
@@ -27,7 +32,7 @@ function onDragOver(e: DragEvent) {
 }
 function onFilesPicked(e: Event) {
   const input = e.target as HTMLInputElement
-  if (input.files?.length) addFiles(input.files, '')
+  if (input.files?.length) addFiles(input.files, SEND_TARGET)
   input.value = ''
 }
 

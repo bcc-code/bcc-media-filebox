@@ -70,3 +70,28 @@ func (q *Queries) IncrementShareAccessCount(ctx context.Context, id string) (Sha
 	)
 	return i, err
 }
+
+const incrementShareAccessCountIfUnderLimit = `-- name: IncrementShareAccessCountIfUnderLimit :one
+UPDATE shares
+SET access_count = access_count + 1
+WHERE id = ? AND access_count < ?
+RETURNING id, package_id, upload_id, access_count, created_at
+`
+
+type IncrementShareAccessCountIfUnderLimitParams struct {
+	ID          string
+	AccessCount int64
+}
+
+func (q *Queries) IncrementShareAccessCountIfUnderLimit(ctx context.Context, arg IncrementShareAccessCountIfUnderLimitParams) (Share, error) {
+	row := q.db.QueryRowContext(ctx, incrementShareAccessCountIfUnderLimit, arg.ID, arg.AccessCount)
+	var i Share
+	err := row.Scan(
+		&i.ID,
+		&i.PackageID,
+		&i.UploadID,
+		&i.AccessCount,
+		&i.CreatedAt,
+	)
+	return i, err
+}

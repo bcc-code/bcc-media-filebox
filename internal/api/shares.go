@@ -2,21 +2,25 @@ package api
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	db "filebox/internal/db/gen"
 	"filebox/internal/objectstore"
 )
 
-// presignTTL bounds how long a generated S3 download URL stays valid. It only
-// needs to outlive the browser's own start-of-download, not the whole
-// transfer — S3 checks the signature when the request is made, not while the
-// body streams — so this can stay short without breaking large downloads.
-const presignTTL = 15 * time.Minute
+// presignTTL bounds how long an S3 download URL stays valid, and with it the
+// window in which it can be re-fetched or forwarded without passing through
+// this server (so uncounted). It needn't cover the transfer — S3 checks the
+// signature only at request start — but going much lower breaks resume of
+// paused downloads and leaves no slack for host clock drift.
+const presignTTL = 5 * time.Minute
 
 // GetShare retrieves a share by ID and serves the underlying file. A share
 // carries no policy of its own — expiry, download limits, and verification
@@ -101,10 +105,27 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Two counters: the share's own access_count (used for the per-file gate
-	// above) and the package's download_count (an aggregate shown to the
-	// owner, e.g. "2/10 downloads" — display-only, not used for gating).
-	if _, err := h.queries.IncrementShareAccessCount(r.Context(), shareID); err != nil {
+	// Two counters: the share's own access_count (the per-file gate) and the
+	// package's download_count (display-only aggregate).
+	//
+	// Re-testing the limit inside the UPDATE is the authoritative gate — the
+	// check above is only a fast path. Without it, concurrent requests both pass
+	// that earlier read and push access_count past the limit, which "Download
+	// all" triggers routinely by firing every file at once.
+	if pkg.MaxDownloads.Valid {
+		_, err := h.queries.IncrementShareAccessCountIfUnderLimit(r.Context(), db.IncrementShareAccessCountIfUnderLimitParams{
+			ID:          shareID,
+			AccessCount: pkg.MaxDownloads.Int64,
+		})
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSONError(w, http.StatusGone, "file download limit reached")
+			return
+		}
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "failed to record access")
+			return
+		}
+	} else if _, err := h.queries.IncrementShareAccessCount(r.Context(), shareID); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "failed to record access")
 		return
 	}
