@@ -133,6 +133,21 @@ func (q *Queries) GetPackageMaxAccessCount(ctx context.Context, packageID string
 	return column_1, err
 }
 
+const getPackageMinAccessCount = `-- name: GetPackageMinAccessCount :one
+SELECT CAST(COALESCE(MIN(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?
+`
+
+// Counterpart to GetPackageMaxAccessCount: if even the LEAST-downloaded
+// share has already hit max_downloads, every file in the package has, so
+// there's nothing left to download at all -- distinct from just one file
+// being exhausted while others still have budget left.
+func (q *Queries) GetPackageMinAccessCount(ctx context.Context, packageID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getPackageMinAccessCount, packageID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const getPackageRecipientByEmail = `-- name: GetPackageRecipientByEmail :one
 SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at FROM package_recipients WHERE package_id = ? AND email = ?
 `

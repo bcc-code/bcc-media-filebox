@@ -37,6 +37,13 @@ ORDER BY s.created_at ASC;
 -- downloaded the most, not the sum of downloads across every file.
 SELECT CAST(COALESCE(MAX(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?;
 
+-- name: GetPackageMinAccessCount :one
+-- Counterpart to GetPackageMaxAccessCount: if even the LEAST-downloaded
+-- share has already hit max_downloads, every file in the package has, so
+-- there's nothing left to download at all -- distinct from just one file
+-- being exhausted while others still have budget left.
+SELECT CAST(COALESCE(MIN(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?;
+
 -- name: CreatePackageRecipient :one
 INSERT INTO package_recipients (package_id, email)
 VALUES (?, ?)

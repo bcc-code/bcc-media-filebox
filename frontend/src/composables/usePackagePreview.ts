@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { PackagePreview } from './usePackages'
 
 // Per-call state (like useTusUpload, unlike the shared usePackages singleton)
@@ -38,6 +38,17 @@ export function usePackagePreview() {
     if (file) file.accessCount++
   }
 
+  // Whether every file has already used up its download budget. Only
+  // meaningful once files are loaded (post-verification) and a limit is
+  // actually set — an unlimited package (maxDownloads === null) can never
+  // be "exhausted". The server intentionally keeps serving the preview in
+  // this state (see GetPackagePreview), so this is purely a display concern.
+  const allDownloadsExhausted = computed(() => {
+    const p = preview.value
+    if (!p || p.maxDownloads == null || !p.files || p.files.length === 0) return false
+    return p.files.every((f) => f.accessCount >= p.maxDownloads!)
+  })
+
   async function verifyPassword(packageId: string, password: string) {
     verifying.value = true
     verifyError.value = null
@@ -61,5 +72,5 @@ export function usePackagePreview() {
     }
   }
 
-  return { preview, loading, error, verifying, verifyError, load, verifyPassword, recordDownload }
+  return { preview, loading, error, verifying, verifyError, load, verifyPassword, recordDownload, allDownloadsExhausted }
 }

@@ -43,12 +43,17 @@ function expiryText(iso: string): string {
   return `expires in ${days} day${days === 1 ? '' : 's'}`
 }
 
+function isExhausted(f: PackageFile): boolean {
+  return props.maxDownloads != null && f.accessCount >= props.maxDownloads
+}
+
 // "Download all" without a dedicated backend endpoint: fire every file's
 // individual download link. Fine for a handful of files; the many-small-
 // files/zip case is a separate, not-yet-built piece.
 function downloadAll() {
   if (!props.interactive) return
   for (const f of props.files) {
+    if (isExhausted(f)) continue
     const a = document.createElement('a')
     a.href = `/api/shares/${encodeURIComponent(f.shareId)}`
     a.download = f.filename
@@ -77,9 +82,12 @@ function downloadAll() {
       <span class="fic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
       <span class="fn">{{ f.filename }}</span>
       <span class="fs">{{ fmtBytes(f.size) }}</span>
-      <span class="fs">{{ f.accessCount }}{{ maxDownloads ? '/' + maxDownloads : '' }} downloads</span>
+      <span class="fs">{{ f.accessCount }}{{ maxDownloads ? '/' + maxDownloads : '' }} downloads<template v-if="isExhausted(f)"> · limit reached</template></span>
+      <span v-if="isExhausted(f)" class="file-dl inert" title="This file has reached its download limit">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+      </span>
       <a
-        v-if="interactive"
+        v-else-if="interactive"
         class="file-dl"
         :href="`/api/shares/${encodeURIComponent(f.shareId)}`"
         :download="f.filename"

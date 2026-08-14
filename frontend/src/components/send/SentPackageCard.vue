@@ -49,6 +49,10 @@ const displayStatus = computed(() => {
         <div class="pkg-recips">{{ pkg.recipients.length ? `To ${pkg.recipients.join(', ')}` : 'No recipients — link only' }}</div>
       </div>
       <div class="pkg-badges">
+        <span v-if="pkg.isDownloadLimitHit && displayStatus === 'active'" class="chip-sm warn">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+          Limit reached
+        </span>
         <span v-if="pkg.verificationMethod !== 'none'" class="chip-sm lock">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
           {{ verifyShort }}

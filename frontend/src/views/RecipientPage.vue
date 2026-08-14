@@ -4,13 +4,15 @@ import { useRoute } from 'vue-router'
 import AppLogo from '../components/AppLogo.vue'
 import PackageVerifyScreen from '../components/send/PackageVerifyScreen.vue'
 import PackageDownloadScreen from '../components/send/PackageDownloadScreen.vue'
+import PackageUnavailableScreen from '../components/send/PackageUnavailableScreen.vue'
 import { usePackagePreview } from '../composables/usePackagePreview'
 import '../assets/send.css'
 
 const route = useRoute()
 const packageId = route.params.packageId as string
 
-const { preview, loading, error, verifying, verifyError, load, verifyPassword, recordDownload } = usePackagePreview()
+const { preview, loading, error, verifying, verifyError, load, verifyPassword, recordDownload, allDownloadsExhausted } =
+  usePackagePreview()
 
 onMounted(() => load(packageId))
 
@@ -28,13 +30,7 @@ function signInBcc() {
 
         <div v-if="loading" style="text-align: center; color: var(--ink-3); padding: 20px 0">Loading…</div>
 
-        <div v-else-if="error" style="text-align: center">
-          <div class="terminal-icon" style="margin: 0 auto 20px">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
-          </div>
-          <h2 class="verify-h">This link isn't available</h2>
-          <p class="verify-p">{{ error }}</p>
-        </div>
+        <PackageUnavailableScreen v-else-if="error" heading="This link isn't available" :message="error" />
 
         <template v-else-if="preview">
           <PackageVerifyScreen
@@ -44,6 +40,11 @@ function signInBcc() {
             :error="verifyError"
             @submit-password="(pw) => verifyPassword(packageId, pw)"
             @sign-in-bcc="signInBcc"
+          />
+          <PackageUnavailableScreen
+            v-else-if="allDownloadsExhausted"
+            heading="Download limit reached"
+            message="Every file in this package has reached its download limit."
           />
           <PackageDownloadScreen
             v-else
