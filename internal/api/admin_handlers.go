@@ -724,19 +724,19 @@ func (h *AdminHandlers) DeleteSubEvent(w http.ResponseWriter, r *http.Request) {
 // ---------- Users ----------
 
 type userListDTO struct {
-	ID               int64   `json:"id"`
-	Provider         string  `json:"provider"`
-	Email            string  `json:"email"`
-	Name             string  `json:"name"`
-	Role             string  `json:"role"`
-	CreatedAt        string  `json:"createdAt"`
-	LastLoginAt      string  `json:"lastLoginAt"`
-	Uploads          int64   `json:"uploads"`
-	UploadsThisMonth int64   `json:"uploadsThisMonth"`
-	TotalBytes       int64   `json:"totalBytes"`
-	BytesThisMonth   int64   `json:"bytesThisMonth"`
-	Failures         int64   `json:"failures"`
-	Active           bool    `json:"active"`
+	ID               int64    `json:"id"`
+	Provider         string   `json:"provider"`
+	Email            string   `json:"email"`
+	Name             string   `json:"name"`
+	Role             string   `json:"role"`
+	CreatedAt        string   `json:"createdAt"`
+	LastLoginAt      string   `json:"lastLoginAt"`
+	Uploads          int64    `json:"uploads"`
+	UploadsThisMonth int64    `json:"uploadsThisMonth"`
+	TotalBytes       int64    `json:"totalBytes"`
+	BytesThisMonth   int64    `json:"bytesThisMonth"`
+	Failures         int64    `json:"failures"`
+	Active           bool     `json:"active"`
 	Groups           []string `json:"groups"`
 }
 
@@ -795,10 +795,10 @@ func (h *AdminHandlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 // userDetailDTO extends the list DTO with everything the drawer needs.
 type userDetailDTO struct {
 	userListDTO
-	Recent            []recentUploadDTO `json:"recent"`
-	DirectGrants      []grantDTO        `json:"directGrants"`
+	Recent             []recentUploadDTO `json:"recent"`
+	DirectGrants       []grantDTO        `json:"directGrants"`
 	EffectiveTargetIDs []int64           `json:"effectiveTargetIds"`
-	EffectiveAll      bool              `json:"effectiveAll"`
+	EffectiveAll       bool              `json:"effectiveAll"`
 }
 
 type recentUploadDTO struct {

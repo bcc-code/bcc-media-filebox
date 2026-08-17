@@ -67,6 +67,8 @@ type PackageRecipient struct {
 	MagicLinkToken sql.NullString
 	VerifiedAt     sql.NullTime
 	CreatedAt      time.Time
+	SentAt         sql.NullTime
+	SendError      sql.NullString
 }
 
 type PackageVerification struct {

@@ -8,6 +8,7 @@ import (
 
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
+	"filebox/internal/mail"
 	"filebox/internal/objectstore"
 )
 
@@ -15,12 +16,19 @@ type Handlers struct {
 	queries   *db.Queries
 	uploadDir string
 	store     *objectstore.Client
+	mailer    mail.Sender
+	// mailBaseURL is the public origin used to build recipient links
+	// (MAIL_LINK_BASE_URL), not necessarily the server's own base URL.
+	mailBaseURL string
 }
 
 // NewHandlers builds the public API handlers. store may be nil, meaning S3 is
 // unconfigured and all share downloads are served from local target dirs.
-func NewHandlers(queries *db.Queries, uploadDir string, store *objectstore.Client) *Handlers {
-	return &Handlers{queries: queries, uploadDir: uploadDir, store: store}
+// mailer may be nil or a mail.NoopSender; both mean delivery is off, since
+// sends are gated on mail.IsEnabled.
+// mailBaseURL is the public origin used to build recipient links.
+func NewHandlers(queries *db.Queries, uploadDir string, store *objectstore.Client, mailer mail.Sender, mailBaseURL string) *Handlers {
+	return &Handlers{queries: queries, uploadDir: uploadDir, store: store, mailer: mailer, mailBaseURL: mailBaseURL}
 }
 
 type UploadResponse struct {

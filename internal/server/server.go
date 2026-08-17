@@ -15,6 +15,7 @@ import (
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
 	"filebox/internal/forms"
+	"filebox/internal/mail"
 	"filebox/internal/objectstore"
 	"filebox/internal/tus"
 
@@ -34,21 +35,29 @@ type Server struct {
 	manager  *auth.Manager
 	sessions *auth.SessionStore
 	baseURL  string
-	store    *objectstore.Client
+	// mailBaseURL is the origin used in recipient links; usually baseURL, but
+	// separate in dev where recipients open the Vite dev server.
+	mailBaseURL string
+	store       *objectstore.Client
+	mailer      mail.Sender
 }
 
 // New constructs the HTTP server. The manager and sessions arguments may be
 // nil — in that case all auth routes return guest responses and uploads are
 // tagged with "guest:<ulid>" user_ids. store may likewise be nil, meaning S3
 // is unconfigured and every upload finalizes to a local target directory.
-func New(queries *db.Queries, uploadDir string, baseURL string, frontendFS fs.FS, manager *auth.Manager, sessions *auth.SessionStore, store *objectstore.Client) (*Server, error) {
+// A nil mailer disables delivery rather than panicking, since every send is
+// gated on mail.IsEnabled — pass a mail.NoopSender to say so explicitly.
+func New(queries *db.Queries, uploadDir string, baseURL string, mailBaseURL string, frontendFS fs.FS, manager *auth.Manager, sessions *auth.SessionStore, store *objectstore.Client, mailer mail.Sender) (*Server, error) {
 	s := &Server{
-		mux:      http.NewServeMux(),
-		queries:  queries,
-		manager:  manager,
-		sessions: sessions,
-		baseURL:  baseURL,
-		store:    store,
+		mux:         http.NewServeMux(),
+		queries:     queries,
+		manager:     manager,
+		sessions:    sessions,
+		baseURL:     baseURL,
+		mailBaseURL: mailBaseURL,
+		store:       store,
+		mailer:      mailer,
 	}
 
 	if err := s.setupTus(uploadDir, baseURL); err != nil {
@@ -200,7 +209,7 @@ func (s *Server) resolveUploadUserID(hook tushandler.HookEvent) (string, error) 
 }
 
 func (s *Server) setupAPI(uploadDir string) {
-	h := api.NewHandlers(s.queries, uploadDir, s.store)
+	h := api.NewHandlers(s.queries, uploadDir, s.store, s.mailer, s.mailBaseURL)
 	s.mux.HandleFunc("GET /api/targets", h.ListTargets)
 	s.mux.HandleFunc("GET /api/projects", h.ListProjects)
 	s.mux.HandleFunc("GET /api/projects/{code}/suggestions", h.ProjectSuggestions)

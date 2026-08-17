@@ -1,0 +1,153 @@
+{{/*
+  Mirrors the recipient page (PackageDownloadScreen.vue inside .public-card)
+  so the mail and the page it links to read as one product.
+
+  send.css tokens resolved to hex — email clients understand neither CSS custom
+  properties nor oklch(), so these must stay in sync with assets/send.css by hand:
+    --bg #0a1426   --bg-2 #0f1c33   --bg-3 #15243f   --line #1f2f4d
+    --line-2 #2a3d61   --ink #e7ecf5   --ink-2 #aeb8cc   --ink-3 #6c7896
+    --accent #73a9e1 (oklch .72 .10 250)   --accent-ink #0a1426
+
+  Tables and inline styles on purpose: Outlook ignores <style> blocks, and Gmail
+  strips external CSS. Inter is used when the reader has it and falls back to the
+  system sans otherwise — webfonts do not load in most clients.
+*/}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+<title>{{if .SenderName}}{{.SenderName}} sent you a package{{else}}You've received files{{end}}</title>
+<style>
+  :root { color-scheme: dark; supported-color-schemes: dark; }
+  a { color: #73a9e1; }
+  @media (max-width: 520px) {
+    .fb-pad { padding: 24px 20px !important; }
+    .fb-size { display: none !important; }
+  }
+</style>
+</head>
+<body style="margin:0; padding:0; background-color:#0a1426; -webkit-font-smoothing:antialiased;">
+<div style="display:none; max-height:0; overflow:hidden; opacity:0;">{{.FileLabel}}{{with .TotalLabel}} · {{.}}{{end}} — {{.ExpiresOn}}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a1426" style="background-color:#0a1426;">
+  <tr>
+    <td align="center" style="padding:36px 12px 48px;">
+
+      {{/* .public-card. Padding lives on the inner cell, not the table:
+           Outlook's Word engine ignores padding on <table>. */}}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0f1c33" style="max-width:480px; background-color:#0f1c33; border:1px solid #2a3d61; border-radius:16px;">
+      <tr>
+      <td class="fb-pad" style="padding:30px 30px 28px; font-family:'Inter',system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif; color:#e7ecf5;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+
+        {{/* .public-brand. alt is empty on purpose: the wordmark beside it
+             already says FileBox, so a blocked image degrades to the wordmark
+             alone rather than showing the name twice. */}}
+        <tr>
+          <td style="padding-bottom:22px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                {{if .LogoURL}}
+                <td valign="middle" style="padding-right:10px; line-height:0;"><img src="{{.LogoURL}}" width="23" height="26" alt="" style="display:block; border:0; outline:none;"></td>
+                {{end}}
+                <td valign="middle" style="font-size:16px; font-weight:600; color:#e7ecf5; letter-spacing:-0.1px;">FileBox</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{/* .public-from + .public-pkgname */}}
+        <tr>
+          <td style="font-size:14px; line-height:1.5; color:#aeb8cc;">
+            {{if .SenderName}}<strong style="color:#e7ecf5; font-weight:600;">{{.SenderName}}</strong> sent you a package{{else}}You've received files{{end}}
+          </td>
+        </tr>
+        {{if .PackageName}}
+        <tr>
+          <td style="padding-top:6px; font-size:23px; font-weight:600; letter-spacing:-0.3px; color:#e7ecf5; line-height:1.3;">{{.PackageName}}</td>
+        </tr>
+        {{end}}
+
+        {{/* .public-msg */}}
+        {{if .Message}}
+        <tr>
+          <td style="padding-top:16px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a1426" style="background-color:#0a1426; border:1px solid #1f2f4d; border-radius:10px;">
+              <tr><td style="padding:13px 15px; font-size:13.5px; line-height:1.55; color:#aeb8cc;">{{.MessageHTML}}</td></tr>
+            </table>
+          </td>
+        </tr>
+        {{end}}
+
+        {{/* .public-files + .public-total */}}
+        {{if .Files}}
+        <tr>
+          <td style="padding-top:20px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              {{range $i, $f := .Files}}
+              <tr>
+                <td style="padding:9px 0; font-size:13.5px; color:#e7ecf5; word-break:break-all;{{if $i}} border-top:1px solid #1f2f4d;{{end}}">{{$f.Name}}</td>
+                <td class="fb-size" align="right" style="padding:9px 0 9px 12px; font-size:12px; color:#6c7896; white-space:nowrap; font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;{{if $i}} border-top:1px solid #1f2f4d;{{end}}">{{$f.SizeLabel}}</td>
+              </tr>
+              {{end}}
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-top:14px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="font-size:12.5px; color:#6c7896;">{{.FileLabel}}</td>
+                <td align="right" style="font-size:12.5px; color:#6c7896; font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;">{{.TotalLabel}}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        {{end}}
+
+        {{/* .btn.btn-primary.btn-block */}}
+        <tr>
+          <td style="padding-top:22px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td align="center" bgcolor="#73a9e1" style="background-color:#73a9e1; border-radius:9px;">
+                  <a href="{{.ShareURL}}" style="display:block; padding:12px 18px; font-family:'Inter',system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif; font-size:14px; font-weight:600; color:#0a1426; text-decoration:none; border-radius:9px;">Download {{.FileLabel}}{{with .TotalLabel}} · {{.}}{{end}}</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        {{/* .public-note */}}
+        <tr>
+          <td align="center" style="padding-top:14px; font-size:12px; line-height:1.5; color:#6c7896;">
+            Expires {{.ExpiresOn}}{{if .MaxDownloads}} · {{.MaxDownloads}} downloads allowed{{end}}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding-top:22px; border-top:1px solid #1f2f4d;"></td>
+        </tr>
+        <tr>
+          <td style="font-size:11.5px; line-height:1.6; color:#6c7896; word-break:break-all;">
+            If the button doesn't work, open this link:<br>
+            <a href="{{.ShareURL}}" style="color:#73a9e1; text-decoration:none;">{{.ShareURL}}</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-top:12px; font-size:11.5px; line-height:1.6; color:#6c7896;">
+            Sent by FileBox{{if .SenderEmail}} on behalf of {{.SenderEmail}}{{end}}. Reply to this email to reach {{if .SenderName}}{{.SenderName}}{{else}}the sender{{end}} directly.
+          </td>
+        </tr>
+
+      </table>
+      </td>
+      </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>
+</body>
+</html>

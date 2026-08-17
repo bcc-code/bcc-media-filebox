@@ -71,7 +71,7 @@ func (q *Queries) CreatePackage(ctx context.Context, arg CreatePackageParams) (P
 const createPackageRecipient = `-- name: CreatePackageRecipient :one
 INSERT INTO package_recipients (package_id, email)
 VALUES (?, ?)
-RETURNING id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at
+RETURNING id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error
 `
 
 type CreatePackageRecipientParams struct {
@@ -91,6 +91,8 @@ func (q *Queries) CreatePackageRecipient(ctx context.Context, arg CreatePackageR
 		&i.MagicLinkToken,
 		&i.VerifiedAt,
 		&i.CreatedAt,
+		&i.SentAt,
+		&i.SendError,
 	)
 	return i, err
 }
@@ -149,7 +151,7 @@ func (q *Queries) GetPackageMinAccessCount(ctx context.Context, packageID string
 }
 
 const getPackageRecipientByEmail = `-- name: GetPackageRecipientByEmail :one
-SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at FROM package_recipients WHERE package_id = ? AND email = ?
+SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error FROM package_recipients WHERE package_id = ? AND email = ?
 `
 
 type GetPackageRecipientByEmailParams struct {
@@ -169,12 +171,14 @@ func (q *Queries) GetPackageRecipientByEmail(ctx context.Context, arg GetPackage
 		&i.MagicLinkToken,
 		&i.VerifiedAt,
 		&i.CreatedAt,
+		&i.SentAt,
+		&i.SendError,
 	)
 	return i, err
 }
 
 const getPackageRecipientByMagicLinkToken = `-- name: GetPackageRecipientByMagicLinkToken :one
-SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at FROM package_recipients WHERE magic_link_token = ?
+SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error FROM package_recipients WHERE magic_link_token = ?
 `
 
 func (q *Queries) GetPackageRecipientByMagicLinkToken(ctx context.Context, magicLinkToken sql.NullString) (PackageRecipient, error) {
@@ -189,6 +193,8 @@ func (q *Queries) GetPackageRecipientByMagicLinkToken(ctx context.Context, magic
 		&i.MagicLinkToken,
 		&i.VerifiedAt,
 		&i.CreatedAt,
+		&i.SentAt,
+		&i.SendError,
 	)
 	return i, err
 }
@@ -221,7 +227,7 @@ func (q *Queries) IncrementPackageDownloadCount(ctx context.Context, id string) 
 }
 
 const listPackageRecipientsByPackageID = `-- name: ListPackageRecipientsByPackageID :many
-SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at FROM package_recipients WHERE package_id = ? ORDER BY id ASC
+SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error FROM package_recipients WHERE package_id = ? ORDER BY id ASC
 `
 
 func (q *Queries) ListPackageRecipientsByPackageID(ctx context.Context, packageID string) ([]PackageRecipient, error) {
@@ -242,6 +248,8 @@ func (q *Queries) ListPackageRecipientsByPackageID(ctx context.Context, packageI
 			&i.MagicLinkToken,
 			&i.VerifiedAt,
 			&i.CreatedAt,
+			&i.SentAt,
+			&i.SendError,
 		); err != nil {
 			return nil, err
 		}
@@ -348,6 +356,33 @@ func (q *Queries) ListSharesByPackageID(ctx context.Context, packageID string) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const markPackageRecipientSendFailed = `-- name: MarkPackageRecipientSendFailed :exec
+UPDATE package_recipients
+SET sent_at = NULL, send_error = ?
+WHERE id = ?
+`
+
+type MarkPackageRecipientSendFailedParams struct {
+	SendError sql.NullString
+	ID        int64
+}
+
+func (q *Queries) MarkPackageRecipientSendFailed(ctx context.Context, arg MarkPackageRecipientSendFailedParams) error {
+	_, err := q.db.ExecContext(ctx, markPackageRecipientSendFailed, arg.SendError, arg.ID)
+	return err
+}
+
+const markPackageRecipientSent = `-- name: MarkPackageRecipientSent :exec
+UPDATE package_recipients
+SET sent_at = CURRENT_TIMESTAMP, send_error = NULL
+WHERE id = ?
+`
+
+func (q *Queries) MarkPackageRecipientSent(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, markPackageRecipientSent, id)
+	return err
 }
 
 const markPackageRecipientVerified = `-- name: MarkPackageRecipientVerified :exec

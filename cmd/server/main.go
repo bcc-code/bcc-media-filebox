@@ -14,6 +14,7 @@ import (
 	"filebox/internal/config"
 	dbpkg "filebox/internal/db"
 	db "filebox/internal/db/gen"
+	"filebox/internal/mail"
 	"filebox/internal/objectstore"
 	"filebox/internal/server"
 
@@ -103,6 +104,28 @@ func main() {
 		log.Println("S3 disabled (no S3_BUCKET set) — Send uploads use local targets")
 	}
 
+	// Email delivery. Unconfigured is a valid state (NoopSender logs instead of
+	// sending), but a configured relay without BASE_URL would mail out links
+	// that go nowhere — so that combination is fatal rather than silent.
+	mailer, err := mail.NewFromEnv()
+	if err != nil {
+		log.Fatalf("failed to initialise mail: %v", err)
+	}
+	// Recipient links default to BASE_URL, but the two differ in dev: BASE_URL
+	// is this server's origin (and the OAuth redirect), while a recipient opens
+	// the Vite dev server. MAIL_LINK_BASE_URL overrides just the link, and dev
+	// builds fall back to Vite so local testing needs no configuration.
+	mailBaseURL := envOr("MAIL_LINK_BASE_URL", baseURL)
+	if mailBaseURL == "" {
+		mailBaseURL = devLinkOrigin // set only in dev builds
+	}
+	if mail.IsEnabled(mailer) && mailBaseURL == "" {
+		log.Fatalf("mail is configured but neither MAIL_LINK_BASE_URL nor BASE_URL is set — recipient links would point at the wrong host (dev builds fall back to the Vite dev server; production must set one explicitly)")
+	}
+	if mail.IsEnabled(mailer) {
+		log.Printf("mail: recipient links point at %s", mailBaseURL)
+	}
+
 	var frontendFS fs.FS
 	if ef := embeddedFrontend(); ef != nil {
 		if sub, err := fs.Sub(ef, "frontend_dist"); err == nil {
@@ -110,7 +133,7 @@ func main() {
 		}
 	}
 
-	srv, err := server.New(queries, uploadDir, baseURL, frontendFS, authManager, sessionStore, objectStore)
+	srv, err := server.New(queries, uploadDir, baseURL, mailBaseURL, frontendFS, authManager, sessionStore, objectStore, mailer)
 	if err != nil {
 		log.Fatalf("failed to create server: %v", err)
 	}

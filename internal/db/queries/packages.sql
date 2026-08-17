@@ -72,3 +72,13 @@ WHERE id = ?;
 UPDATE package_recipients
 SET verified_at = CURRENT_TIMESTAMP
 WHERE id = ?;
+
+-- name: MarkPackageRecipientSent :exec
+UPDATE package_recipients
+SET sent_at = CURRENT_TIMESTAMP, send_error = NULL
+WHERE id = ?;
+
+-- name: MarkPackageRecipientSendFailed :exec
+UPDATE package_recipients
+SET sent_at = NULL, send_error = ?
+WHERE id = ?;

@@ -164,18 +164,25 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	recipients := make([]db.PackageRecipient, 0, len(req.Recipients))
 	for _, email := range req.Recipients {
 		if email == "" {
 			continue
 		}
-		if _, err := h.queries.CreatePackageRecipient(r.Context(), db.CreatePackageRecipientParams{
+		rcpt, err := h.queries.CreatePackageRecipient(r.Context(), db.CreatePackageRecipientParams{
 			PackageID: packageID,
 			Email:     email,
-		}); err != nil {
+		})
+		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "failed to add recipient")
 			return
 		}
+		recipients = append(recipients, rcpt)
 	}
+
+	// Detached from the request: the package exists either way, and delivery
+	// state lands on package_recipients (sent_at / send_error).
+	go h.notifyRecipients(pkg, recipients, uploads, caller)
 
 	writeJSON(w, http.StatusCreated, CreatePackageResponse{
 		PackageID:  pkg.ID,
