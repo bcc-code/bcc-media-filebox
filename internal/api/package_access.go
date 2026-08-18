@@ -152,8 +152,8 @@ func (h *Handlers) RequestPackageAccess(w http.ResponseWriter, r *http.Request) 
 type extendPackageRequest struct {
 	// Counted from now, not from the old expiry.
 	ExpiresInDays int `json:"expiresInDays"`
-	// Replaces the stored per-file budget rather than adding to it; null or <= 0
-	// means unlimited, as in CreatePackageRequest.
+	// Replaces the stored per-file budget rather than adding to it; null means
+	// unlimited, as in CreatePackageRequest.
 	MaxDownloads *int `json:"maxDownloads"`
 }
 
@@ -190,8 +190,15 @@ func (h *Handlers) ExtendPackage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Reject a non-positive budget rather than reading it as unlimited — that
+	// would silently do the opposite of what the author asked for.
+	if req.MaxDownloads != nil && *req.MaxDownloads < 1 {
+		writeJSONError(w, http.StatusBadRequest, "maxDownloads must be at least 1, or omitted for unlimited")
+		return
+	}
+
 	var maxDownloads sql.NullInt64
-	if req.MaxDownloads != nil && *req.MaxDownloads > 0 {
+	if req.MaxDownloads != nil {
 		maxDownloads = sql.NullInt64{Int64: int64(*req.MaxDownloads), Valid: true}
 	}
 

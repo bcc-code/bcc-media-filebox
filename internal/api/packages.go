@@ -101,8 +101,15 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		passwordHash = sql.NullString{String: string(hash), Valid: true}
 	}
 
+	// Reject a non-positive budget rather than reading it as unlimited — that
+	// would silently do the opposite of what the sender asked for.
+	if req.MaxDownloads != nil && *req.MaxDownloads < 1 {
+		writeJSONError(w, http.StatusBadRequest, "maxDownloads must be at least 1, or omitted for unlimited")
+		return
+	}
+
 	var maxDownloads sql.NullInt64
-	if req.MaxDownloads != nil && *req.MaxDownloads > 0 {
+	if req.MaxDownloads != nil {
 		maxDownloads = sql.NullInt64{Int64: int64(*req.MaxDownloads), Valid: true}
 	}
 

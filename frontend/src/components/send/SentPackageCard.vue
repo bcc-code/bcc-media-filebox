@@ -72,12 +72,17 @@ function openExtend() {
   showExtend.value = true
 }
 
-const extendValid = computed(() => extendDays.value >= 1 && extendDays.value <= 30)
+// Blank downloads means unlimited, anything else must be at least 1.
+const extendValid = computed(
+  () =>
+    extendDays.value >= 1 &&
+    extendDays.value <= 30 &&
+    (extendMaxDownloads.value === '' || extendMaxDownloads.value >= 1),
+)
 
 function submitExtend() {
   if (!extendValid.value || props.extending) return
-  const max = extendMaxDownloads.value === '' ? undefined : Number(extendMaxDownloads.value)
-  emit('extend', Number(extendDays.value), max && max > 0 ? max : undefined)
+  emit('extend', extendDays.value, extendMaxDownloads.value === '' ? undefined : extendMaxDownloads.value)
   showExtend.value = false
 }
 </script>
@@ -145,11 +150,11 @@ function submitExtend() {
       <div class="ex-fields">
         <label class="ex-f">
           <span class="ex-lab">More days</span>
-          <input v-model.number="extendDays" class="inp" type="number" min="1" max="30" />
+          <input v-model.number="extendDays" class="inp" type="number" min="1" max="30" step="1" />
         </label>
         <label class="ex-f">
           <span class="ex-lab">Downloads per file</span>
-          <input v-model="extendMaxDownloads" class="inp" type="number" min="1" placeholder="Unlimited" />
+          <input v-model.number="extendMaxDownloads" class="inp" type="number" min="1" step="1" placeholder="Unlimited" />
         </label>
       </div>
       <p class="ex-note">

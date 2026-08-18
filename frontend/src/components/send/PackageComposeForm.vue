@@ -51,7 +51,7 @@ const name = ref('')
 const recipients = ref<string[]>([])
 const message = ref('')
 const expiresInDays = ref(7)
-const maxDownloads = ref('')
+const maxDownloads = ref<number | ''>('')
 const verify = ref<VerificationMethod>('none')
 const password = ref('')
 const notify = ref(true)
@@ -59,6 +59,8 @@ const sending = ref(false)
 const sendError = ref<string | null>(null)
 
 const validRecipients = computed(() => recipients.value.filter((r) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r)))
+// Blank means unlimited, anything else must be at least 1.
+const maxDownloadsValid = computed(() => maxDownloads.value === '' || maxDownloads.value >= 1)
 const completedUploads = computed(() => uploads.value.filter((u) => u.status === 'completed' && u.uploadId))
 const stillUploading = computed(() => uploads.value.some((u) => u.status === 'uploading' || u.status === 'pending'))
 
@@ -74,6 +76,7 @@ const canSend = computed(
     completedUploads.value.length > 0 &&
     !stillUploading.value &&
     name.value.trim().length > 0 &&
+    maxDownloadsValid.value &&
     (verify.value !== 'password' || password.value.trim().length > 0) &&
     !sending.value,
 )
@@ -83,6 +86,7 @@ const blockReason = computed(() => {
   if (stillUploading.value) return 'Wait for files to finish uploading.'
   if (completedUploads.value.length === 0) return 'At least one file must finish uploading.'
   if (!name.value.trim()) return 'Give the package a name.'
+  if (!maxDownloadsValid.value) return 'Max downloads must be 1 or more, or blank for unlimited.'
   if (verify.value === 'password' && !password.value.trim()) return 'Set a password.'
   return ''
 })
@@ -98,7 +102,7 @@ async function send() {
       uploadIds: completedUploads.value.map((u) => u.uploadId as string),
       recipients: validRecipients.value.length ? validRecipients.value : undefined,
       expiresInDays: expiresInDays.value,
-      maxDownloads: maxDownloads.value ? parseInt(maxDownloads.value, 10) : undefined,
+      maxDownloads: maxDownloads.value === '' ? undefined : maxDownloads.value,
       verificationMethod: verify.value,
       password: verify.value === 'password' ? password.value : undefined,
       notifyOnDownload: notify.value,
@@ -228,7 +232,7 @@ async function send() {
       <div class="sum-line"><span class="k">Name</span><span class="v">{{ name.trim() || '—' }}</span></div>
       <div class="sum-line"><span class="k">Recipients</span><span class="v">{{ validRecipients.length || '—' }}</span></div>
       <div class="sum-line"><span class="k">Expires</span><span class="v">In {{ expiresInDays }} day{{ expiresInDays === 1 ? '' : 's' }}</span></div>
-      <div class="sum-line"><span class="k">Downloads</span><span class="v mono">{{ maxDownloads ? `max ${maxDownloads}` : 'unlimited' }}</span></div>
+      <div class="sum-line"><span class="k">Downloads</span><span class="v mono">{{ maxDownloads === '' ? 'unlimited' : `max ${maxDownloads}` }}</span></div>
       <div class="sum-line"><span class="k">Verification</span><span class="v">{{ verifyName }}</span></div>
       <div class="sum-line"><span class="k">Notify</span><span class="v">{{ notify ? 'On' : 'Off' }}</span></div>
       <button class="btn btn-primary btn-block" style="margin-top: 16px" :disabled="!canSend" @click="send">

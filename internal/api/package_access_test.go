@@ -407,6 +407,30 @@ func TestExtendPackageRejectsNonOwner(t *testing.T) {
 	}
 }
 
+// A negative budget used to be read as "unlimited", the opposite of the ask.
+func TestExtendPackageRejectsNegativeMaxDownloads(t *testing.T) {
+	q := newTestDB(t)
+	h := NewHandlers(q, t.TempDir(), nil, mail.NoopSender{}, "https://filebox.example.com")
+
+	author := seedAuthor(t, q, "john.doe@bcc.no")
+	pkg := seedPackageState(t, q, author.ID, time.Now().Add(-time.Hour), sql.NullInt64{Int64: 3, Valid: true})
+
+	body := `{"expiresInDays":7,"maxDownloads":-5}`
+	r := httptest.NewRequest(http.MethodPost, "/api/packages/"+pkg.ID+"/extend", strings.NewReader(body))
+	r.SetPathValue("id", pkg.ID)
+	r = r.WithContext(auth.WithCaller(r.Context(), &auth.Caller{UserID: author.ID}))
+	w := httptest.NewRecorder()
+	h.ExtendPackage(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d (%s), want 400", w.Code, w.Body.String())
+	}
+	reloaded, _ := q.GetPackageByID(context.Background(), pkg.ID)
+	if reloaded.ExpiresAt.After(time.Now()) || reloaded.MaxDownloads.Int64 != 3 {
+		t.Errorf("rejected extend changed the package: expires=%v maxDownloads=%v", reloaded.ExpiresAt, reloaded.MaxDownloads)
+	}
+}
+
 // A request id is only meaningful under its own package.
 func TestDismissPackageAccessRequestChecksOwnershipAndPackage(t *testing.T) {
 	q := newTestDB(t)
