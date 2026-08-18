@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -45,15 +46,26 @@ type packageFileView struct {
 }
 
 type packagePreviewResponse struct {
-	Name               string            `json:"name"`
-	SenderName         string            `json:"senderName"`
-	Message            string            `json:"message"`
-	VerificationMethod string            `json:"verificationMethod"`
-	ExpiresAt          string            `json:"expiresAt"`
-	MaxDownloads       *int64            `json:"maxDownloads"`
-	DownloadCount      int64             `json:"downloadCount"`
-	Verified           bool              `json:"verified"`
-	Files              []packageFileView `json:"files,omitempty"`
+	Name               string `json:"name"`
+	SenderName         string `json:"senderName"`
+	Message            string `json:"message"`
+	VerificationMethod string `json:"verificationMethod"`
+	ExpiresAt          string `json:"expiresAt"`
+	MaxDownloads       *int64 `json:"maxDownloads"`
+	DownloadCount      int64  `json:"downloadCount"`
+	Verified           bool   `json:"verified"`
+	// Whether an access request must come from a named recipient. Only words the
+	// request form's copy; the rule itself lives in RequestPackageAccess.
+	RecipientsOnly bool              `json:"recipientsOnly"`
+	Files          []packageFileView `json:"files,omitempty"`
+}
+
+// packageHasRecipients reports whether the package was mailed to named
+// addresses, which is what decides who may ask for it back. A failed lookup
+// reads as "no list" — the more permissive answer, and this only shapes copy.
+func (h *Handlers) packageHasRecipients(ctx context.Context, packageID string) bool {
+	rcpts, err := h.queries.ListPackageRecipientsByPackageID(ctx, packageID)
+	return err == nil && len(rcpts) > 0
 }
 
 // GetPackagePreview is the public endpoint a recipient's browser hits to see
@@ -101,6 +113,7 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 		MaxDownloads:       maxDownloads,
 		DownloadCount:      maxAccessCount,
 		Verified:           h.packageVerified(r, pkg),
+		RecipientsOnly:     h.packageHasRecipients(r.Context(), pkg.ID),
 	}
 
 	if resp.Verified {
@@ -231,6 +244,7 @@ type packageUnavailableResponse struct {
 	Name             string `json:"name"`
 	SenderName       string `json:"senderName"`
 	CanRequestAccess bool   `json:"canRequestAccess"`
+	RecipientsOnly   bool   `json:"recipientsOnly"`
 }
 
 func (h *Handlers) writePackageUnavailable(w http.ResponseWriter, r *http.Request, pkg db.Package, reason string) {
@@ -245,5 +259,6 @@ func (h *Handlers) writePackageUnavailable(w http.ResponseWriter, r *http.Reques
 		Name:             pkg.Name,
 		SenderName:       senderName,
 		CanRequestAccess: true,
+		RecipientsOnly:   h.packageHasRecipients(r.Context(), pkg.ID),
 	})
 }

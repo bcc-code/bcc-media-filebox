@@ -53,6 +53,7 @@ function signInBcc() {
             v-if="unavailable"
             :reason="unavailable.reason"
             :sender-name="unavailable.senderName"
+            :recipients-only="unavailable.recipientsOnly"
             :submitting="requesting"
             :error="requestError"
             :sent="requestSent"
@@ -78,6 +79,7 @@ function signInBcc() {
             <PackageAccessRequestForm
               reason="limit_reached"
               :sender-name="preview.senderName"
+              :recipients-only="preview.recipientsOnly"
               :submitting="requesting"
               :error="requestError"
               :sent="requestSent"

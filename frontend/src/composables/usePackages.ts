@@ -73,6 +73,9 @@ export interface PackagePreview {
   maxDownloads: number | null
   downloadCount: number
   verified: boolean
+  // Whether an access request has to come from one of the addresses the package
+  // was mailed to. Only words the request form's copy.
+  recipientsOnly: boolean
   files?: PackageFile[]
 }
 

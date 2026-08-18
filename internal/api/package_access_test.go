@@ -553,3 +553,32 @@ func TestRequestPackageAccessCeilingIsSelfHealing(t *testing.T) {
 		t.Fatalf("after the window: status = %d (%s), want 202", w.Code, w.Body.String())
 	}
 }
+
+// A package mailed to named addresses only takes requests from those addresses —
+// whoever else the link reached is not the sender's correspondent.
+func TestRequestPackageAccessRejectsNonRecipient(t *testing.T) {
+	q := newTestDB(t)
+	h := NewHandlers(q, t.TempDir(), nil, mail.NoopSender{}, "https://filebox.example.com")
+	ctx := context.Background()
+
+	author := seedAuthor(t, q, "john.doe@bcc.no")
+	pkg := seedPackageState(t, q, author.ID, time.Now().Add(-time.Hour), sql.NullInt64{})
+	if _, err := q.CreatePackageRecipient(ctx, db.CreatePackageRecipientParams{
+		PackageID: pkg.ID, Email: "jane@example.com",
+	}); err != nil {
+		t.Fatalf("seed recipient: %v", err)
+	}
+
+	w := postAccessRequest(t, h, pkg.ID, `{"email":"stranger@example.com"}`)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status = %d (%s), want 403", w.Code, w.Body.String())
+	}
+	if requests, _ := q.ListPendingPackageAccessRequests(ctx, pkg.ID); len(requests) != 0 {
+		t.Errorf("a refused request was recorded anyway: %+v", requests)
+	}
+
+	// The address it was mailed to gets through, whatever case they type it in.
+	if w := postAccessRequest(t, h, pkg.ID, `{"email":"Jane@Example.com"}`); w.Code != http.StatusAccepted {
+		t.Fatalf("recipient status = %d (%s), want 202", w.Code, w.Body.String())
+	}
+}

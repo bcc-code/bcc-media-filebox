@@ -68,6 +68,7 @@ function signInBcc() {
           <PackageAccessRequestForm
             :reason="unavailable.reason"
             :sender-name="unavailable.senderName"
+            :recipients-only="unavailable.recipientsOnly"
             :interactive="false"
           />
         </div>
@@ -88,7 +89,12 @@ function signInBcc() {
               heading="Download limit reached"
               message="Every file in this package has reached its download limit."
             />
-            <PackageAccessRequestForm reason="limit_reached" :sender-name="preview.senderName" :interactive="false" />
+            <PackageAccessRequestForm
+              reason="limit_reached"
+              :sender-name="preview.senderName"
+              :recipients-only="preview.recipientsOnly"
+              :interactive="false"
+            />
           </template>
           <PackageDownloadScreen
             v-else

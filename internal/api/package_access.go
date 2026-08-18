@@ -29,6 +29,32 @@ const (
 	maxEmailLength          = 254
 )
 
+// canonicalEmail reduces an address to the bare form stored everywhere:
+// ParseAddress also accepts "Name <addr>", and the two must not read as two
+// different addresses. Reports false for anything that isn't an address.
+func canonicalEmail(raw string) (string, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || len(raw) > maxEmailLength {
+		return "", false
+	}
+	parsed, err := netmail.ParseAddress(raw)
+	if err != nil {
+		return "", false
+	}
+	return parsed.Address, true
+}
+
+// Addresses are compared case-insensitively — mail domains are, and a recipient
+// typing their own address back rarely matches the sender's capitalisation.
+func containsEmailFold(list []string, email string) bool {
+	for _, e := range list {
+		if strings.EqualFold(e, email) {
+			return true
+		}
+	}
+	return false
+}
+
 type requestPackageAccessRequest struct {
 	Email   string `json:"email"`
 	Message string `json:"message"`
@@ -40,10 +66,10 @@ type requestPackageAccessResponse struct {
 }
 
 // RequestPackageAccess records a recipient's ask to reopen a dead package and
-// mails its author. Unauthenticated on purpose — whoever needs it cannot get in
-// — so anyone holding the link can post here: the address is taken at face value
-// (it only becomes Reply-To, never a grant) and throttled per package AND email.
-// Note that nothing caps requests per package: a fresh address always passes.
+// mails its author. Unauthenticated on purpose — whoever needs it cannot get in —
+// so the address is taken at face value (it only becomes Reply-To, never a
+// grant), but it must be one the package was mailed to, and requests are
+// throttled per package AND email. A link-only package takes any address.
 func (h *Handlers) RequestPackageAccess(w http.ResponseWriter, r *http.Request) {
 	packageID := r.PathValue("id")
 
@@ -58,19 +84,32 @@ func (h *Handlers) RequestPackageAccess(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	email := strings.TrimSpace(req.Email)
-	if email == "" || len(email) > maxEmailLength {
+	// The bare address, so the cooldown sees "Name <addr>" and "addr" as one.
+	email, ok := canonicalEmail(req.Email)
+	if !ok {
 		writeJSONError(w, http.StatusBadRequest, "A valid email address is required")
 		return
 	}
-	// Take the bare address: ParseAddress also accepts "Name <addr>", and the
-	// cooldown must see both forms as one.
-	parsed, err := netmail.ParseAddress(email)
+
+	// Only the addresses the package was mailed to may ask for it back. A
+	// link-only package has no list to check against, so it stays open to anyone
+	// holding the link — that link is the only credential it ever had.
+	rcpts, err := h.queries.ListPackageRecipientsByPackageID(r.Context(), pkg.ID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "A valid email address is required")
+		writeJSONError(w, http.StatusInternalServerError, "Failed to check package recipients")
 		return
 	}
-	email = parsed.Address
+	if len(rcpts) > 0 {
+		known := make([]string, 0, len(rcpts))
+		for _, rc := range rcpts {
+			known = append(known, rc.Email)
+		}
+		if !containsEmailFold(known, email) {
+			writeJSONError(w, http.StatusForbidden,
+				"This package was sent to specific addresses. Ask from the address it was sent to, and the sender will get your request.")
+			return
+		}
+	}
 
 	message := strings.TrimSpace(req.Message)
 	if len(message) > maxAccessRequestMessage {

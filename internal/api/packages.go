@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -113,6 +114,24 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		maxDownloads = sql.NullInt64{Int64: int64(*req.MaxDownloads), Valid: true}
 	}
 
+	// Recipients are validated before anything is created: a typo silently
+	// dropped here means that person gets no mail and, since only recipients may
+	// ask for a dead package back, no way to ask for it either.
+	recipientEmails := make([]string, 0, len(req.Recipients))
+	for _, raw := range req.Recipients {
+		if strings.TrimSpace(raw) == "" {
+			continue
+		}
+		email, ok := canonicalEmail(raw)
+		if !ok {
+			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%q is not a valid email address", strings.TrimSpace(raw)))
+			return
+		}
+		if !containsEmailFold(recipientEmails, email) {
+			recipientEmails = append(recipientEmails, email)
+		}
+	}
+
 	// Check every upload first, so a package is never partly created against a
 	// file the caller can't share.
 	uploads := make([]db.Upload, 0, len(req.UploadIDs))
@@ -170,11 +189,8 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	recipients := make([]db.PackageRecipient, 0, len(req.Recipients))
-	for _, email := range req.Recipients {
-		if email == "" {
-			continue
-		}
+	recipients := make([]db.PackageRecipient, 0, len(recipientEmails))
+	for _, email := range recipientEmails {
 		rcpt, err := h.queries.CreatePackageRecipient(r.Context(), db.CreatePackageRecipientParams{
 			PackageID: packageID,
 			Email:     email,

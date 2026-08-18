@@ -58,7 +58,11 @@ const notify = ref(true)
 const sending = ref(false)
 const sendError = ref<string | null>(null)
 
-const validRecipients = computed(() => recipients.value.filter((r) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r)))
+const isEmail = (r: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r)
+const validRecipients = computed(() => recipients.value.filter(isEmail))
+// A typo used to be dropped silently: no mail, and no way for that person to ask
+// for the package later, since only its recipients can.
+const badRecipients = computed(() => recipients.value.filter((r) => !isEmail(r)))
 // Blank means unlimited, anything else must be at least 1.
 const maxDownloadsValid = computed(() => maxDownloads.value === '' || maxDownloads.value >= 1)
 const completedUploads = computed(() => uploads.value.filter((u) => u.status === 'completed' && u.uploadId))
@@ -76,6 +80,7 @@ const canSend = computed(
     completedUploads.value.length > 0 &&
     !stillUploading.value &&
     name.value.trim().length > 0 &&
+    badRecipients.value.length === 0 &&
     maxDownloadsValid.value &&
     (verify.value !== 'password' || password.value.trim().length > 0) &&
     !sending.value,
@@ -86,6 +91,7 @@ const blockReason = computed(() => {
   if (stillUploading.value) return 'Wait for files to finish uploading.'
   if (completedUploads.value.length === 0) return 'At least one file must finish uploading.'
   if (!name.value.trim()) return 'Give the package a name.'
+  if (badRecipients.value.length) return `Fix or remove ${badRecipients.value.join(', ')} — not a valid email address.`
   if (!maxDownloadsValid.value) return 'Max downloads must be 1 or more, or blank for unlimited.'
   if (verify.value === 'password' && !password.value.trim()) return 'Set a password.'
   return ''

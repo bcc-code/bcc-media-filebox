@@ -9,6 +9,7 @@ export interface PackageUnavailable {
   name: string
   senderName: string
   canRequestAccess: boolean
+  recipientsOnly: boolean
 }
 
 // Per-call state, not a singleton like usePackages: the public page and the

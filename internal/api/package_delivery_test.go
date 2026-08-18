@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -71,5 +72,45 @@ func TestVerifyPackageAcceptsNormalBody(t *testing.T) {
 	}
 	if w := postVerify(t, h, pkg.ID, `{"password":"correct horse"}`); w.Code != http.StatusOK {
 		t.Fatalf("correct password: status = %d (%s), want 200", w.Code, w.Body.String())
+	}
+}
+
+// The dead-package body has to say which case the reader is in: a recipient-only
+// package tells them to ask from the address it was sent to, a link-only one
+// takes any address.
+func TestPackagePreviewReportsRecipientsOnly(t *testing.T) {
+	q := newTestDB(t)
+	h := NewHandlers(q, t.TempDir(), nil, mail.NoopSender{}, "https://filebox.example.com")
+	ctx := context.Background()
+
+	author := seedAuthor(t, q, "john.doe@bcc.no")
+	pkg := seedPackageState(t, q, author.ID, time.Now().Add(-time.Hour), sql.NullInt64{})
+
+	preview := func() packageUnavailableResponse {
+		t.Helper()
+		r := httptest.NewRequest(http.MethodGet, "/api/packages/"+pkg.ID+"/preview", nil)
+		r.SetPathValue("id", pkg.ID)
+		w := httptest.NewRecorder()
+		h.GetPackagePreview(w, r)
+		if w.Code != http.StatusGone {
+			t.Fatalf("status = %d (%s), want 410", w.Code, w.Body.String())
+		}
+		var out packageUnavailableResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		return out
+	}
+
+	if got := preview(); got.RecipientsOnly {
+		t.Error("a link-only package must not claim to be recipients-only")
+	}
+	if _, err := q.CreatePackageRecipient(ctx, db.CreatePackageRecipientParams{
+		PackageID: pkg.ID, Email: "jane@example.com",
+	}); err != nil {
+		t.Fatalf("seed recipient: %v", err)
+	}
+	if got := preview(); !got.RecipientsOnly {
+		t.Error("a package with recipients must report recipientsOnly")
 	}
 }

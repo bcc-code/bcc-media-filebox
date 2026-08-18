@@ -8,6 +8,11 @@ const props = withDefaults(
     // the reason itself, from the package, not from the requester.
     reason: AccessRequestReason
     senderName?: string
+    // Whether the server will only take a request from an address the package
+    // was mailed to. A link-only package has no list, so anyone holding the link
+    // may ask — and being told to use "the address this was sent to" would be
+    // wrong there.
+    recipientsOnly?: boolean
     submitting?: boolean
     error?: string | null
     sent?: boolean
@@ -16,7 +21,7 @@ const props = withDefaults(
     // absent Boolean prop to false, which would make the real page inert.
     interactive?: boolean
   }>(),
-  { interactive: true, senderName: '', error: null, sent: false, submitting: false },
+  { interactive: true, senderName: '', recipientsOnly: false, error: null, sent: false, submitting: false },
 )
 
 const emit = defineEmits<{ submit: [email: string, message: string] }>()
@@ -43,7 +48,11 @@ const emailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.
 // stated reason reads as broken, and neither reason is visible otherwise.
 const disabledReason = computed(() => {
   if (!props.interactive) return 'Preview only — nothing is sent from this tab.'
-  if (!emailValid.value) return 'Enter your email address so the sender can reach you.'
+  if (!emailValid.value) {
+    return props.recipientsOnly
+      ? 'Enter the address this package was sent to.'
+      : 'Enter your email address so the sender can reach you.'
+  }
   return null
 })
 
@@ -69,8 +78,9 @@ function submit() {
   <div v-else class="req-box">
     <div class="req-h">Ask {{ who }} to reopen it</div>
     <p class="req-p">
-      {{ blockedBy }} Leave an address to reach you at, say what you need, and we'll pass the request on to
-      {{ who }}.
+      {{ blockedBy }}
+      {{ recipientsOnly ? 'Ask from the address it was sent to' : 'Leave an address to reach you at' }}, say what you
+      need, and we'll pass the request on to {{ who }}.
     </p>
 
     <input

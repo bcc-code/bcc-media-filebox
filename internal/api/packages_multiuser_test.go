@@ -193,3 +193,38 @@ func TestConcurrentPackageCreationFromBothSenders(t *testing.T) {
 	t.Logf("%d concurrent creates in %v (%.1fms each, serialized on one connection)",
 		2*perSender, elapsed.Round(time.Millisecond), float64(elapsed.Milliseconds())/float64(2*perSender))
 }
+
+// A typo in a recipient address is rejected outright: it would otherwise be
+// dropped, leaving that person with no mail and no way to ask for the package.
+func TestCreatePackageRejectsInvalidRecipient(t *testing.T) {
+	q := newTestDB(t)
+	h := NewHandlers(q, t.TempDir(), nil, mail.NoopSender{}, "https://filebox.example.com")
+	alice, _ := twoSenders(t, q)
+
+	body := `{"name":"p","uploadIds":["alice-up"],"expiresInDays":7,"recipients":["jane@example.com","not-an-email"]}`
+	w := createPackageAs(t, h, alice, body)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d (%s), want 400", w.Code, w.Body.String())
+	}
+	if list := listPackagesAs(t, h, alice); list.Total != 0 {
+		t.Errorf("a refused create left %d packages behind", list.Total)
+	}
+}
+
+// Recipients are stored canonically and deduped, so a display-name form and a
+// repeat of the same address don't turn into extra rows or extra mail.
+func TestCreatePackageCanonicalisesRecipients(t *testing.T) {
+	q := newTestDB(t)
+	h := NewHandlers(q, t.TempDir(), nil, mail.NoopSender{}, "https://filebox.example.com")
+	alice, _ := twoSenders(t, q)
+
+	body := `{"name":"p","uploadIds":["alice-up"],"expiresInDays":7,` +
+		`"recipients":["Jane Roe <jane@example.com>","JANE@example.com","  "]}`
+	if w := createPackageAs(t, h, alice, body); w.Code != http.StatusCreated {
+		t.Fatalf("status = %d (%s), want 201", w.Code, w.Body.String())
+	}
+	list := listPackagesAs(t, h, alice)
+	if got := list.Packages[0].Recipients; len(got) != 1 || got[0] != "jane@example.com" {
+		t.Errorf("recipients = %v, want just the bare address once", got)
+	}
+}
