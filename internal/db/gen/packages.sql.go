@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -17,6 +18,26 @@ SELECT COUNT(*) FROM packages WHERE created_by_user_id = ?
 
 func (q *Queries) CountPackagesByUser(ctx context.Context, createdByUserID int64) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countPackagesByUser, createdByUserID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countRecentPackageAccessRequests = `-- name: CountRecentPackageAccessRequests :one
+SELECT COUNT(*) FROM package_access_requests
+WHERE package_id = ?1
+  AND unixepoch(created_at) > unixepoch('now') - CAST(?2 AS INTEGER)
+`
+
+type CountRecentPackageAccessRequestsParams struct {
+	PackageID     string
+	WindowSeconds int64
+}
+
+// The per-package ceiling. Compared in seconds rather than by binding a Go time,
+// since created_at is written by CURRENT_TIMESTAMP and the two formats differ.
+func (q *Queries) CountRecentPackageAccessRequests(ctx context.Context, arg CountRecentPackageAccessRequestsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRecentPackageAccessRequests, arg.PackageID, arg.WindowSeconds)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -68,6 +89,42 @@ func (q *Queries) CreatePackage(ctx context.Context, arg CreatePackageParams) (P
 	return i, err
 }
 
+const createPackageAccessRequest = `-- name: CreatePackageAccessRequest :one
+INSERT INTO package_access_requests (id, package_id, email, message, reason)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, package_id, email, message, reason, status, created_at, resolved_at
+`
+
+type CreatePackageAccessRequestParams struct {
+	ID        string
+	PackageID string
+	Email     string
+	Message   string
+	Reason    string
+}
+
+func (q *Queries) CreatePackageAccessRequest(ctx context.Context, arg CreatePackageAccessRequestParams) (PackageAccessRequest, error) {
+	row := q.db.QueryRowContext(ctx, createPackageAccessRequest,
+		arg.ID,
+		arg.PackageID,
+		arg.Email,
+		arg.Message,
+		arg.Reason,
+	)
+	var i PackageAccessRequest
+	err := row.Scan(
+		&i.ID,
+		&i.PackageID,
+		&i.Email,
+		&i.Message,
+		&i.Reason,
+		&i.Status,
+		&i.CreatedAt,
+		&i.ResolvedAt,
+	)
+	return i, err
+}
+
 const createPackageRecipient = `-- name: CreatePackageRecipient :one
 INSERT INTO package_recipients (package_id, email)
 VALUES (?, ?)
@@ -93,6 +150,154 @@ func (q *Queries) CreatePackageRecipient(ctx context.Context, arg CreatePackageR
 		&i.CreatedAt,
 		&i.SentAt,
 		&i.SendError,
+	)
+	return i, err
+}
+
+const dismissPackageAccessRequest = `-- name: DismissPackageAccessRequest :exec
+UPDATE package_access_requests
+SET status = 'dismissed', resolved_at = CURRENT_TIMESTAMP
+WHERE id = ? AND status = 'pending'
+`
+
+func (q *Queries) DismissPackageAccessRequest(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, dismissPackageAccessRequest, id)
+	return err
+}
+
+const extendPackage = `-- name: ExtendPackage :one
+UPDATE packages
+SET expires_at    = ?,
+    max_downloads = ?,
+    status        = 'active'
+WHERE id = ?
+RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at
+`
+
+type ExtendPackageParams struct {
+	ExpiresAt    time.Time
+	MaxDownloads sql.NullInt64
+	ID           string
+}
+
+// Pushes expiry out, replaces the per-file download budget, and clears
+// 'revoked': an author who explicitly extends means to make it reachable.
+func (q *Queries) ExtendPackage(ctx context.Context, arg ExtendPackageParams) (Package, error) {
+	row := q.db.QueryRowContext(ctx, extendPackage, arg.ExpiresAt, arg.MaxDownloads, arg.ID)
+	var i Package
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedByUserID,
+		&i.Name,
+		&i.Message,
+		&i.VerificationMethod,
+		&i.PasswordHash,
+		&i.ExpiresAt,
+		&i.MaxDownloads,
+		&i.DownloadCount,
+		&i.NotifyOnDownload,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getLatestPackageAccessRequestByEmail = `-- name: GetLatestPackageAccessRequestByEmail :one
+SELECT id, package_id, email, message, reason, status, created_at, resolved_at FROM package_access_requests
+WHERE package_id = ? AND email = ?
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+type GetLatestPackageAccessRequestByEmailParams struct {
+	PackageID string
+	Email     string
+}
+
+// Backs the per-requester cooldown. Ordered by created_at, since ids are random
+// tokens rather than a sequence.
+func (q *Queries) GetLatestPackageAccessRequestByEmail(ctx context.Context, arg GetLatestPackageAccessRequestByEmailParams) (PackageAccessRequest, error) {
+	row := q.db.QueryRowContext(ctx, getLatestPackageAccessRequestByEmail, arg.PackageID, arg.Email)
+	var i PackageAccessRequest
+	err := row.Scan(
+		&i.ID,
+		&i.PackageID,
+		&i.Email,
+		&i.Message,
+		&i.Reason,
+		&i.Status,
+		&i.CreatedAt,
+		&i.ResolvedAt,
+	)
+	return i, err
+}
+
+const getPackageAccessCountsByPackageIDs = `-- name: GetPackageAccessCountsByPackageIDs :many
+SELECT package_id,
+       CAST(COALESCE(MAX(access_count), 0) AS INTEGER) AS max_access_count,
+       CAST(COALESCE(MIN(access_count), 0) AS INTEGER) AS min_access_count
+FROM shares
+WHERE package_id IN (/*SLICE:package_ids*/?)
+GROUP BY package_id
+`
+
+type GetPackageAccessCountsByPackageIDsRow struct {
+	PackageID      string
+	MaxAccessCount int64
+	MinAccessCount int64
+}
+
+// Not derived from ListSharesByPackageIDs: that joins uploads, and a share whose
+// upload was deleted still counts here, as in the single-package queries.
+func (q *Queries) GetPackageAccessCountsByPackageIDs(ctx context.Context, packageIds []string) ([]GetPackageAccessCountsByPackageIDsRow, error) {
+	query := getPackageAccessCountsByPackageIDs
+	var queryParams []interface{}
+	if len(packageIds) > 0 {
+		for _, v := range packageIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:package_ids*/?", strings.Repeat(",?", len(packageIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:package_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPackageAccessCountsByPackageIDsRow
+	for rows.Next() {
+		var i GetPackageAccessCountsByPackageIDsRow
+		if err := rows.Scan(&i.PackageID, &i.MaxAccessCount, &i.MinAccessCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPackageAccessRequest = `-- name: GetPackageAccessRequest :one
+SELECT id, package_id, email, message, reason, status, created_at, resolved_at FROM package_access_requests WHERE id = ?
+`
+
+func (q *Queries) GetPackageAccessRequest(ctx context.Context, id string) (PackageAccessRequest, error) {
+	row := q.db.QueryRowContext(ctx, getPackageAccessRequest, id)
+	var i PackageAccessRequest
+	err := row.Scan(
+		&i.ID,
+		&i.PackageID,
+		&i.Email,
+		&i.Message,
+		&i.Reason,
+		&i.Status,
+		&i.CreatedAt,
+		&i.ResolvedAt,
 	)
 	return i, err
 }
@@ -125,9 +330,8 @@ const getPackageMaxAccessCount = `-- name: GetPackageMaxAccessCount :one
 SELECT CAST(COALESCE(MAX(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?
 `
 
-// max_downloads is a per-file budget (see GetShare), so the download count
-// shown to the package owner should reflect whichever file has been
-// downloaded the most, not the sum of downloads across every file.
+// max_downloads is a per-file budget (see GetShare), so the owner's download
+// count is the most-downloaded file's, not the sum across every file.
 func (q *Queries) GetPackageMaxAccessCount(ctx context.Context, packageID string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getPackageMaxAccessCount, packageID)
 	var column_1 int64
@@ -139,10 +343,8 @@ const getPackageMinAccessCount = `-- name: GetPackageMinAccessCount :one
 SELECT CAST(COALESCE(MIN(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?
 `
 
-// Counterpart to GetPackageMaxAccessCount: if even the LEAST-downloaded
-// share has already hit max_downloads, every file in the package has, so
-// there's nothing left to download at all -- distinct from just one file
-// being exhausted while others still have budget left.
+// Counterpart to GetPackageMaxAccessCount: once even the least-downloaded share
+// has hit max_downloads, every file has, so nothing is left to download.
 func (q *Queries) GetPackageMinAccessCount(ctx context.Context, packageID string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getPackageMinAccessCount, packageID)
 	var column_1 int64
@@ -199,6 +401,47 @@ func (q *Queries) GetPackageRecipientByMagicLinkToken(ctx context.Context, magic
 	return i, err
 }
 
+const grantPendingPackageAccessRequests = `-- name: GrantPendingPackageAccessRequests :many
+UPDATE package_access_requests
+SET status = 'granted', resolved_at = CURRENT_TIMESTAMP
+WHERE package_id = ? AND status = 'pending'
+RETURNING id, package_id, email, message, reason, status, created_at, resolved_at
+`
+
+// One extend answers every outstanding request. Returns the rows it resolved so
+// the caller can mail those requesters.
+func (q *Queries) GrantPendingPackageAccessRequests(ctx context.Context, packageID string) ([]PackageAccessRequest, error) {
+	rows, err := q.db.QueryContext(ctx, grantPendingPackageAccessRequests, packageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PackageAccessRequest
+	for rows.Next() {
+		var i PackageAccessRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.PackageID,
+			&i.Email,
+			&i.Message,
+			&i.Reason,
+			&i.Status,
+			&i.CreatedAt,
+			&i.ResolvedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const incrementPackageDownloadCount = `-- name: IncrementPackageDownloadCount :one
 UPDATE packages
 SET download_count = download_count + 1
@@ -232,6 +475,56 @@ SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, v
 
 func (q *Queries) ListPackageRecipientsByPackageID(ctx context.Context, packageID string) ([]PackageRecipient, error) {
 	rows, err := q.db.QueryContext(ctx, listPackageRecipientsByPackageID, packageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PackageRecipient
+	for rows.Next() {
+		var i PackageRecipient
+		if err := rows.Scan(
+			&i.ID,
+			&i.PackageID,
+			&i.Email,
+			&i.OtpCodeHash,
+			&i.OtpExpiresAt,
+			&i.MagicLinkToken,
+			&i.VerifiedAt,
+			&i.CreatedAt,
+			&i.SentAt,
+			&i.SendError,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPackageRecipientsByPackageIDs = `-- name: ListPackageRecipientsByPackageIDs :many
+SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error FROM package_recipients
+WHERE package_id IN (/*SLICE:package_ids*/?)
+ORDER BY package_id, id ASC
+`
+
+func (q *Queries) ListPackageRecipientsByPackageIDs(ctx context.Context, packageIds []string) ([]PackageRecipient, error) {
+	query := listPackageRecipientsByPackageIDs
+	var queryParams []interface{}
+	if len(packageIds) > 0 {
+		for _, v := range packageIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:package_ids*/?", strings.Repeat(",?", len(packageIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:package_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}
@@ -313,6 +606,92 @@ func (q *Queries) ListPackagesByUser(ctx context.Context, arg ListPackagesByUser
 	return items, nil
 }
 
+const listPendingPackageAccessRequests = `-- name: ListPendingPackageAccessRequests :many
+SELECT id, package_id, email, message, reason, status, created_at, resolved_at FROM package_access_requests
+WHERE package_id = ? AND status = 'pending'
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListPendingPackageAccessRequests(ctx context.Context, packageID string) ([]PackageAccessRequest, error) {
+	rows, err := q.db.QueryContext(ctx, listPendingPackageAccessRequests, packageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PackageAccessRequest
+	for rows.Next() {
+		var i PackageAccessRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.PackageID,
+			&i.Email,
+			&i.Message,
+			&i.Reason,
+			&i.Status,
+			&i.CreatedAt,
+			&i.ResolvedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPendingPackageAccessRequestsByPackageIDs = `-- name: ListPendingPackageAccessRequestsByPackageIDs :many
+SELECT id, package_id, email, message, reason, status, created_at, resolved_at FROM package_access_requests
+WHERE package_id IN (/*SLICE:package_ids*/?) AND status = 'pending'
+ORDER BY package_id, created_at DESC
+`
+
+func (q *Queries) ListPendingPackageAccessRequestsByPackageIDs(ctx context.Context, packageIds []string) ([]PackageAccessRequest, error) {
+	query := listPendingPackageAccessRequestsByPackageIDs
+	var queryParams []interface{}
+	if len(packageIds) > 0 {
+		for _, v := range packageIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:package_ids*/?", strings.Repeat(",?", len(packageIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:package_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PackageAccessRequest
+	for rows.Next() {
+		var i PackageAccessRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.PackageID,
+			&i.Email,
+			&i.Message,
+			&i.Reason,
+			&i.Status,
+			&i.CreatedAt,
+			&i.ResolvedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSharesByPackageID = `-- name: ListSharesByPackageID :many
 SELECT s.id AS share_id, s.upload_id, u.filename, u.size, s.access_count
 FROM shares s
@@ -339,6 +718,64 @@ func (q *Queries) ListSharesByPackageID(ctx context.Context, packageID string) (
 	for rows.Next() {
 		var i ListSharesByPackageIDRow
 		if err := rows.Scan(
+			&i.ShareID,
+			&i.UploadID,
+			&i.Filename,
+			&i.Size,
+			&i.AccessCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSharesByPackageIDs = `-- name: ListSharesByPackageIDs :many
+SELECT s.package_id, s.id AS share_id, s.upload_id, u.filename, u.size, s.access_count
+FROM shares s
+JOIN uploads u ON u.id = s.upload_id
+WHERE s.package_id IN (/*SLICE:package_ids*/?)
+ORDER BY s.package_id, s.created_at ASC
+`
+
+type ListSharesByPackageIDsRow struct {
+	PackageID   string
+	ShareID     string
+	UploadID    string
+	Filename    string
+	Size        int64
+	AccessCount int64
+}
+
+// Batch form, for the author's package list.
+func (q *Queries) ListSharesByPackageIDs(ctx context.Context, packageIds []string) ([]ListSharesByPackageIDsRow, error) {
+	query := listSharesByPackageIDs
+	var queryParams []interface{}
+	if len(packageIds) > 0 {
+		for _, v := range packageIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:package_ids*/?", strings.Repeat(",?", len(packageIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:package_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSharesByPackageIDsRow
+	for rows.Next() {
+		var i ListSharesByPackageIDsRow
+		if err := rows.Scan(
+			&i.PackageID,
 			&i.ShareID,
 			&i.UploadID,
 			&i.Filename,

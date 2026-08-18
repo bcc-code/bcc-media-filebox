@@ -2,6 +2,18 @@ import { ref } from 'vue'
 
 export type VerificationMethod = 'none' | 'password' | 'bcc_login' | 'email_otp' | 'magic_link'
 
+// Mirrors package_access_requests: a recipient's unanswered ask to reopen a dead
+// package. What they need goes in `message`; `reason` is server-derived.
+export type AccessRequestReason = '' | 'expired' | 'revoked' | 'limit_reached'
+
+export interface AccessRequest {
+  id: string
+  email: string
+  reason: AccessRequestReason
+  message: string
+  createdAt: string
+}
+
 export interface PackageInfo {
   packageId: string
   name: string
@@ -17,6 +29,14 @@ export interface PackageInfo {
   isDownloadLimitHit: boolean
   status: string
   createdAt: string
+  pendingRequests: AccessRequest[]
+}
+
+export interface ExtendPackageInput {
+  expiresInDays: number
+  // Replaces the stored per-file budget rather than adding to it; omit for
+  // unlimited. Always send it, or an extension silently lifts the limit.
+  maxDownloads?: number
 }
 
 export interface CreatePackageInput {
@@ -104,6 +124,27 @@ async function createPackage(input: CreatePackageInput): Promise<CreatePackageRe
   })
 }
 
+// extendPackage pushes expiry out and resets the download budget, granting every
+// outstanding request. Returns the refreshed package, so no re-fetch is needed.
+async function extendPackage(packageId: string, input: ExtendPackageInput): Promise<PackageInfo> {
+  const updated = await jsonFetch<PackageInfo>(`/api/packages/${encodeURIComponent(packageId)}/extend`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  const i = packages.value.findIndex((p) => p.packageId === packageId)
+  if (i !== -1) packages.value[i] = updated
+  return updated
+}
+
+async function dismissAccessRequest(packageId: string, requestId: string) {
+  await jsonFetch<void>(
+    `/api/packages/${encodeURIComponent(packageId)}/access-requests/${encodeURIComponent(requestId)}`,
+    { method: 'DELETE' },
+  )
+  const pkg = packages.value.find((p) => p.packageId === packageId)
+  if (pkg) pkg.pendingRequests = pkg.pendingRequests.filter((r) => r.id !== requestId)
+}
+
 async function revokePackage(packageId: string) {
   await jsonFetch<void>(`/api/packages/${encodeURIComponent(packageId)}`, { method: 'DELETE' })
   const pkg = packages.value.find((p) => p.packageId === packageId)
@@ -111,5 +152,15 @@ async function revokePackage(packageId: string) {
 }
 
 export function usePackages() {
-  return { packages, total, loading, lastError, fetchPackages, createPackage, revokePackage }
+  return {
+    packages,
+    total,
+    loading,
+    lastError,
+    fetchPackages,
+    createPackage,
+    revokePackage,
+    extendPackage,
+    dismissAccessRequest,
+  }
 }

@@ -7,10 +7,8 @@ import (
 	"time"
 )
 
-// sampleOrigin is where the sample's link and logo point. It defaults to the
-// Vite dev server (the port vite.config.ts pins) so a preview opened locally
-// has a clickable link and a logo that loads; MAIL_LINK_BASE_URL overrides it,
-// matching what the running app would use.
+// sampleOrigin is where the sample's link and logo point, defaulting to the Vite
+// dev server so both work locally. MAIL_LINK_BASE_URL overrides it.
 func sampleOrigin() string {
 	if v := os.Getenv("MAIL_LINK_BASE_URL"); v != "" {
 		return v
@@ -18,8 +16,7 @@ func sampleOrigin() string {
 	return "http://localhost:8091"
 }
 
-// sampleNotification is realistic data for the two manual helpers below: the
-// browser preview and the Mailpit send.
+// sampleNotification is realistic data for the manual preview and Mailpit send.
 func sampleNotification(t *testing.T) ShareNotification {
 	t.Helper()
 
@@ -45,14 +42,36 @@ func sampleNotification(t *testing.T) ShareNotification {
 	}
 }
 
-// TestWritePreview dumps the rendered bodies to disk so the mail design can be
-// eyeballed in a browser without a mail server. Skipped unless MAIL_PREVIEW_DIR
-// is set:
+// sampleAccessRequest is realistic data for the author-facing request mail.
+func sampleAccessRequest(t *testing.T) AccessRequestNotification {
+	t.Helper()
+
+	manageURL, err := ManageURL(sampleOrigin(), "9f3ac21b7d")
+	if err != nil {
+		t.Fatalf("build sample manage URL: %v", err)
+	}
+
+	return AccessRequestNotification{
+		AuthorName:     "John Doe",
+		PackageName:    "Summer conference rushes",
+		RequesterEmail: "anna.berg@example.com",
+		Reason:         ReasonExpired,
+		Message:        "Our editor was off sick last week and the link ran out.\n\nCould we get a few more days?",
+		ManageURL:      manageURL,
+		LogoURL:        LogoURL(sampleOrigin()),
+		ExpiresAt:      time.Now().Add(-2 * 24 * time.Hour),
+		MaxDownloads:   3,
+		DownloadCount:  1,
+		RequestedAt:    time.Now(),
+	}
+}
+
+// TestWritePreview dumps the rendered bodies to disk so the design can be
+// eyeballed in a browser. Skipped unless MAIL_PREVIEW_DIR is set:
 //
 //	MAIL_PREVIEW_DIR=/tmp/fb go test ./internal/mail/ -run Preview && open /tmp/fb/share.html
 //
-// A browser is a friendlier renderer than any mail client, so this checks
-// layout and colour only — use Mailpit for how clients actually treat it.
+// Checks layout and colour only — use Mailpit for how clients treat it.
 func TestWritePreview(t *testing.T) {
 	dir := os.Getenv("MAIL_PREVIEW_DIR")
 	if dir == "" {
@@ -62,17 +81,29 @@ func TestWritePreview(t *testing.T) {
 		t.Fatalf("create preview dir: %v", err)
 	}
 
-	msg, err := BuildShareNotification("recipient@example.com", sampleNotification(t))
+	share, err := BuildShareNotification("recipient@example.com", sampleNotification(t))
 	if err != nil {
-		t.Fatalf("build notification: %v", err)
+		t.Fatalf("build share notification: %v", err)
 	}
-	for name, body := range map[string]string{"share.html": msg.HTML, "share.txt": msg.Text} {
-		path := filepath.Join(dir, name)
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-			t.Fatalf("write %s: %v", path, err)
+	// The renewed variant: only its headline and closing note differ.
+	granted, err := BuildAccessGrantedNotification("recipient@example.com", sampleNotification(t))
+	if err != nil {
+		t.Fatalf("build granted notification: %v", err)
+	}
+	request, err := BuildAccessRequestNotification("john.doe@bcc.no", sampleAccessRequest(t))
+	if err != nil {
+		t.Fatalf("build access request notification: %v", err)
+	}
+
+	for prefix, msg := range map[string]Message{"share": share, "granted": granted, "request": request} {
+		for name, body := range map[string]string{prefix + ".html": msg.HTML, prefix + ".txt": msg.Text} {
+			path := filepath.Join(dir, name)
+			if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+				t.Fatalf("write %s: %v", path, err)
+			}
+			t.Logf("wrote %s", path)
 		}
-		t.Logf("wrote %s", path)
+		t.Logf("%s subject: %s", prefix, msg.Subject)
 	}
-	t.Logf("subject: %s", msg.Subject)
 	t.Logf("links point at %s", sampleOrigin())
 }

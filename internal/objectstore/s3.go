@@ -1,7 +1,6 @@
-// Package objectstore backs the Send feature's file storage with AWS S3
-// instead of a local target directory. Send never lets the sender pick a
-// target (see internal/server's preUploadCreate), so there is exactly one
-// implicit destination — this package is it.
+// Package objectstore backs Send's file storage with AWS S3 instead of a local
+// target directory. Send never lets the sender pick a target, so this is the
+// single implicit destination.
 package objectstore
 
 import (
@@ -17,10 +16,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-// TargetName is the reserved upload `target` metadata value that routes an
-// upload to S3 rather than to a local target directory. It is deliberately
-// never a row in the targets table, so the admin UI can't create, rename, or
-// delete it out from under the Send flow.
+// TargetName is the reserved `target` metadata value routing an upload to S3.
+// Never a targets row, so the admin UI can't rename or delete it out from under
+// the Send flow.
 const TargetName = "s3"
 
 const defaultKeyPrefix = "send/"
@@ -33,12 +31,9 @@ type Client struct {
 	prefix    string
 }
 
-// NewFromEnv builds a Client from S3_BUCKET plus an optional S3_KEY_PREFIX
-// (default "send/"). Region and credentials come from the AWS SDK's standard
-// chain (env vars, shared config, or an instance role).
-//
-// Returns (nil, nil) when S3_BUCKET is unset; callers treat a nil Client as
-// "keep using local targets", so deploys without S3 are unaffected.
+// NewFromEnv builds a Client from S3_BUCKET and optional S3_KEY_PREFIX (default
+// "send/"), taking credentials from the AWS SDK's standard chain. Returns
+// (nil, nil) when S3_BUCKET is unset, which callers read as "use local targets".
 func NewFromEnv(ctx context.Context) (*Client, error) {
 	bucket := os.Getenv("S3_BUCKET")
 	if bucket == "" {
@@ -72,10 +67,9 @@ func NewFromEnv(ctx context.Context) (*Client, error) {
 // Bucket returns the configured bucket name, for logging.
 func (c *Client) Bucket() string { return c.bucket }
 
-// Key derives the object key from values already on the uploads row, so the
-// download path recomputes what the upload path wrote — which is why S3-backed
-// shares need no extra schema. Namespacing by upload ID also rules out
-// same-name collisions, so no equivalent of tus.uniquePath is needed.
+// Key derives the object key from the uploads row, so downloads recompute what
+// the upload wrote — hence no extra schema. Namespacing by upload ID also rules
+// out same-name collisions, so no tus.uniquePath equivalent is needed.
 func (c *Client) Key(uploadID, filename string) string {
 	return c.prefix + uploadID + "/" + filename
 }
@@ -99,13 +93,10 @@ func (c *Client) Upload(ctx context.Context, key, path string) error {
 	return nil
 }
 
-// PresignDownload returns a URL granting anonymous GET access to key until
-// expiry. The bucket stays private, so this is the only way a recipient reaches
-// the bytes — and what keeps download traffic off this server.
-//
-// filename overrides Content-Disposition so the browser saves the original
-// name. Interpolating it unquoted is safe: stored filenames have been through
-// tus.SanitizeFilename ([A-Za-z0-9_-] plus one dot).
+// PresignDownload returns a URL granting anonymous GET on key until expiry. The
+// bucket stays private, so this is how a recipient reaches the bytes without the
+// traffic transiting this server. filename sets Content-Disposition; interpolating
+// it unquoted is safe because tus.SanitizeFilename has already run.
 func (c *Client) PresignDownload(ctx context.Context, key, filename string, expiry time.Duration) (string, error) {
 	req, err := c.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket:                     aws.String(c.bucket),

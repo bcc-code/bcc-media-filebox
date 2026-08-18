@@ -1,7 +1,6 @@
-// Package mail delivers transactional email for the Send feature: share
-// notifications now, expiry-extension requests later. Callers never choose the
-// envelope sender or the From header — those are fixed per deploy so SPF/DKIM
-// stay aligned with the relay. The human behind a message rides in ReplyTo.
+// Package mail delivers transactional email for the Send feature. Callers never
+// choose the envelope sender or From header — those are fixed per deploy to keep
+// SPF/DKIM aligned with the relay. The human behind a message rides in ReplyTo.
 package mail
 
 import (
@@ -16,25 +15,16 @@ import (
 // configuration, not from here.
 type Message struct {
 	To []string
-	// ReplyTo is the address a recipient reaches by hitting reply — the user
-	// who shared the files. Optional; omitted when there is no human to answer.
 	ReplyTo string
-	// ReplyToName is the display name paired with ReplyTo. Optional.
 	ReplyToName string
-	// SenderName is the human who caused this mail. It becomes the From
-	// display name ("John Doe (via FileBox)") while the From address stays
-	// the configured service address, so DMARC alignment survives. Optional.
 	SenderName string
 	Subject    string
-	// Text and HTML are the two halves of a multipart/alternative body. Both
-	// should be set; a text-only client otherwise sees an empty message.
 	Text string
 	HTML string
 }
 
-// Validate rejects the malformed and the dangerous: a message with no
-// recipient, and any header field carrying a newline, which would let
-// user-supplied input inject arbitrary SMTP headers.
+// Validate rejects a message with no recipient, and any header field carrying a
+// newline — which would let user input inject arbitrary SMTP headers.
 func (m Message) Validate() error {
 	if len(m.To) == 0 {
 		return fmt.Errorf("message has no recipients")
@@ -58,9 +48,8 @@ type Sender interface {
 	Send(ctx context.Context, msg Message) error
 }
 
-// NoopSender logs what it would have sent and reports success. It is the
-// default whenever MAIL_SMTP_HOST is unset, so dev and CI runs never put mail
-// on the wire just because a code path fired.
+// NoopSender logs what it would have sent and succeeds. The default when
+// MAIL_SMTP_HOST is unset, so dev and CI never put mail on the wire.
 type NoopSender struct{}
 
 func (NoopSender) Send(_ context.Context, msg Message) error {
@@ -72,12 +61,9 @@ func (NoopSender) Send(_ context.Context, msg Message) error {
 	return nil
 }
 
-// NewFromEnv builds a Sender from MAIL_SMTP_* and MAIL_FROM_*.
-//
-// With MAIL_SMTP_HOST unset it returns a NoopSender rather than an error, so a
-// deploy that hasn't got relay credentials yet still boots. When the host IS
-// set the remaining config must be coherent — a half-configured relay fails
-// loudly at startup instead of silently at the first share.
+// NewFromEnv builds a Sender from MAIL_SMTP_* and MAIL_FROM_*. An unset
+// MAIL_SMTP_HOST yields a NoopSender so a deploy without credentials still
+// boots; once it is set, incoherent config fails at startup, not at first send.
 func NewFromEnv() (Sender, error) {
 	host := os.Getenv("MAIL_SMTP_HOST")
 	if host == "" {
@@ -126,8 +112,6 @@ func NewFromEnv() (Sender, error) {
 	return s, nil
 }
 
-// IsEnabled reports whether s actually delivers. Callers use it to skip work
-// (building links, rendering bodies) when mail is switched off.
 func IsEnabled(s Sender) bool {
 	_, noop := s.(NoopSender)
 	return s != nil && !noop

@@ -5,7 +5,9 @@ import SentPackageCard from './SentPackageCard.vue'
 
 const emit = defineEmits<{ preview: [packageId: string] }>()
 
-const { packages, loading, revokePackage } = usePackages()
+const { packages, loading, revokePackage, extendPackage, dismissAccessRequest } = usePackages()
+// Per-package so one slow extend doesn't disable every other card's button.
+const extendingId = ref<string | null>(null)
 const toast = ref('')
 let toastTimer: number | null = null
 
@@ -31,9 +33,32 @@ async function revoke(packageId: string, name: string) {
   }
 }
 
-// No fetch on mount here — usePackages() is a shared singleton. Send.vue
-// fetches on its own mount and again after a package is sent, so `packages`/
-// `loading` below are already current by the time this tab can be selected.
+async function extend(packageId: string, expiresInDays: number, maxDownloads: number | undefined) {
+  // Counted before the call: extending grants every pending request, so the
+  // refreshed package comes back with none left to count.
+  const granted = packages.value.find((p) => p.packageId === packageId)?.pendingRequests.length ?? 0
+  extendingId.value = packageId
+  try {
+    await extendPackage(packageId, { expiresInDays, maxDownloads })
+    flash(granted ? `Package extended — ${granted} requester${granted === 1 ? '' : 's'} notified` : 'Package extended')
+  } catch (e) {
+    flash((e as Error).message || 'Failed to extend package')
+  } finally {
+    extendingId.value = null
+  }
+}
+
+async function dismiss(packageId: string, requestId: string) {
+  try {
+    await dismissAccessRequest(packageId, requestId)
+    flash('Request dismissed')
+  } catch (e) {
+    flash((e as Error).message || 'Failed to dismiss request')
+  }
+}
+
+// No fetch on mount: usePackages() is a shared singleton, and Send.vue already
+// fetches on mount and after each send.
 </script>
 
 <template>
@@ -44,9 +69,12 @@ async function revoke(packageId: string, name: string) {
       v-for="p in packages"
       :key="p.packageId"
       :pkg="p"
+      :extending="extendingId === p.packageId"
       @copy-link="copyLink(p.packageId)"
       @preview="emit('preview', p.packageId)"
       @revoke="revoke(p.packageId, p.name)"
+      @extend="(days, max) => extend(p.packageId, days, max)"
+      @dismiss-request="(id) => dismiss(p.packageId, id)"
     />
   </div>
   <div v-if="toast" class="toast fb-pop"><span class="ok">✓</span>{{ toast }}</div>

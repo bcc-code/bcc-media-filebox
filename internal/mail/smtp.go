@@ -26,17 +26,16 @@ const (
 
 const dialTimeout = 30 * time.Second
 
-// SMTPSender delivers through a single relay. It opens a fresh connection per
-// message: share notifications are low-volume and a pooled connection to a
-// corporate relay tends to get closed out from under us anyway.
+// SMTPSender delivers through one relay, opening a fresh connection per message:
+// volume is low, and pooled connections to corporate relays get closed anyway.
 type SMTPSender struct {
 	Host     string
 	Port     string
 	Username string
 	Password string
 	TLS      tlsMode
-	// From is both the envelope sender (Return-Path, what SPF checks) and the
-	// From header address. Never a user's own address.
+	// Both the envelope sender (what SPF checks) and the From header. Never a
+	// user's own address.
 	From     string
 	FromName string
 }
@@ -66,14 +65,14 @@ func (s *SMTPSender) Send(ctx context.Context, msg Message) error {
 	}
 
 	if s.Username != "" {
-		// PlainAuth refuses to send credentials over an unencrypted link, which
-		// is the behaviour we want everywhere except a local test relay.
+		// PlainAuth refuses credentials over an unencrypted link — what we want
+		// everywhere except a local test relay.
 		ok, mechanisms := c.Extension("AUTH")
 		if !ok {
 			return fmt.Errorf("smtp %s: credentials configured but server does not offer AUTH", s.addr())
 		}
-		// Only PLAIN is implemented. Naming what the relay actually offers
-		// turns an opaque 535 into a diagnosis on the first real attempt.
+		// Only PLAIN is implemented; naming what the relay offers turns an opaque
+		// 535 into a diagnosis.
 		if !strings.Contains(strings.ToUpper(mechanisms), "PLAIN") {
 			return fmt.Errorf("smtp %s: relay offers AUTH %s but only PLAIN is implemented", s.addr(), mechanisms)
 		}
@@ -133,8 +132,7 @@ func (s *SMTPSender) dial(ctx context.Context) (*smtp.Client, error) {
 	return c, nil
 }
 
-// build renders RFC 5322 bytes: headers plus a multipart/alternative body so
-// every client gets a body it can render.
+// build renders RFC 5322 bytes: headers plus a multipart/alternative body.
 func (s *SMTPSender) build(msg Message) ([]byte, error) {
 	boundary, err := randomToken()
 	if err != nil {
@@ -185,8 +183,7 @@ func (s *SMTPSender) build(msg Message) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// fromDisplay renders "John Doe (via FileBox)" when a human triggered the
-// mail, and the bare service name otherwise.
+// fromDisplay renders "John Doe (via FileBox)", or the bare service name.
 func (s *SMTPSender) fromDisplay(msg Message) string {
 	if msg.SenderName == "" {
 		return s.FromName
@@ -206,9 +203,8 @@ func (s *SMTPSender) messageID() (string, error) {
 	return fmt.Sprintf("<%s@%s>", tok, domain), nil
 }
 
-// formatAddressList renders recipients through netmail.Address so display
-// names and non-ASCII are encoded the same way as From/Reply-To. Entries that
-// don't parse are passed through unchanged; the server rejects them if invalid.
+// formatAddressList encodes recipients like From/Reply-To. Entries that don't
+// parse pass through unchanged, for the server to reject.
 func formatAddressList(addrs []string) string {
 	out := make([]string, 0, len(addrs))
 	for _, a := range addrs {
@@ -229,8 +225,7 @@ func writeHeader(b *bytes.Buffer, name, value string) {
 	fmt.Fprintf(b, "%s: %s\r\n", name, value)
 }
 
-// normalizeNewlines converts to CRLF without doubling the \r in input that is
-// already CRLF — templates produce LF, but callers may pass either.
+// normalizeNewlines converts to CRLF without doubling an existing \r.
 func normalizeNewlines(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\n", "\r\n")
 }

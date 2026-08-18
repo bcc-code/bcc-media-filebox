@@ -333,6 +333,45 @@
 /* Terminal states (expired / revoked / not found) on the real recipient page */
 .send-root .terminal-icon { width: 52px; height: 52px; border-radius: 13px; background: var(--bg-3); border: 1px solid var(--line-2); color: var(--ink-3); display: grid; place-items: center; margin-bottom: 20px; }
 
+/* Access request form, shown under a terminal state so a stuck recipient has
+   somewhere to go. Left-aligned inside the otherwise centred terminal card. */
+.send-root .req-box { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--line); text-align: left; }
+.send-root .req-h { font-size: 15px; font-weight: 600; color: var(--ink); }
+.send-root .req-p { font-size: 13px; color: var(--ink-2); margin: 7px 0 16px; line-height: 1.55; }
+.send-root .req-msg { margin-top: 8px; min-height: 62px; }
+.send-root .req-note { text-align: center; font-size: 11.5px; color: var(--ink-3); margin: 12px 0 0; line-height: 1.5; }
+/* Why the submit is disabled, in place of the reassurance line — brighter, so
+   it reads as an instruction rather than fine print. */
+.send-root .req-note.blocked { color: var(--ink-2); }
+.send-root .req-done { display: flex; gap: 13px; align-items: flex-start; margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--line); text-align: left; }
+.send-root .req-done-ic {
+  width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; display: grid; place-items: center;
+  background: color-mix(in oklch, var(--ok), transparent 82%); border: 1px solid color-mix(in oklch, var(--ok), transparent 58%); color: oklch(0.82 0.11 160);
+}
+.send-root .req-done-h { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.send-root .req-done-p { font-size: 13px; color: var(--ink-2); margin: 5px 0 0; line-height: 1.55; }
+
+/* Pending access requests and the extend form, on the author's package card */
+.send-root .chip-sm.ask { color: oklch(0.85 0.13 75); border-color: color-mix(in oklch, var(--warn), transparent 45%); background: color-mix(in oklch, var(--warn), transparent 84%); }
+.send-root .pkg-asks { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 9px; }
+.send-root .ask-row { display: flex; align-items: flex-start; gap: 10px; }
+.send-root .ask-body { flex: 1; min-width: 0; }
+.send-root .ask-line { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
+.send-root .ask-line .ask-who { color: var(--ink); font-weight: 500; word-break: break-all; }
+.send-root .ask-line .ask-kind { color: oklch(0.85 0.13 75); }
+.send-root .ask-line .ask-when { color: var(--ink-3); }
+.send-root .ask-msg { margin: 6px 0 0; padding: 9px 11px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font-size: 12.5px; color: var(--ink-2); line-height: 1.5; white-space: pre-wrap; }
+.send-root .ask-x { background: transparent; border: none; color: var(--ink-3); cursor: pointer; padding: 4px; border-radius: 6px; display: grid; place-items: center; flex-shrink: 0; }
+.send-root .ask-x:hover { color: var(--ink); background: var(--bg-3); }
+.send-root .ask-hint { margin: 2px 0 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+
+.send-root .pkg-extend { margin-top: 14px; padding: 14px; background: var(--bg); border: 1px solid var(--line-2); border-radius: 11px; }
+.send-root .ex-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.send-root .ex-f { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.send-root .ex-lab { font-size: 11.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.07em; }
+.send-root .ex-note { margin: 11px 0 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+.send-root .ex-actions { display: flex; gap: 8px; margin-top: 12px; }
+
 .send-root .toast {
   position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
   background: var(--bg-4); border: 1px solid var(--line-2); color: var(--ink);

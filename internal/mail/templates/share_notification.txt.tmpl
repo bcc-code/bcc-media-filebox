@@ -1,7 +1,6 @@
-{{- /* Plain-text twin of the HTML mail. Same order, same wording, so a reader
-       who sees only this one loses nothing but the styling. */ -}}
+{{- /* Plain-text twin of the HTML mail: same order, same wording. */ -}}
 FileBox
-{{if .SenderName}}{{.SenderName}} sent you a package{{else}}You've received files{{end}}
+{{.Headline}}
 {{- if .PackageName}}
 {{.PackageName}}
 {{- end}}
@@ -16,8 +15,8 @@ Download {{.FileLabel}}{{with .TotalLabel}} · {{.}}{{end}}:
 {{.ShareURL}}
 
 Expires {{.ExpiresOn}}{{if .MaxDownloads}} · {{.MaxDownloads}} downloads allowed{{end}}.
-After that the files are no longer available and you will need to ask for a new
-link.
+After that the files are no longer available{{if not .Renewed}} and you will need to
+ask for a new link{{end}}.
 
 --
 Sent by FileBox{{if .SenderEmail}} on behalf of {{.SenderEmail}}{{end}}.

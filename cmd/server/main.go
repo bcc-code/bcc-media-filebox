@@ -92,8 +92,7 @@ func main() {
 		log.Println("OAuth disabled (no OIDC_* env vars set) — running in guest-only mode")
 	}
 
-	// Send uploads go to S3 when a bucket is configured; without one they fall
-	// back to a local target directory like every other upload.
+	// Send uploads go to S3 when a bucket is configured, else to a local target.
 	objectStore, err := objectstore.NewFromEnv(context.Background())
 	if err != nil {
 		log.Fatalf("failed to initialise S3 object store: %v", err)
@@ -104,17 +103,15 @@ func main() {
 		log.Println("S3 disabled (no S3_BUCKET set) — Send uploads use local targets")
 	}
 
-	// Email delivery. Unconfigured is a valid state (NoopSender logs instead of
-	// sending), but a configured relay without BASE_URL would mail out links
-	// that go nowhere — so that combination is fatal rather than silent.
+	// Unconfigured mail is valid (NoopSender just logs), but a configured relay
+	// without BASE_URL would mail links that go nowhere — so that's fatal.
 	mailer, err := mail.NewFromEnv()
 	if err != nil {
 		log.Fatalf("failed to initialise mail: %v", err)
 	}
-	// Recipient links default to BASE_URL, but the two differ in dev: BASE_URL
-	// is this server's origin (and the OAuth redirect), while a recipient opens
-	// the Vite dev server. MAIL_LINK_BASE_URL overrides just the link, and dev
-	// builds fall back to Vite so local testing needs no configuration.
+	// Recipient links default to BASE_URL, but differ in dev: BASE_URL is this
+	// server's origin, while a recipient opens the Vite dev server. Dev builds
+	// fall back to Vite so local testing needs no configuration.
 	mailBaseURL := envOr("MAIL_LINK_BASE_URL", baseURL)
 	if mailBaseURL == "" {
 		mailBaseURL = devLinkOrigin // set only in dev builds

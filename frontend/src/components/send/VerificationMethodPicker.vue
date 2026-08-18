@@ -11,9 +11,8 @@ const emit = defineEmits<{
   'update:password': [value: string]
 }>()
 
-// email_otp/magic_link are deliberately excluded — nothing can satisfy them
-// yet (see internal/api/package_delivery.go's packageVerified), so offering
-// them here would let a sender create a package nobody can ever open.
+// email_otp/magic_link are excluded: packageVerified can't satisfy them yet, so
+// offering them would let a sender create a package nobody can open.
 const options: { id: VerificationMethod; name: string; desc: string }[] = [
   { id: 'none', name: 'No verification', desc: 'Anyone with the link can download.' },
   { id: 'bcc_login', name: 'BCC login', desc: 'Recipient must sign in with a BCC account.' },

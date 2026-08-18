@@ -1,0 +1,23 @@
+{{- /* Plain-text twin of the HTML mail: same order, same wording. */ -}}
+FileBox
+{{.RequesterEmail}} asked you to reopen a package
+{{- if .PackageName}}
+{{.PackageName}}
+{{- end}}
+{{if .Message}}
+{{.Message}}
+{{end}}
+{{.ReasonLabel}} when they tried to download.
+
+  Expired     {{.ExpiredOn}}
+{{- with .LimitLabel}}
+  Downloads   {{.}}
+{{- end}}
+
+Extend the package to give them access again:
+{{.ManageURL}}
+
+Ignoring this email leaves the package exactly as it is — the link stays closed.
+
+--
+Sent by FileBox. Reply to this email to reach {{.RequesterEmail}} directly.

@@ -28,12 +28,26 @@ func TestSendAgainstMailpit(t *testing.T) {
 	}
 
 	s := &SMTPSender{Host: host, Port: port, TLS: tlsNone, From: "filebox@bcc.no", FromName: "FileBox"}
-	msg, err := BuildShareNotification("recipient@example.com", sampleNotification(t))
+
+	share, err := BuildShareNotification("recipient@example.com", sampleNotification(t))
 	if err != nil {
-		t.Fatalf("build notification: %v", err)
+		t.Fatalf("build share notification: %v", err)
 	}
-	if err := s.Send(t.Context(), msg); err != nil {
-		t.Fatalf("send via mailpit: %v", err)
+	granted, err := BuildAccessGrantedNotification("recipient@example.com", sampleNotification(t))
+	if err != nil {
+		t.Fatalf("build granted notification: %v", err)
 	}
-	t.Log("sent — inspect it at http://localhost:8025")
+	request, err := BuildAccessRequestNotification("john.doe@bcc.no", sampleAccessRequest(t))
+	if err != nil {
+		t.Fatalf("build access request notification: %v", err)
+	}
+
+	// All three at once: the point of the run is comparing how a client treats
+	// them side by side, since they share one layout.
+	for _, msg := range []Message{share, request, granted} {
+		if err := s.Send(t.Context(), msg); err != nil {
+			t.Fatalf("send %q via mailpit: %v", msg.Subject, err)
+		}
+	}
+	t.Log("sent 3 messages — inspect them at http://localhost:8025")
 }

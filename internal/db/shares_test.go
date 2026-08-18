@@ -16,9 +16,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// newTestDB opens a throwaway SQLite database with all migrations applied,
-// mirroring the connection settings cmd/server uses so the concurrency
-// behaviour under test matches production.
+// newTestDB opens a throwaway SQLite with migrations applied, using the same
+// connection settings as cmd/server so concurrency behaves as in production.
 func newTestDB(t *testing.T) *db.Queries {
 	t.Helper()
 
@@ -39,11 +38,9 @@ func newTestDB(t *testing.T) *db.Queries {
 	return db.New(conn)
 }
 
-// TestIncrementShareAccessCountIfUnderLimitIsAtomic is the regression test for
-// the download limit being enforced by a separate read-then-increment, which
-// two overlapping requests could both pass. The recipient UI's "Download all"
-// fires every file's request at once, so this is a routine path rather than a
-// rare interleaving.
+// Regression test: the limit used to be a separate read-then-increment that two
+// overlapping requests could both pass. "Download all" fires every file at once,
+// so that interleaving is routine, not rare.
 func TestIncrementShareAccessCountIfUnderLimitIsAtomic(t *testing.T) {
 	ctx := context.Background()
 	queries := newTestDB(t)
@@ -113,9 +110,8 @@ func TestIncrementShareAccessCountIfUnderLimitIsAtomic(t *testing.T) {
 	}
 }
 
-// TestIncrementShareAccessCountIfUnderLimitRejectsAtLimit pins the boundary:
-// the claim must fail once access_count has reached the limit, not after it has
-// passed it.
+// Pins the boundary: the claim must fail once access_count has reached the
+// limit, not after it has passed it.
 func TestIncrementShareAccessCountIfUnderLimitRejectsAtLimit(t *testing.T) {
 	ctx := context.Background()
 	queries := newTestDB(t)

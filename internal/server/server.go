@@ -24,9 +24,9 @@ import (
 	tushandler "github.com/tus/tusd/v2/pkg/handler"
 )
 
-// sendFlowTarget is what the Send UI submits instead of naming a real target,
-// meaning "wherever Send files belong". Kept in sync with SEND_TARGET in
-// frontend/src/components/send/PackageComposeForm.vue.
+// sendFlowTarget is what the Send UI submits instead of a real target name,
+// meaning "wherever Send files belong". Mirrors SEND_TARGET in
+// PackageComposeForm.vue.
 const sendFlowTarget = "send"
 
 type Server struct {
@@ -35,8 +35,7 @@ type Server struct {
 	manager  *auth.Manager
 	sessions *auth.SessionStore
 	baseURL  string
-	// mailBaseURL is the origin used in recipient links; usually baseURL, but
-	// separate in dev where recipients open the Vite dev server.
+	// Origin for recipient links: usually baseURL, but separate in dev.
 	mailBaseURL string
 	store       *objectstore.Client
 	mailer      mail.Sender
@@ -44,10 +43,8 @@ type Server struct {
 
 // New constructs the HTTP server. The manager and sessions arguments may be
 // nil — in that case all auth routes return guest responses and uploads are
-// tagged with "guest:<ulid>" user_ids. store may likewise be nil, meaning S3
-// is unconfigured and every upload finalizes to a local target directory.
-// A nil mailer disables delivery rather than panicking, since every send is
-// gated on mail.IsEnabled — pass a mail.NoopSender to say so explicitly.
+// tagged with "guest:<ulid>" user_ids. A nil store means S3 is unconfigured and
+// uploads finalize locally; a nil mailer disables delivery rather than panicking.
 func New(queries *db.Queries, uploadDir string, baseURL string, mailBaseURL string, frontendFS fs.FS, manager *auth.Manager, sessions *auth.SessionStore, store *objectstore.Client, mailer mail.Sender) (*Server, error) {
 	s := &Server{
 		mux:         http.NewServeMux(),
@@ -154,10 +151,9 @@ func (s *Server) preUploadCreate(hook tushandler.HookEvent) (tushandler.HTTPResp
 	}
 	newMeta["userid"] = canonical
 
-	// Only Send's symbolic target may route to S3. An empty target must not:
-	// Home also submits empty when the user has no granted targets, and doing so
-	// silently diverted ordinary uploads into the object store. Empty is left
-	// untouched so it keeps hitting finalizeUpload's RawMaterial fallback.
+	// Only Send's symbolic target may route to S3. Empty must not: Home also
+	// submits empty when the user has no grants, which would divert ordinary
+	// uploads into the object store instead of the RawMaterial fallback.
 	if newMeta["target"] == sendFlowTarget {
 		if s.store != nil {
 			newMeta["target"] = objectstore.TargetName
@@ -222,6 +218,9 @@ func (s *Server) setupAPI(uploadDir string) {
 	s.mux.HandleFunc("DELETE /api/packages/{id}", h.RevokePackage)
 	s.mux.HandleFunc("GET /api/packages/{id}/preview", h.GetPackagePreview)
 	s.mux.HandleFunc("POST /api/packages/{id}/verify", h.VerifyPackage)
+	s.mux.HandleFunc("POST /api/packages/{id}/access-request", h.RequestPackageAccess)
+	s.mux.HandleFunc("POST /api/packages/{id}/extend", h.ExtendPackage)
+	s.mux.HandleFunc("DELETE /api/packages/{id}/access-requests/{requestId}", h.DismissPackageAccessRequest)
 
 	admin := api.NewAdminHandlers(s.queries, uploadDir)
 	admin.Register(s.mux)

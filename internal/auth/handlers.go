@@ -125,10 +125,9 @@ type oauthStateCookie struct {
 	ReturnTo string `json:"rt"`
 }
 
-// sanitizeReturnTo restricts a caller-supplied return-to path to a same-site
-// relative path, so a crafted /auth/login/...?returnTo= link can never turn
-// a real login into an open redirect (e.g. returnTo=https://evil.example,
-// returnTo=//evil.example, or the //-via-backslash browser quirk).
+// sanitizeReturnTo restricts a caller-supplied returnTo to a same-site relative
+// path, so a crafted login link can't turn a real login into an open redirect —
+// including //evil.example and the //-via-backslash browser quirk.
 func sanitizeReturnTo(raw string) string {
 	if raw == "" || raw[0] != '/' {
 		return "/"
@@ -304,9 +303,8 @@ func (h *Handlers) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Re-validated rather than trusted outright: a state cookie issued by a
-	// previous deploy (before this field existed) would decode with an empty
-	// ReturnTo, which sanitizeReturnTo turns back into a safe default.
+	// Re-validated, not trusted: a state cookie from a deploy before this field
+	// existed decodes empty, which sanitizeReturnTo turns into a safe default.
 	http.Redirect(w, r, sanitizeReturnTo(sc.ReturnTo), http.StatusFound)
 }
 

@@ -58,6 +58,17 @@ type Package struct {
 	CreatedAt          time.Time
 }
 
+type PackageAccessRequest struct {
+	ID         string
+	PackageID  string
+	Email      string
+	Message    string
+	Reason     string
+	Status     string
+	CreatedAt  time.Time
+	ResolvedAt sql.NullTime
+}
+
 type PackageRecipient struct {
 	ID             int64
 	PackageID      string

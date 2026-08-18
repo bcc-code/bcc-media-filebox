@@ -15,17 +15,13 @@ import (
 	"filebox/internal/objectstore"
 )
 
-// presignTTL bounds how long an S3 download URL stays valid, and with it the
-// window in which it can be re-fetched or forwarded without passing through
-// this server (so uncounted). It needn't cover the transfer — S3 checks the
-// signature only at request start — but going much lower breaks resume of
-// paused downloads and leaves no slack for host clock drift.
+// presignTTL bounds how long an S3 download URL stays valid, and so how long it
+// can be forwarded or re-fetched uncounted. It needn't cover the transfer (S3
+// checks the signature only at request start), but lower breaks paused resumes.
 const presignTTL = 5 * time.Minute
 
-// GetShare retrieves a share by ID and serves the underlying file. A share
-// carries no policy of its own — expiry, download limits, and verification
-// all live on its parent package, since that's the only place the UI ever
-// lets someone set them.
+// GetShare serves a share's underlying file. Expiry, download limits, and
+// verification all live on the parent package, not here.
 func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 	shareID := r.PathValue("id")
 
@@ -51,12 +47,9 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// max_downloads is a per-file budget, not a shared pool: it's configured
-	// once on the package (the UI only ever exposes one field), but checked
-	// against this specific share's own access_count. Otherwise downloading
-	// any N files across a multi-file package would permanently lock out
-	// every other file once the package-wide total hit the limit, even ones
-	// never touched.
+	// max_downloads is a per-file budget, not a shared pool: set once on the
+	// package but checked against this share's own count. Summing instead would
+	// let a few files lock out every other file in the package.
 	if pkg.MaxDownloads.Valid && share.AccessCount >= pkg.MaxDownloads.Int64 {
 		writeJSONError(w, http.StatusGone, "file download limit reached")
 		return
@@ -73,8 +66,8 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Work out where the bytes live *before* recording the access, so a file
-	// that's gone missing doesn't burn a download from the recipient's budget.
+	// Locate the bytes before recording the access, so a missing file doesn't
+	// burn a download.
 	var signedURL, filePath string
 	if h.store != nil && upload.TargetName.String == objectstore.TargetName {
 		signedURL, err = h.store.PresignDownload(
@@ -88,9 +81,8 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		// Mirrors the directory resolution in internal/tus's storeToDisk: files
-		// land under the target's configured path, or uploadDir/RawMaterial when
-		// the upload has no target.
+		// Mirrors storeToDisk in internal/tus: the target's configured path, or
+		// uploadDir/RawMaterial when there's no target.
 		targetDir := filepath.Join(h.uploadDir, "RawMaterial")
 		if upload.TargetName.Valid && upload.TargetName.String != "" {
 			if target, err := h.queries.GetTargetByName(r.Context(), upload.TargetName.String); err == nil {
@@ -105,13 +97,10 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Two counters: the share's own access_count (the per-file gate) and the
-	// package's download_count (display-only aggregate).
-	//
-	// Re-testing the limit inside the UPDATE is the authoritative gate — the
-	// check above is only a fast path. Without it, concurrent requests both pass
-	// that earlier read and push access_count past the limit, which "Download
-	// all" triggers routinely by firing every file at once.
+	// Two counters: the share's access_count (the gate) and the package's
+	// download_count (display only). Re-testing the limit inside the UPDATE is
+	// the authoritative check — the read above is just a fast path, and
+	// "Download all" fires every file at once, so races are routine.
 	if pkg.MaxDownloads.Valid {
 		_, err := h.queries.IncrementShareAccessCountIfUnderLimit(r.Context(), db.IncrementShareAccessCountIfUnderLimitParams{
 			ID:          shareID,
@@ -134,9 +123,8 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// S3-backed files are handed off to S3 directly, so the download traffic
-	// never transits this server. The signed URL carries its own
-	// Content-Disposition, so no header is needed here.
+	// Handed off to S3, so the traffic never transits this server. The signed URL
+	// carries its own Content-Disposition.
 	if signedURL != "" {
 		http.Redirect(w, r, signedURL, http.StatusFound)
 		return

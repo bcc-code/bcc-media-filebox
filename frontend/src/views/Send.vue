@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import AppLogo from '../components/AppLogo.vue'
 import SendUserMenu from '../components/send/SendUserMenu.vue'
 import PackageComposeForm from '../components/send/PackageComposeForm.vue'
@@ -9,9 +10,16 @@ import { usePackages } from '../composables/usePackages'
 import '../assets/send.css'
 
 type View = 'compose' | 'sent' | 'preview'
-const view = ref<View>('compose')
+const route = useRoute()
+
+// ?tab=sent is what an access-request email links to (mail.ManageURL), landing
+// the author on the package they were asked about rather than the compose form.
+const initialView: View = route.query.tab === 'sent' || route.query.tab === 'preview' ? (route.query.tab as View) : 'compose'
+const view = ref<View>(initialView)
 const { total, fetchPackages } = usePackages()
-const previewPackageId = ref<string | undefined>(undefined)
+const previewPackageId = ref<string | undefined>(
+  typeof route.query.package === 'string' ? route.query.package : undefined,
+)
 
 onMounted(fetchPackages)
 

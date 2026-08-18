@@ -32,17 +32,32 @@ WHERE s.package_id = ?
 ORDER BY s.created_at ASC;
 
 -- name: GetPackageMaxAccessCount :one
--- max_downloads is a per-file budget (see GetShare), so the download count
--- shown to the package owner should reflect whichever file has been
--- downloaded the most, not the sum of downloads across every file.
+-- max_downloads is a per-file budget (see GetShare), so the owner's download
+-- count is the most-downloaded file's, not the sum across every file.
 SELECT CAST(COALESCE(MAX(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?;
 
 -- name: GetPackageMinAccessCount :one
--- Counterpart to GetPackageMaxAccessCount: if even the LEAST-downloaded
--- share has already hit max_downloads, every file in the package has, so
--- there's nothing left to download at all -- distinct from just one file
--- being exhausted while others still have budget left.
+-- Counterpart to GetPackageMaxAccessCount: once even the least-downloaded share
+-- has hit max_downloads, every file has, so nothing is left to download.
 SELECT CAST(COALESCE(MIN(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?;
+
+-- name: ListSharesByPackageIDs :many
+-- Batch form, for the author's package list.
+SELECT s.package_id, s.id AS share_id, s.upload_id, u.filename, u.size, s.access_count
+FROM shares s
+JOIN uploads u ON u.id = s.upload_id
+WHERE s.package_id IN (sqlc.slice('package_ids'))
+ORDER BY s.package_id, s.created_at ASC;
+
+-- name: GetPackageAccessCountsByPackageIDs :many
+-- Not derived from ListSharesByPackageIDs: that joins uploads, and a share whose
+-- upload was deleted still counts here, as in the single-package queries.
+SELECT package_id,
+       CAST(COALESCE(MAX(access_count), 0) AS INTEGER) AS max_access_count,
+       CAST(COALESCE(MIN(access_count), 0) AS INTEGER) AS min_access_count
+FROM shares
+WHERE package_id IN (sqlc.slice('package_ids'))
+GROUP BY package_id;
 
 -- name: CreatePackageRecipient :one
 INSERT INTO package_recipients (package_id, email)
@@ -51,6 +66,11 @@ RETURNING *;
 
 -- name: ListPackageRecipientsByPackageID :many
 SELECT * FROM package_recipients WHERE package_id = ? ORDER BY id ASC;
+
+-- name: ListPackageRecipientsByPackageIDs :many
+SELECT * FROM package_recipients
+WHERE package_id IN (sqlc.slice('package_ids'))
+ORDER BY package_id, id ASC;
 
 -- name: GetPackageRecipientByEmail :one
 SELECT * FROM package_recipients WHERE package_id = ? AND email = ?;
@@ -82,3 +102,59 @@ WHERE id = ?;
 UPDATE package_recipients
 SET sent_at = NULL, send_error = ?
 WHERE id = ?;
+
+-- name: ExtendPackage :one
+-- Pushes expiry out, replaces the per-file download budget, and clears
+-- 'revoked': an author who explicitly extends means to make it reachable.
+UPDATE packages
+SET expires_at    = ?,
+    max_downloads = ?,
+    status        = 'active'
+WHERE id = ?
+RETURNING *;
+
+-- name: CreatePackageAccessRequest :one
+INSERT INTO package_access_requests (id, package_id, email, message, reason)
+VALUES (?, ?, ?, ?, ?)
+RETURNING *;
+
+-- name: GetLatestPackageAccessRequestByEmail :one
+-- Backs the per-requester cooldown. Ordered by created_at, since ids are random
+-- tokens rather than a sequence.
+SELECT * FROM package_access_requests
+WHERE package_id = ? AND email = ?
+ORDER BY created_at DESC
+LIMIT 1;
+
+-- name: ListPendingPackageAccessRequests :many
+SELECT * FROM package_access_requests
+WHERE package_id = ? AND status = 'pending'
+ORDER BY created_at DESC;
+
+-- name: ListPendingPackageAccessRequestsByPackageIDs :many
+SELECT * FROM package_access_requests
+WHERE package_id IN (sqlc.slice('package_ids')) AND status = 'pending'
+ORDER BY package_id, created_at DESC;
+
+-- name: GetPackageAccessRequest :one
+SELECT * FROM package_access_requests WHERE id = ?;
+
+-- name: DismissPackageAccessRequest :exec
+UPDATE package_access_requests
+SET status = 'dismissed', resolved_at = CURRENT_TIMESTAMP
+WHERE id = ? AND status = 'pending';
+
+-- name: GrantPendingPackageAccessRequests :many
+-- One extend answers every outstanding request. Returns the rows it resolved so
+-- the caller can mail those requesters.
+UPDATE package_access_requests
+SET status = 'granted', resolved_at = CURRENT_TIMESTAMP
+WHERE package_id = ? AND status = 'pending'
+RETURNING *;
+
+-- name: CountRecentPackageAccessRequests :one
+-- The per-package ceiling. Compared in seconds rather than by binding a Go time,
+-- since created_at is written by CURRENT_TIMESTAMP and the two formats differ.
+SELECT COUNT(*) FROM package_access_requests
+WHERE package_id = sqlc.arg(package_id)
+  AND unixepoch(created_at) > unixepoch('now') - CAST(sqlc.arg(window_seconds) AS INTEGER);

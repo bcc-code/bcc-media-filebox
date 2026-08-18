@@ -5,14 +5,29 @@ import AppLogo from '../components/AppLogo.vue'
 import PackageVerifyScreen from '../components/send/PackageVerifyScreen.vue'
 import PackageDownloadScreen from '../components/send/PackageDownloadScreen.vue'
 import PackageUnavailableScreen from '../components/send/PackageUnavailableScreen.vue'
+import PackageAccessRequestForm from '../components/send/PackageAccessRequestForm.vue'
 import { usePackagePreview } from '../composables/usePackagePreview'
 import '../assets/send.css'
 
 const route = useRoute()
 const packageId = route.params.packageId as string
 
-const { preview, loading, error, verifying, verifyError, load, verifyPassword, recordDownload, allDownloadsExhausted } =
-  usePackagePreview()
+const {
+  preview,
+  loading,
+  error,
+  unavailable,
+  verifying,
+  verifyError,
+  requesting,
+  requestError,
+  requestSent,
+  load,
+  verifyPassword,
+  requestAccess,
+  recordDownload,
+  allDownloadsExhausted,
+} = usePackagePreview()
 
 onMounted(() => load(packageId))
 
@@ -30,7 +45,21 @@ function signInBcc() {
 
         <div v-if="loading" style="text-align: center; color: var(--ink-3); padding: 20px 0">Loading…</div>
 
-        <PackageUnavailableScreen v-else-if="error" heading="This link isn't available" :message="error" />
+        <template v-else-if="error">
+          <PackageUnavailableScreen heading="This link isn't available" :message="error" />
+          <!-- Only a package that existed and stopped working can be reopened, so
+               the form rides on `unavailable` rather than on `error`. -->
+          <PackageAccessRequestForm
+            v-if="unavailable"
+            :reason="unavailable.reason"
+            :sender-name="unavailable.senderName"
+            :submitting="requesting"
+            :error="requestError"
+            :sent="requestSent"
+            :interactive="true"
+            @submit="(email, message) => requestAccess(packageId, email, message)"
+          />
+        </template>
 
         <template v-else-if="preview">
           <PackageVerifyScreen
@@ -41,11 +70,21 @@ function signInBcc() {
             @submit-password="(pw) => verifyPassword(packageId, pw)"
             @sign-in-bcc="signInBcc"
           />
-          <PackageUnavailableScreen
-            v-else-if="allDownloadsExhausted"
-            heading="Download limit reached"
-            message="Every file in this package has reached its download limit."
-          />
+          <template v-else-if="allDownloadsExhausted">
+            <PackageUnavailableScreen
+              heading="Download limit reached"
+              message="Every file in this package has reached its download limit."
+            />
+            <PackageAccessRequestForm
+              reason="limit_reached"
+              :sender-name="preview.senderName"
+              :submitting="requesting"
+              :error="requestError"
+              :sent="requestSent"
+              :interactive="true"
+              @submit="(email, message) => requestAccess(packageId, email, message)"
+            />
+          </template>
           <PackageDownloadScreen
             v-else
             :package-name="preview.name"

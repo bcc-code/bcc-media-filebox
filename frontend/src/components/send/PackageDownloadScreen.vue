@@ -9,18 +9,14 @@ const props = defineProps<{
   files: PackageFile[]
   expiresAt: string
   maxDownloads: number | null
-  // When false, file rows are inert (no real download triggered) — used by
-  // the sender's own "Recipient preview" tab so trying it out never
-  // increments the package's real access_count/download_count.
+  // When false, file rows are inert — the sender's "Recipient preview" tab, so
+  // trying it out never increments the real access counts.
   interactive: boolean
 }>()
 
-// The actual download is a plain <a href download> so the browser can
-// stream it natively (no in-memory blob, so no cost for large files) — but
-// that means nothing here observes it completing. The server increments
-// access_count synchronously as soon as the request comes in (shares.go),
-// essentially at click time, so emitting on click and updating the count
-// optimistically in the parent is accurate for the normal success path.
+// The download is a plain <a href download> so the browser streams it natively,
+// which means nothing here sees it finish. The server increments access_count as
+// soon as the request arrives, so emitting on click matches it closely enough.
 const emit = defineEmits<{ downloaded: [shareId: string] }>()
 
 const totalSize = computed(() => props.files.reduce((sum, f) => sum + f.size, 0))
@@ -47,9 +43,8 @@ function isExhausted(f: PackageFile): boolean {
   return props.maxDownloads != null && f.accessCount >= props.maxDownloads
 }
 
-// "Download all" without a dedicated backend endpoint: fire every file's
-// individual download link. Fine for a handful of files; the many-small-
-// files/zip case is a separate, not-yet-built piece.
+// "Download all" with no backend endpoint: fire each file's own link. Fine for a
+// handful; zipping many small files is a separate, unbuilt piece.
 function downloadAll() {
   if (!props.interactive) return
   for (const f of props.files) {

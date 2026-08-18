@@ -31,9 +31,8 @@ type EventProcessor struct {
 	store     *objectstore.Client
 }
 
-// NewEventProcessor wires the upload event loop. store may be nil, in which
-// case every upload finalizes to a local target directory; when non-nil,
-// uploads tagged with the reserved objectstore.TargetName go to S3 instead.
+// NewEventProcessor wires the upload event loop. A nil store means every upload
+// finalizes locally; otherwise uploads tagged objectstore.TargetName go to S3.
 func NewEventProcessor(queries *db.Queries, uploadDir, tempDir string, store *objectstore.Client) *EventProcessor {
 	return &EventProcessor{queries: queries, uploadDir: uploadDir, tempDir: tempDir, store: store}
 }
@@ -149,9 +148,8 @@ func (ep *EventProcessor) handleComplete(event handler.HookEvent) {
 	go ep.finalizeUpload(info, completedAt)
 }
 
-// finalizeUpload promotes a completed upload out of the temp area and into its
-// final home, then does the bookkeeping that applies regardless of where the
-// bytes landed.
+// finalizeUpload moves a completed upload out of the temp area into its final
+// home, then does the bookkeeping common to every destination.
 func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time.Time) {
 	if ep.store != nil && info.MetaData["target"] == objectstore.TargetName {
 		ep.storeToS3(info)
@@ -196,10 +194,9 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 	os.Remove(filepath.Join(ep.tempDir, info.ID+".info"))
 }
 
-// storeToS3 promotes a Send upload into the object store. It verifies the
-// SHA-256 *before* transferring, unlike the local path, so a corrupt file never
-// costs bandwidth. No form/sidecar handling: objectstore.TargetName is never a
-// targets row, so an S3-bound upload can't have a form.
+// storeToS3 promotes a Send upload into the object store, verifying the SHA-256
+// before transferring (unlike the local path) so a corrupt file costs no
+// bandwidth. No form handling: an S3-bound upload can't have one.
 func (ep *EventProcessor) storeToS3(info handler.FileInfo) {
 	srcPath := filepath.Join(ep.tempDir, info.ID)
 
@@ -225,12 +222,12 @@ func (ep *EventProcessor) storeToS3(info handler.FileInfo) {
 		}
 	}
 
-	// The upload row keeps the sanitized name so the download path can
-	// recompute this exact key — see objectstore.Client.Key.
+	// The row keeps the sanitized name so downloads recompute this exact key —
+	// see objectstore.Client.Key.
 	key := ep.store.Key(info.ID, filename)
 	if err := ep.store.Upload(context.Background(), key, srcPath); err != nil {
-		// Leave the temp file in place: the bytes are still intact, so a
-		// future retry (or manual recovery) has something to work with.
+		// Leave the temp file: the bytes are intact, so a retry has something to
+		// work with.
 		log.Printf("error uploading %s to S3: %v", info.ID, err)
 		ep.queries.FailUpload(context.Background(), info.ID)
 		return

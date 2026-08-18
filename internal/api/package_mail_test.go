@@ -19,8 +19,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// newTestDB mirrors internal/db's helper: a throwaway SQLite with migrations
-// applied and the same connection settings cmd/server uses.
+// newTestDB mirrors internal/db's helper: throwaway SQLite, migrations applied.
 func newTestDB(t *testing.T) *db.Queries {
 	t.Helper()
 
@@ -167,9 +166,8 @@ func (ctxSender) Send(ctx context.Context, _ mail.Message) error {
 	return nil
 }
 
-// A run that burns the whole notifyTimeout must still record WHY it failed.
-// Sharing the expired context with the status write would leave the recipient
-// with neither sent_at nor send_error — indistinguishable from never trying.
+// A run that burns notifyTimeout must still record why. Sharing the expired
+// context with the status write would leave neither sent_at nor send_error.
 func TestNotifyRecipientsRecordsFailureAfterSendTimeout(t *testing.T) {
 	orig := notifyTimeout
 	notifyTimeout = time.Nanosecond
@@ -202,8 +200,8 @@ type panicSender struct{}
 
 func (panicSender) Send(context.Context, mail.Message) error { panic("relay exploded") }
 
-// notifyRecipients runs on its own goroutine, where a panic would kill the
-// process rather than fail one request — so it must contain its own.
+// On its own goroutine a panic kills the process, not one request, so
+// notifyRecipients must contain its own.
 func TestNotifyRecipientsRecoversFromPanic(t *testing.T) {
 	q := newTestDB(t)
 	h := NewHandlers(q, t.TempDir(), nil, panicSender{}, "https://filebox.example.com")

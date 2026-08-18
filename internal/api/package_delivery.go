@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -9,13 +8,12 @@ import (
 
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
+	"filebox/internal/mail"
 )
 
-// packageVerified reports whether the caller of r has already proven
-// whatever the package's verification_method requires. This is the single
-// source of truth consulted both by GetPackagePreview (to decide whether to
-// reveal the file list) and by GetShare (to gate the actual download) —
-// duplicating this switch in both places would let them drift.
+// packageVerified reports whether r's caller has satisfied the package's
+// verification_method. Shared by GetPackagePreview and GetShare, which must
+// agree on what counts as verified.
 func (h *Handlers) packageVerified(r *http.Request, pkg db.Package) bool {
 	switch pkg.VerificationMethod {
 	case "none":
@@ -34,7 +32,7 @@ func (h *Handlers) packageVerified(r *http.Request, pkg db.Package) bool {
 		})
 		return err == nil
 	default:
-		// email_otp / magic_link: out of scope for now, nothing can satisfy them yet.
+		// email_otp / magic_link aren't implemented yet.
 		return false
 	}
 }
@@ -58,34 +56,24 @@ type packagePreviewResponse struct {
 	Files              []packageFileView `json:"files,omitempty"`
 }
 
-// GetPackagePreview is the public, unauthenticated endpoint a recipient's
-// browser hits to see what a package contains. Before verification it only
-// reveals enough to render a "verify" screen; the file list is withheld
-// until packageVerified confirms the caller has satisfied the package's
-// verification_method.
+// GetPackagePreview is the public endpoint a recipient's browser hits to see
+// what a package contains. The file list is withheld until packageVerified
+// passes; before that it reveals only enough to render the verify screen.
 func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 	packageID := r.PathValue("id")
 
 	pkg, err := h.queries.GetPackageByID(r.Context(), packageID)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, "Package not found")
+		writeJSONError(w, http.StatusNotFound, errPackageNotFound)
 		return
 	}
 
-	if pkg.Status != "active" {
-		writeJSONError(w, http.StatusGone, "Package has been revoked")
+	// unavailableReason is passed nil so it skips the download limit: viewing
+	// isn't downloading, and GetShare gates each file separately.
+	if reason := unavailableReason(pkg, nil); reason != "" {
+		h.writePackageUnavailable(w, r, pkg, reason)
 		return
 	}
-
-	if !pkg.ExpiresAt.After(time.Now()) {
-		writeJSONError(w, http.StatusGone, "Package has expired")
-		return
-	}
-
-	// Note: max_downloads is intentionally NOT checked here. Viewing the
-	// preview is not a download, so it should still work even once the
-	// download limit has been hit — each individual file download is
-	// separately gated by GetShare.
 
 	var maxDownloads *int64
 	if pkg.MaxDownloads.Valid {
@@ -140,28 +128,20 @@ type verifyPackageRequest struct {
 	Password string `json:"password"`
 }
 
-// VerifyPackage is the public endpoint a recipient's browser posts a
-// password to. On success it issues an opaque, DB-backed verification
-// token as a per-package cookie, mirroring auth.SessionStore's pattern
-// (opaque token + DB row, expiry checked at lookup time). The same cookie
-// subsequently satisfies both GetPackagePreview and GetShare via
-// packageVerified.
+// VerifyPackage takes a recipient's password and, on success, sets a
+// per-package cookie holding an opaque DB-backed token — the same
+// opaque-token-plus-row pattern as auth.SessionStore.
 func (h *Handlers) VerifyPackage(w http.ResponseWriter, r *http.Request) {
 	packageID := r.PathValue("id")
 
 	pkg, err := h.queries.GetPackageByID(r.Context(), packageID)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, "Package not found")
+		writeJSONError(w, http.StatusNotFound, errPackageNotFound)
 		return
 	}
 
-	if pkg.Status != "active" {
-		writeJSONError(w, http.StatusGone, "Package has been revoked")
-		return
-	}
-
-	if !pkg.ExpiresAt.After(time.Now()) {
-		writeJSONError(w, http.StatusGone, "Package has expired")
+	if reason := unavailableReason(pkg, nil); reason != "" {
+		writeJSONError(w, http.StatusGone, unavailableMessage(reason))
 		return
 	}
 
@@ -171,8 +151,7 @@ func (h *Handlers) VerifyPackage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req verifyPackageRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Invalid request")
+	if !decodePublicJSON(w, r, maxVerifyPackageBody, &req) {
 		return
 	}
 
@@ -212,4 +191,59 @@ func (h *Handlers) VerifyPackage(w http.ResponseWriter, r *http.Request) {
 	})
 
 	writeJSON(w, http.StatusOK, map[string]bool{"verified": true})
+}
+
+// unavailableReason names why pkg is unreachable, or "" if it isn't.
+// minAccessCount is the least-downloaded share's count (GetPackageMinAccessCount);
+// nil skips the limit check, since the limit is per file, not per package.
+func unavailableReason(pkg db.Package, minAccessCount *int64) string {
+	switch {
+	case pkg.Status != "active":
+		return mail.ReasonRevoked
+	case !pkg.ExpiresAt.After(time.Now()):
+		return mail.ReasonExpired
+	case pkg.MaxDownloads.Valid && minAccessCount != nil && *minAccessCount >= pkg.MaxDownloads.Int64:
+		return mail.ReasonLimitReached
+	default:
+		return ""
+	}
+}
+
+func unavailableMessage(reason string) string {
+	switch reason {
+	case mail.ReasonRevoked:
+		return "This package has been revoked by the sender."
+	case mail.ReasonExpired:
+		return "This link has expired."
+	case mail.ReasonLimitReached:
+		return "Every file in this package has reached its download limit."
+	default:
+		return "This package is no longer available."
+	}
+}
+
+// packageUnavailableResponse is the 410 body for a dead package. It carries the
+// reason and sender so the page can offer to ask that person to reopen it —
+// no more than the preview already reveals before verification.
+type packageUnavailableResponse struct {
+	Error            string `json:"error"`
+	Reason           string `json:"reason"`
+	Name             string `json:"name"`
+	SenderName       string `json:"senderName"`
+	CanRequestAccess bool   `json:"canRequestAccess"`
+}
+
+func (h *Handlers) writePackageUnavailable(w http.ResponseWriter, r *http.Request, pkg db.Package, reason string) {
+	// Not fatal: the page falls back to "the sender".
+	senderName := ""
+	if sender, err := h.queries.GetUser(r.Context(), pkg.CreatedByUserID); err == nil {
+		senderName = sender.Name.String
+	}
+	writeJSON(w, http.StatusGone, packageUnavailableResponse{
+		Error:            unavailableMessage(reason),
+		Reason:           reason,
+		Name:             pkg.Name,
+		SenderName:       senderName,
+		CanRequestAccess: true,
+	})
 }

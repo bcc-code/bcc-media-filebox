@@ -1,11 +1,6 @@
 {{/*
-  Mirrors PackageDownloadScreen.vue's .public-card, so mail and page read alike.
-  Tables and inline styles because Outlook ignores <style> and Gmail strips
-  external CSS. send.css tokens hand-resolved to hex (clients support neither
-  custom properties nor oklch), so keep these in sync with assets/send.css:
-    --bg #0a1426   --bg-2 #0f1c33   --bg-3 #15243f   --line #1f2f4d
-    --line-2 #2a3d61   --ink #e7ecf5   --ink-2 #aeb8cc   --ink-3 #6c7896
-    --accent #73a9e1 (oklch .72 .10 250)   --accent-ink #0a1426
+  Author-facing twin of share_notification.html.tmpl: same shell, same tokens.
+  See that file for why the colours are hex and the layout is tables.
 */}}<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,32 +8,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <meta name="supported-color-schemes" content="dark">
-<title>{{.Headline}}</title>
+<title>{{.RequesterEmail}} asked you to reopen a package</title>
 <style>
   :root { color-scheme: dark; supported-color-schemes: dark; }
   a { color: #73a9e1; }
   @media (max-width: 520px) {
     .fb-pad { padding: 24px 20px !important; }
-    .fb-size { display: none !important; }
   }
 </style>
 </head>
 <body style="margin:0; padding:0; background-color:#0a1426; -webkit-font-smoothing:antialiased;">
-<div style="display:none; max-height:0; overflow:hidden; opacity:0;">{{.FileLabel}}{{with .TotalLabel}} · {{.}}{{end}} — {{.ExpiresOn}}</div>
+<div style="display:none; max-height:0; overflow:hidden; opacity:0;">{{.ReasonLabel}} — they are asking for access again</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a1426" style="background-color:#0a1426;">
   <tr>
     <td align="center" style="padding:36px 12px 48px;">
 
-      {{/* .public-card. Padding lives on the inner cell, not the table:
-           Outlook's Word engine ignores padding on <table>. */}}
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0f1c33" style="max-width:480px; background-color:#0f1c33; border:1px solid #2a3d61; border-radius:16px;">
       <tr>
       <td class="fb-pad" style="padding:30px 30px 28px; font-family:'Inter',system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif; color:#e7ecf5;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 
-        {{/* .public-brand. alt is empty on purpose: the wordmark beside it
-             already says FileBox, so a blocked image degrades to the wordmark
-             alone rather than showing the name twice. */}}
+        {{/* .public-brand */}}
         <tr>
           <td style="padding-bottom:22px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
@@ -55,7 +45,7 @@
         {{/* .public-from + .public-pkgname */}}
         <tr>
           <td style="font-size:14px; line-height:1.5; color:#aeb8cc;">
-            {{if .SenderName}}<strong style="color:#e7ecf5; font-weight:600;">{{.SenderName}}</strong> {{.HeadlineVerb}}{{else}}{{.Headline}}{{end}}
+            <strong style="color:#e7ecf5; font-weight:600; word-break:break-all;">{{.RequesterEmail}}</strong> asked you to reopen this package
           </td>
         </tr>
         {{if .PackageName}}
@@ -64,7 +54,7 @@
         </tr>
         {{end}}
 
-        {{/* .public-msg */}}
+        {{/* .public-msg — the requester's own note */}}
         {{if .Message}}
         <tr>
           <td style="padding-top:16px;">
@@ -75,31 +65,27 @@
         </tr>
         {{end}}
 
-        {{/* .public-files + .public-total */}}
-        {{if .Files}}
+        {{/* .pkg-meta as a key/value list */}}
         <tr>
           <td style="padding-top:20px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              {{range $i, $f := .Files}}
               <tr>
-                <td style="padding:9px 0; font-size:13.5px; color:#e7ecf5; word-break:break-all;{{if $i}} border-top:1px solid #1f2f4d;{{end}}">{{$f.Name}}</td>
-                <td class="fb-size" align="right" style="padding:9px 0 9px 12px; font-size:12px; color:#6c7896; white-space:nowrap; font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;{{if $i}} border-top:1px solid #1f2f4d;{{end}}">{{$f.SizeLabel}}</td>
+                <td style="padding:9px 0; font-size:12.5px; color:#6c7896;">Why it failed</td>
+                <td align="right" style="padding:9px 0 9px 12px; font-size:13px; color:#e7ecf5;">{{.ReasonLabel}}</td>
+              </tr>
+              <tr>
+                <td style="padding:9px 0; font-size:12.5px; color:#6c7896; border-top:1px solid #1f2f4d;">Expiry</td>
+                <td align="right" style="padding:9px 0 9px 12px; font-size:13px; color:#e7ecf5; border-top:1px solid #1f2f4d; white-space:nowrap;">{{.ExpiredOn}}</td>
+              </tr>
+              {{with .LimitLabel}}
+              <tr>
+                <td style="padding:9px 0; font-size:12.5px; color:#6c7896; border-top:1px solid #1f2f4d;">Downloads</td>
+                <td align="right" style="padding:9px 0 9px 12px; font-size:13px; color:#e7ecf5; border-top:1px solid #1f2f4d; font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;">{{.}}</td>
               </tr>
               {{end}}
             </table>
           </td>
         </tr>
-        <tr>
-          <td style="padding-top:14px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="font-size:12.5px; color:#6c7896;">{{.FileLabel}}</td>
-                <td align="right" style="font-size:12.5px; color:#6c7896; font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;">{{.TotalLabel}}</td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        {{end}}
 
         {{/* .btn.btn-primary.btn-block */}}
         <tr>
@@ -107,7 +93,7 @@
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td align="center" bgcolor="#73a9e1" style="background-color:#73a9e1; border-radius:9px;">
-                  <a href="{{.ShareURL}}" style="display:block; padding:12px 18px; font-family:'Inter',system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif; font-size:14px; font-weight:600; color:#0a1426; text-decoration:none; border-radius:9px;">Download {{.FileLabel}}{{with .TotalLabel}} · {{.}}{{end}}</a>
+                  <a href="{{.ManageURL}}" style="display:block; padding:12px 18px; font-family:'Inter',system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif; font-size:14px; font-weight:600; color:#0a1426; text-decoration:none; border-radius:9px;">Review and extend</a>
                 </td>
               </tr>
             </table>
@@ -117,7 +103,7 @@
         {{/* .public-note */}}
         <tr>
           <td align="center" style="padding-top:14px; font-size:12px; line-height:1.5; color:#6c7896;">
-            Expires {{.ExpiresOn}}{{if .MaxDownloads}} · {{.MaxDownloads}} downloads allowed{{end}}
+            Do nothing and the package stays exactly as it is — the link stays closed.
           </td>
         </tr>
 
@@ -127,12 +113,12 @@
         <tr>
           <td style="font-size:11.5px; line-height:1.6; color:#6c7896; word-break:break-all;">
             If the button doesn't work, open this link:<br>
-            <a href="{{.ShareURL}}" style="color:#73a9e1; text-decoration:none;">{{.ShareURL}}</a>
+            <a href="{{.ManageURL}}" style="color:#73a9e1; text-decoration:none;">{{.ManageURL}}</a>
           </td>
         </tr>
         <tr>
           <td style="padding-top:12px; font-size:11.5px; line-height:1.6; color:#6c7896;">
-            Sent by FileBox{{if .SenderEmail}} on behalf of {{.SenderEmail}}{{end}}. Reply to this email to reach {{if .SenderName}}{{.SenderName}}{{else}}the sender{{end}} directly.
+            Sent by FileBox. Reply to this email to reach {{.RequesterEmail}} directly.
           </td>
         </tr>
 

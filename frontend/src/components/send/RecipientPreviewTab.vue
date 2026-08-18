@@ -6,12 +6,14 @@ import AppLogo from '../AppLogo.vue'
 import PackageVerifyScreen from './PackageVerifyScreen.vue'
 import PackageDownloadScreen from './PackageDownloadScreen.vue'
 import PackageUnavailableScreen from './PackageUnavailableScreen.vue'
+import PackageAccessRequestForm from './PackageAccessRequestForm.vue'
 
 const props = defineProps<{ selectedPackageId?: string }>()
 
 const { packages, fetchPackages } = usePackages()
 const selected = ref(props.selectedPackageId ?? '')
-const { preview, loading, error, verifying, verifyError, load, verifyPassword, allDownloadsExhausted } = usePackagePreview()
+const { preview, loading, error, unavailable, verifying, verifyError, load, verifyPassword, allDownloadsExhausted } =
+  usePackagePreview()
 
 onMounted(async () => {
   if (!packages.value.length) await fetchPackages()
@@ -58,7 +60,18 @@ function signInBcc() {
   <div v-else-if="loading" class="empty">Loading…</div>
   <div v-else class="public-stage">
     <div class="public-card fb-fade" style="text-align: center">
-      <PackageUnavailableScreen v-if="error" :heading="error" />
+      <template v-if="error">
+        <PackageUnavailableScreen :heading="error" />
+        <!-- interactive=false: this is the author previewing their own package,
+             so the form renders but cannot mail them their own request. -->
+        <div v-if="unavailable" style="text-align: left">
+          <PackageAccessRequestForm
+            :reason="unavailable.reason"
+            :sender-name="unavailable.senderName"
+            :interactive="false"
+          />
+        </div>
+      </template>
       <template v-else-if="preview">
         <div class="public-brand" style="justify-content: center"><AppLogo class="mark" /><span class="name">FileBox</span></div>
         <div style="text-align: left">
@@ -70,11 +83,13 @@ function signInBcc() {
             @submit-password="(pw) => verifyPassword(selected, pw)"
             @sign-in-bcc="signInBcc"
           />
-          <PackageUnavailableScreen
-            v-else-if="allDownloadsExhausted"
-            heading="Download limit reached"
-            message="Every file in this package has reached its download limit."
-          />
+          <template v-else-if="allDownloadsExhausted">
+            <PackageUnavailableScreen
+              heading="Download limit reached"
+              message="Every file in this package has reached its download limit."
+            />
+            <PackageAccessRequestForm reason="limit_reached" :sender-name="preview.senderName" :interactive="false" />
+          </template>
           <PackageDownloadScreen
             v-else
             :package-name="preview.name"

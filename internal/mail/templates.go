@@ -20,31 +20,48 @@ var (
 	textTemplates = texttemplate.Must(texttemplate.ParseFS(templateFS, "templates/*.txt.tmpl"))
 )
 
-// ShareURL builds the recipient-facing link for a package. baseURL is the
-// configured link origin (MAIL_LINK_BASE_URL, else BASE_URL); the path mirrors
-// the frontend's /s/:packageId route in frontend/src/router.ts.
+// ShareURL builds the recipient-facing link for a package, mirroring the
+// frontend's /s/:packageId route. baseURL is MAIL_LINK_BASE_URL, else BASE_URL.
 func ShareURL(baseURL, packageID string) (string, error) {
-	if baseURL == "" {
-		return "", fmt.Errorf("no link origin configured — cannot build a share link (set MAIL_LINK_BASE_URL or BASE_URL)")
-	}
-	u, err := url.Parse(baseURL)
+	u, err := linkOrigin(baseURL)
 	if err != nil {
-		return "", fmt.Errorf("parse link origin %q: %w", baseURL, err)
-	}
-	if u.Scheme == "" || u.Host == "" {
-		return "", fmt.Errorf("link origin %q must be an absolute URL including scheme and host", baseURL)
+		return "", err
 	}
 	u.Path = strings.TrimSuffix(u.Path, "/") + "/s/" + url.PathEscape(packageID)
 	return u.String(), nil
 }
 
-// logoAsset lives in frontend/public, so it is served unauthenticated from the
-// app's origin in production and from the Vite dev server in development.
+// ManageURL builds the author-facing link: the Send page's "Sent packages" tab
+// focused on one package. Send.vue reads the tab/package query params.
+func ManageURL(baseURL, packageID string) (string, error) {
+	u, err := linkOrigin(baseURL)
+	if err != nil {
+		return "", err
+	}
+	u.Path = strings.TrimSuffix(u.Path, "/") + "/send"
+	u.RawQuery = url.Values{"tab": {"sent"}, "package": {packageID}}.Encode()
+	return u.String(), nil
+}
+
+func linkOrigin(baseURL string) (*url.URL, error) {
+	if baseURL == "" {
+		return nil, fmt.Errorf("no link origin configured — cannot build a link (set MAIL_LINK_BASE_URL or BASE_URL)")
+	}
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse link origin %q: %w", baseURL, err)
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return nil, fmt.Errorf("link origin %q must be an absolute URL including scheme and host", baseURL)
+	}
+	return u, nil
+}
+
+// Lives in frontend/public, so it's served unauthenticated from the app origin.
 const logoAsset = "logo-email.png"
 
-// LogoURL returns the absolute URL of the brand mark, or "" when baseURL is
-// unusable — the templates then fall back to the wordmark on its own, which is
-// also what a recipient sees when their client blocks images.
+// LogoURL returns the brand mark's absolute URL, or "" when baseURL is unusable.
+// The templates then show the wordmark alone, as they do for blocked images.
 func LogoURL(baseURL string) string {
 	u, err := url.Parse(baseURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
@@ -54,19 +71,15 @@ func LogoURL(baseURL string) string {
 	return u.String()
 }
 
-// NotificationFile is one row of the file list, mirroring the .public-file rows
-// on the recipient page.
+// NotificationFile is one row of the file list, mirroring .public-file rows.
 type NotificationFile struct {
 	Name string
 	Size int64
 }
 
-// ShareNotification is the data behind the "someone shared files with you"
-// mail. It carries the same fields PackageDownloadScreen.vue renders, so the
-// mail and the page it links to read as one thing.
-//
-// SenderEmail becomes Reply-To, so a recipient's reply reaches the person who
-// actually shared rather than the unattended service mailbox.
+// ShareNotification is the data behind the "someone shared files with you" mail.
+// Same fields PackageDownloadScreen.vue renders, so mail and page read alike.
+// SenderEmail becomes Reply-To, reaching the sharer, not the service mailbox.
 type ShareNotification struct {
 	SenderName  string
 	SenderEmail string
@@ -76,13 +89,37 @@ type ShareNotification struct {
 	ShareURL string
 	// LogoURL is optional; empty renders the wordmark alone.
 	LogoURL string
-	// Files is optional. When empty the mail falls back to FileCount and omits
-	// the file list, so a caller that hasn't loaded the shares still sends.
+	// Optional: when empty the mail omits the list and falls back to FileCount,
+	// so a caller that hasn't loaded the shares still sends.
 	Files     []NotificationFile
 	FileCount int
 	// MaxDownloads mirrors packages.max_downloads; 0 means unlimited.
 	MaxDownloads int
 	ExpiresAt    time.Time
+	// Switches the wording to "the link you asked about works again", keeping the
+	// same layout so a recipient sees one familiar mail, not two.
+	Renewed bool
+}
+
+// Headline is the mail's one-line summary: the text opening and the HTML <title>.
+// Branching here, not in two templates, so the wordings can't drift.
+func (d ShareNotification) Headline() string {
+	if d.SenderName == "" {
+		if d.Renewed {
+			return "Your download link works again"
+		}
+		return "You've received files"
+	}
+	return d.SenderName + " " + d.HeadlineVerb()
+}
+
+// HeadlineVerb is Headline after the sender's name, for the HTML body — which
+// bolds the name and so can't use Headline whole.
+func (d ShareNotification) HeadlineVerb() string {
+	if d.Renewed {
+		return "renewed your download link"
+	}
+	return "sent you a package"
 }
 
 // Count is the number of files, from the list when present.
@@ -110,8 +147,8 @@ func (d ShareNotification) TotalSize() int64 {
 	return total
 }
 
-// TotalLabel is the formatted total, empty when no sizes are known — templates
-// use emptiness to drop the size clause rather than print "0 B".
+// TotalLabel is the formatted total, empty when no sizes are known so templates
+// can drop the size clause instead of printing "0 B".
 func (d ShareNotification) TotalLabel() string {
 	if d.TotalSize() == 0 {
 		return ""
@@ -119,22 +156,20 @@ func (d ShareNotification) TotalLabel() string {
 	return FormatBytes(d.TotalSize())
 }
 
-// ExpiresOn is the absolute expiry. The recipient page shows a relative
-// "expires in 3 days", but a mail may be read days after it was sent, so this
-// one is anchored.
+// ExpiresOn is the absolute expiry. The page can say "in 3 days"; a mail may be
+// read days after it was sent.
 func (d ShareNotification) ExpiresOn() string {
 	return d.ExpiresAt.Format("2 January 2006, 15:04 MST")
 }
 
-// MessageHTML escapes the sender's note and turns newlines into breaks. The
-// CSS equivalent (white-space: pre-wrap) is unreliable in Outlook.
+// MessageHTML escapes the sender's note and turns newlines into breaks, since
+// white-space: pre-wrap is unreliable in Outlook.
 func (d ShareNotification) MessageHTML() htmltemplate.HTML {
 	escaped := html.EscapeString(d.Message)
 	return htmltemplate.HTML(strings.ReplaceAll(escaped, "\n", "<br>"))
 }
 
-// FormatBytes mirrors fmtBytes in the frontend's send components so a size
-// reads identically in the mail and on the page.
+// FormatBytes mirrors fmtBytes in the send components, so sizes read alike.
 func FormatBytes(b int64) string {
 	if b < 1024 {
 		return fmt.Sprintf("%d B", b)
@@ -157,15 +192,44 @@ func FormatBytes(b int64) string {
 // Size renders one file's size for the list.
 func (f NotificationFile) SizeLabel() string { return FormatBytes(f.Size) }
 
-// BuildShareNotification renders both bodies and returns a Message ready to
-// hand to a Sender. One call per recipient — recipients must not be able to
-// see each other's addresses.
+// BuildShareNotification renders both bodies into a Message. One call per
+// recipient — recipients must not see each other's addresses.
 func BuildShareNotification(to string, d ShareNotification) (Message, error) {
 	// Mirrors PackageDownloadScreen's "<name> sent you a package".
 	subject := fmt.Sprintf("%s sent you a package", d.SenderName)
 	if d.SenderName == "" {
 		subject = fmt.Sprintf("You've received %s", d.FileLabel())
 	}
+	if d.PackageName != "" {
+		subject = fmt.Sprintf("%s: %s", subject, d.PackageName)
+	}
+
+	text, err := renderText("share_notification.txt.tmpl", d)
+	if err != nil {
+		return Message{}, err
+	}
+	htmlBody, err := renderHTML("share_notification.html.tmpl", d)
+	if err != nil {
+		return Message{}, err
+	}
+
+	return Message{
+		To:          []string{to},
+		ReplyTo:     d.SenderEmail,
+		ReplyToName: d.SenderName,
+		SenderName:  d.SenderName,
+		Subject:     subject,
+		Text:        text,
+		HTML:        htmlBody,
+	}, nil
+}
+
+// BuildAccessGrantedNotification answers a granted request: BuildShareNotification
+// re-headlined, sent only to the requester. Without it, granting is silent.
+func BuildAccessGrantedNotification(to string, d ShareNotification) (Message, error) {
+	d.Renewed = true
+
+	subject := "Your download link works again"
 	if d.PackageName != "" {
 		subject = fmt.Sprintf("%s: %s", subject, d.PackageName)
 	}

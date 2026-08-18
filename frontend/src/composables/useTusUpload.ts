@@ -37,9 +37,8 @@ async function detectParallelUploads(): Promise<number> {
   if (detectedParallelUploads !== null) return detectedParallelUploads
 
   try {
-    // OPTIONS (not HEAD) — tusd's collection endpoint only allows POST, so HEAD
-    // returns a noisy 405. OPTIONS answers 204 and still populates the resource
-    // timing entry we read nextHopProtocol from.
+    // OPTIONS, not HEAD: tusd's collection endpoint allows only POST, so HEAD
+    // 405s noisily. OPTIONS answers 204 and still fills the timing entry.
     await fetch('/files/', { method: 'OPTIONS' })
     const entry = performance
       .getEntriesByType('resource')
@@ -117,10 +116,8 @@ export function useTusUpload() {
         item.status = 'completed'
         item.progress = 100
         item.speed = 0
-        // The tus resource URL's last path segment is the server-assigned
-        // upload ID (same value tusd hands to the backend as info.ID).
-        // Parsed via URL/pathname (not a raw string split) so a query
-        // string or hash on upload.url can never leak into the ID.
+        // The URL's last path segment is the server-assigned upload ID. Parsed
+        // via pathname, so a query string or hash can't leak into it.
         const segments = upload.url
           ? new URL(upload.url, location.origin).pathname.split('/').filter(Boolean)
           : []
@@ -168,10 +165,8 @@ export function useTusUpload() {
   }
 
   function cancelUpload(item: UploadItem) {
-    // Only terminate the server-side resource for an upload being abandoned.
-    // A 'completed' upload has already been finalized — and may already be
-    // referenced by a package — so aborting it would just 404 and, worse, is
-    // the wrong thing to attempt at all. Use forgetUpload for those.
+    // Only terminate an upload being abandoned. A completed one is finalized and
+    // may already back a package, so aborting it is wrong — use forgetUpload.
     if (item.tusUpload && item.status !== 'completed') {
       item.tusUpload.abort(true).catch(() => {})
     }
@@ -181,9 +176,8 @@ export function useTusUpload() {
     }
   }
 
-  // Drops a completed upload from the local list only — never contacts the
-  // server. For clearing the form after its uploads have been packaged, where
-  // the files must stay in place for the package to keep working.
+  // Drops an upload from the local list only, never contacting the server: for
+  // clearing the form once its files are packaged and must stay put.
   function forgetUpload(item: UploadItem) {
     const idx = uploads.value.indexOf(item)
     if (idx !== -1) {

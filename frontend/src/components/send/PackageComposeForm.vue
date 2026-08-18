@@ -11,12 +11,9 @@ const emit = defineEmits<{ sent: [packageId: string] }>()
 const { uploads, addFiles, cancelUpload, forgetUpload } = useTusUpload()
 const { createPackage } = usePackages()
 
-// Send never shows the caller a target picker, so it names its destination
-// symbolically: SEND_TARGET says "wherever Send files belong" and the backend's
+// Send shows no target picker, so it names its destination symbolically and the
 // tus pre-create hook resolves it (S3 when configured, else a real target).
-// It must be this explicit value rather than an empty string — Home also
-// submits an empty target when the signed-in user has no granted targets, and
-// the backend cannot tell the two apart.
+// Must not be an empty string: Home submits that when a user has no grants.
 const SEND_TARGET = 'send'
 
 const isDragging = ref(false)
@@ -107,9 +104,8 @@ async function send() {
       notifyOnDownload: notify.value,
     })
     emit('sent', result.packageId)
-    // reset — completed uploads are now owned by the package and must stay on
-    // the server; anything else here (e.g. a stray paused upload) never made
-    // it into the package and should actually be cleaned up.
+    // Completed uploads now belong to the package and must stay on the server;
+    // anything else here never made it in and should be cleaned up.
     for (const u of [...uploads.value]) {
       if (u.status === 'completed') forgetUpload(u)
       else cancelUpload(u)

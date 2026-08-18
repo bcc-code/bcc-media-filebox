@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -17,18 +18,43 @@ type Handlers struct {
 	uploadDir string
 	store     *objectstore.Client
 	mailer    mail.Sender
-	// mailBaseURL is the public origin used to build recipient links
-	// (MAIL_LINK_BASE_URL), not necessarily the server's own base URL.
+	// Public origin for recipient links (MAIL_LINK_BASE_URL), which need not be
+	// the server's own base URL.
 	mailBaseURL string
 }
 
-// NewHandlers builds the public API handlers. store may be nil, meaning S3 is
-// unconfigured and all share downloads are served from local target dirs.
-// mailer may be nil or a mail.NoopSender; both mean delivery is off, since
-// sends are gated on mail.IsEnabled.
-// mailBaseURL is the public origin used to build recipient links.
+// NewHandlers builds the public API handlers. A nil store means S3 is
+// unconfigured and downloads come from local target dirs; a nil or NoopSender
+// mailer means delivery is off.
 func NewHandlers(queries *db.Queries, uploadDir string, store *objectstore.Client, mailer mail.Sender, mailBaseURL string) *Handlers {
 	return &Handlers{queries: queries, uploadDir: uploadDir, store: store, mailer: mailer, mailBaseURL: mailBaseURL}
+}
+
+const (
+	errPackageNotFound       = "Package not found"
+	errAccessRequestNotFound = "Request not found"
+)
+
+// Body caps for the unauthenticated endpoints, both well over any legal body.
+const (
+	maxAccessRequestBody = 8 << 10
+	maxVerifyPackageBody = 4 << 10
+)
+
+// decodePublicJSON decodes r's body into dst under a size cap, writing the error
+// response itself. Field limits bound what gets stored; this bounds what an
+// anonymous caller can make the server parse.
+func decodePublicJSON(w http.ResponseWriter, r *http.Request, limit int64, dst any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		if _, tooLarge := errors.AsType[*http.MaxBytesError](err); tooLarge {
+			writeJSONError(w, http.StatusRequestEntityTooLarge, "Request is too large")
+			return false
+		}
+		writeJSONError(w, http.StatusBadRequest, "Invalid request")
+		return false
+	}
+	return true
 }
 
 type UploadResponse struct {

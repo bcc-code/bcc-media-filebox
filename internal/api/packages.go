@@ -1,9 +1,11 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -46,10 +48,9 @@ type CreatePackageResponse struct {
 	ExpiresAt  string `json:"expiresAt"`
 }
 
-// CreatePackage bundles one or more already-uploaded files into a single
-// shareable package ("Send"). Each file becomes its own shares row
-// (package_id set, requires_auth "none") since package-level verification
-// gates access before any individual file is reached.
+// CreatePackage bundles already-uploaded files into one shareable package
+// ("Send"). Each file becomes its own shares row; verification is enforced at
+// the package level, before any individual file is reached.
 func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 	caller := auth.CallerFrom(r.Context())
 	if caller == nil {
@@ -105,8 +106,8 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		maxDownloads = sql.NullInt64{Int64: int64(*req.MaxDownloads), Valid: true}
 	}
 
-	// Verify ownership of every upload before creating anything, so a
-	// package is never partially created against a file the caller can't share.
+	// Check every upload first, so a package is never partly created against a
+	// file the caller can't share.
 	uploads := make([]db.Upload, 0, len(req.UploadIDs))
 	for _, uploadID := range req.UploadIDs {
 		upload, err := h.queries.GetUpload(r.Context(), uploadID)
@@ -150,10 +151,8 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusInternalServerError, "failed to generate share id")
 			return
 		}
-		// No expiry/access-limit set here: a share belonging to a package
-		// carries no policy of its own, since the UI only ever lets someone
-		// set expiry/limits on the package as a whole. GetShare enforces
-		// those against the package, not this row.
+		// No expiry or limit here: a share in a package carries no policy of its
+		// own, and GetShare enforces the package's instead.
 		if _, err := h.queries.CreateShare(r.Context(), db.CreateShareParams{
 			ID:        shareID,
 			PackageID: packageID,
@@ -180,8 +179,8 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		recipients = append(recipients, rcpt)
 	}
 
-	// Detached from the request: the package exists either way, and delivery
-	// state lands on package_recipients (sent_at / send_error).
+	// Detached: the package exists either way, and delivery state lands on
+	// package_recipients.
 	go h.notifyRecipients(pkg, recipients, uploads, caller)
 
 	writeJSON(w, http.StatusCreated, CreatePackageResponse{
@@ -206,6 +205,18 @@ type PackageListItem struct {
 	IsDownloadLimitHit bool     `json:"isDownloadLimitHit"`
 	Status             string   `json:"status"`
 	CreatedAt          string   `json:"createdAt"`
+	// Carried here so the author sees asks on the card itself, not only in the
+	// email that may be lost in an inbox.
+	PendingRequests []AccessRequestView `json:"pendingRequests"`
+}
+
+// AccessRequestView is one row of package_access_requests as the author sees it.
+type AccessRequestView struct {
+	ID        string `json:"id"`
+	Email     string `json:"email"`
+	Reason    string `json:"reason"`
+	Message   string `json:"message"`
+	CreatedAt string `json:"createdAt"`
 }
 
 type ListPackagesResponse struct {
@@ -257,62 +268,13 @@ func (h *Handlers) ListPackagesByUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
-	packages := make([]PackageListItem, len(rows))
-	for i, row := range rows {
-		files, err := h.queries.ListSharesByPackageID(r.Context(), row.ID)
-		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "failed to list package files")
-			return
-		}
-		var totalSize int64
-		for _, f := range files {
-			totalSize += f.Size
-		}
-
-		maxAccessCount, err := h.queries.GetPackageMaxAccessCount(r.Context(), row.ID)
-		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "failed to compute package downloads")
-			return
-		}
-
-		minAccessCount, err := h.queries.GetPackageMinAccessCount(r.Context(), row.ID)
-		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "failed to compute package downloads")
-			return
-		}
-
-		recipientRows, err := h.queries.ListPackageRecipientsByPackageID(r.Context(), row.ID)
-		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "failed to list package recipients")
-			return
-		}
-		recipients := make([]string, len(recipientRows))
-		for i, rec := range recipientRows {
-			recipients[i] = rec.Email
-		}
-
-		var maxDownloads *int64
-		if row.MaxDownloads.Valid {
-			maxDownloads = new(row.MaxDownloads.Int64)
-		}
-
-		packages[i] = PackageListItem{
-			PackageID:          row.ID,
-			Name:               row.Name,
-			Message:            row.Message,
-			VerificationMethod: row.VerificationMethod,
-			Recipients:         recipients,
-			FileCount:          len(files),
-			TotalSize:          totalSize,
-			DownloadCount:      maxAccessCount,
-			MaxDownloads:       maxDownloads,
-			ExpiresAt:          row.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
-			IsExpired:          row.Status == "active" && row.ExpiresAt.Before(now),
-			IsDownloadLimitHit: row.MaxDownloads.Valid && minAccessCount >= row.MaxDownloads.Int64,
-			Status:             row.Status,
-			CreatedAt:          row.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		}
+	packages, err := h.buildPackageListItems(r.Context(), rows)
+	if err != nil {
+		// Logged, not returned: the cause is a DB error, and writeJSONError's text
+		// is shown to the user as-is.
+		log.Printf("packages: list for user %d: %v", caller.UserID, err)
+		writeJSONError(w, http.StatusInternalServerError, "failed to list packages")
+		return
 	}
 
 	writeJSON(w, http.StatusOK, ListPackagesResponse{
@@ -323,9 +285,109 @@ func (h *Handlers) ListPackagesByUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// RevokePackage revokes a package. Only the package's creator may revoke it.
-// Revocation is a soft status flip, not a delete, so the package still shows
-// up (as "revoked") in the creator's package list.
+// buildPackageListItem is the one-package form, used by ExtendPackage.
+func (h *Handlers) buildPackageListItem(ctx context.Context, pkg db.Package) (PackageListItem, error) {
+	items, err := h.buildPackageListItems(ctx, []db.Package{pkg})
+	if err != nil {
+		return PackageListItem{}, err
+	}
+	return items[0], nil
+}
+
+// buildPackageListItems assembles the author-facing view of a page of packages.
+// Four batch queries, not five per package: they all queue on the one connection.
+func (h *Handlers) buildPackageListItems(ctx context.Context, pkgs []db.Package) ([]PackageListItem, error) {
+	ids := make([]string, len(pkgs))
+	for i, pkg := range pkgs {
+		ids[i] = pkg.ID
+	}
+
+	fileRows, err := h.queries.ListSharesByPackageIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list package files: %w", err)
+	}
+	fileCount := make(map[string]int, len(pkgs))
+	totalSize := make(map[string]int64, len(pkgs))
+	for _, f := range fileRows {
+		fileCount[f.PackageID]++
+		totalSize[f.PackageID] += f.Size
+	}
+
+	// A package with no shares gets no row, which is the COALESCE(...,0) the
+	// single-package queries apply.
+	countRows, err := h.queries.GetPackageAccessCountsByPackageIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("compute package downloads: %w", err)
+	}
+	maxAccess := make(map[string]int64, len(pkgs))
+	minAccess := make(map[string]int64, len(pkgs))
+	for _, c := range countRows {
+		maxAccess[c.PackageID] = c.MaxAccessCount
+		minAccess[c.PackageID] = c.MinAccessCount
+	}
+
+	recipientRows, err := h.queries.ListPackageRecipientsByPackageIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list package recipients: %w", err)
+	}
+	recipients := make(map[string][]string, len(pkgs))
+	for _, rec := range recipientRows {
+		recipients[rec.PackageID] = append(recipients[rec.PackageID], rec.Email)
+	}
+
+	requestRows, err := h.queries.ListPendingPackageAccessRequestsByPackageIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list access requests: %w", err)
+	}
+	requests := make(map[string][]AccessRequestView, len(pkgs))
+	for _, req := range requestRows {
+		requests[req.PackageID] = append(requests[req.PackageID], AccessRequestView{
+			ID:        req.ID,
+			Email:     req.Email,
+			Reason:    req.Reason,
+			Message:   req.Message,
+			CreatedAt: req.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		})
+	}
+
+	items := make([]PackageListItem, len(pkgs))
+	for i, pkg := range pkgs {
+		var maxDownloads *int64
+		if pkg.MaxDownloads.Valid {
+			maxDownloads = &pkg.MaxDownloads.Int64
+		}
+		// Empty, not nil, so the JSON keeps [] as before.
+		recs := recipients[pkg.ID]
+		if recs == nil {
+			recs = []string{}
+		}
+		asks := requests[pkg.ID]
+		if asks == nil {
+			asks = []AccessRequestView{}
+		}
+		items[i] = PackageListItem{
+			PackageID:          pkg.ID,
+			Name:               pkg.Name,
+			Message:            pkg.Message,
+			VerificationMethod: pkg.VerificationMethod,
+			Recipients:         recs,
+			FileCount:          fileCount[pkg.ID],
+			TotalSize:          totalSize[pkg.ID],
+			DownloadCount:      maxAccess[pkg.ID],
+			MaxDownloads:       maxDownloads,
+			ExpiresAt:          pkg.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
+			IsExpired:          pkg.Status == "active" && pkg.ExpiresAt.Before(time.Now()),
+			IsDownloadLimitHit: pkg.MaxDownloads.Valid && minAccess[pkg.ID] >= pkg.MaxDownloads.Int64,
+			Status:             pkg.Status,
+			CreatedAt:          pkg.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			PendingRequests:    asks,
+		}
+	}
+	return items, nil
+}
+
+// RevokePackage revokes a package; creator only. A soft status flip, not a
+// delete, so it still shows as "revoked" in the creator's list.
 func (h *Handlers) RevokePackage(w http.ResponseWriter, r *http.Request) {
 	caller := auth.CallerFrom(r.Context())
 	if caller == nil {
@@ -337,7 +399,7 @@ func (h *Handlers) RevokePackage(w http.ResponseWriter, r *http.Request) {
 
 	pkg, err := h.queries.GetPackageByID(r.Context(), packageID)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, "package not found")
+		writeJSONError(w, http.StatusNotFound, errPackageNotFound)
 		return
 	}
 
