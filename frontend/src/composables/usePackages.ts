@@ -29,6 +29,7 @@ export interface PackageInfo {
   isDownloadLimitHit: boolean
   status: string
   createdAt: string
+  notifyOnDownload: boolean
   pendingRequests: AccessRequest[]
 }
 
@@ -148,6 +149,25 @@ async function dismissAccessRequest(packageId: string, requestId: string) {
   if (pkg) pkg.pendingRequests = pkg.pendingRequests.filter((r) => r.id !== requestId)
 }
 
+// Download reports are coalesced server-side, so this only decides whether the
+// author hears about the next window — an open one still reports what it has.
+async function setNotifyOnDownload(packageId: string, notifyOnDownload: boolean) {
+  await jsonFetch<{ notifyOnDownload: boolean }>(`/api/packages/${encodeURIComponent(packageId)}/notify`, {
+    method: 'PATCH',
+    body: JSON.stringify({ notifyOnDownload }),
+  })
+  const pkg = packages.value.find((p) => p.packageId === packageId)
+  if (pkg) pkg.notifyOnDownload = notifyOnDownload
+}
+
+// The opt-out behind the link in a download report. Authorised by the token
+// alone, so it works from a mail client with no session.
+export async function muteNotifications(token: string): Promise<{ packageName: string }> {
+  return jsonFetch<{ packageName: string }>(`/api/notifications/mute/${encodeURIComponent(token)}`, {
+    method: 'POST',
+  })
+}
+
 async function revokePackage(packageId: string) {
   await jsonFetch<void>(`/api/packages/${encodeURIComponent(packageId)}`, { method: 'DELETE' })
   const pkg = packages.value.find((p) => p.packageId === packageId)
@@ -163,6 +183,7 @@ export function usePackages() {
     fetchPackages,
     createPackage,
     revokePackage,
+    setNotifyOnDownload,
     extendPackage,
     dismissAccessRequest,
   }

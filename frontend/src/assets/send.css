@@ -269,6 +269,9 @@
 .send-root .pkg-badges { display: flex; gap: 7px; flex-shrink: 0; align-items: center; }
 .send-root .pkg-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .send-root .pkg-foot .spacer { flex: 1; }
+/* On is the state the author chose, so it reads as active rather than as the
+   default; off falls back to the plain button. */
+.send-root .btn.notifying { color: oklch(0.80 0.10 250); border-color: color-mix(in oklch, var(--accent), transparent 55%); background: color-mix(in oklch, var(--accent), transparent 88%); }
 
 .send-root .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .send-root .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }

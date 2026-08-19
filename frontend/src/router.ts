@@ -4,6 +4,7 @@ const Home = () => import('./views/Home.vue')
 const Admin = () => import('./views/Admin.vue')
 const Send = () => import('./views/Send.vue')
 const RecipientPage = () => import('./views/RecipientPage.vue')
+const MuteNotificationsPage = () => import('./views/MuteNotificationsPage.vue')
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -20,5 +21,6 @@ export const router = createRouter({
     { path: '/admin', name: 'admin', component: Admin },
     { path: '/send', name: 'send', component: Send },
     { path: '/s/:packageId', name: 'recipient', component: RecipientPage, meta: { public: true } },
+    { path: '/mute/:token', name: 'mute', component: MuteNotificationsPage, meta: { public: true } },
   ],
 })

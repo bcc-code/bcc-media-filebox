@@ -208,7 +208,10 @@ async function send() {
         <div class="toggle-row">
           <div class="tbody">
             <div class="tname">Notify me on download</div>
-            <div class="tdesc">Email me each time a recipient downloads this package.</div>
+            <div class="tdesc">
+              Email me what was downloaded. Downloads close together are collected into one email, and you can
+              turn this off later from the package's card.
+            </div>
           </div>
           <button
             type="button"

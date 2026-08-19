@@ -156,6 +156,16 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 
 	expTime := time.Now().AddDate(0, 0, req.ExpiresInDays)
 
+	// The capability behind the download report's opt-out link. Minted for every
+	// package, not only the ones notifying today, so the link still works if the
+	// author turns notifications back on later.
+	muteTokenValue, err := generateShareID()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to generate mute token")
+		return
+	}
+	muteToken := sql.NullString{String: muteTokenValue, Valid: true}
+
 	pkg, err := h.queries.CreatePackage(r.Context(), db.CreatePackageParams{
 		ID:                 packageID,
 		CreatedByUserID:    caller.UserID,
@@ -165,6 +175,8 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		PasswordHash:       passwordHash,
 		ExpiresAt:          expTime,
 		MaxDownloads:       maxDownloads,
+		NotifyOnDownload:   boolToInt64(req.NotifyOnDownload),
+		NotifyMuteToken:    muteToken,
 	})
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "failed to create package")
@@ -228,6 +240,7 @@ type PackageListItem struct {
 	IsDownloadLimitHit bool     `json:"isDownloadLimitHit"`
 	Status             string   `json:"status"`
 	CreatedAt          string   `json:"createdAt"`
+	NotifyOnDownload   bool     `json:"notifyOnDownload"`
 	// Carried here so the author sees asks on the card itself, not only in the
 	// email that may be lost in an inbox.
 	PendingRequests []AccessRequestView `json:"pendingRequests"`
@@ -401,6 +414,7 @@ func (h *Handlers) buildPackageListItems(ctx context.Context, pkgs []db.Package)
 			ExpiresAt:          pkg.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
 			IsExpired:          pkg.Status == "active" && pkg.ExpiresAt.Before(time.Now()),
 			IsDownloadLimitHit: pkg.MaxDownloads.Valid && minAccess[pkg.ID] >= pkg.MaxDownloads.Int64,
+			NotifyOnDownload:   pkg.NotifyOnDownload != 0,
 			Status:             pkg.Status,
 			CreatedAt:          pkg.CreatedAt.Format("2006-01-02T15:04:05Z"),
 			PendingRequests:    asks,

@@ -44,9 +44,9 @@ func (q *Queries) CountRecentPackageAccessRequests(ctx context.Context, arg Coun
 }
 
 const createPackage = `-- name: CreatePackage :one
-INSERT INTO packages (id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at
+INSERT INTO packages (id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, notify_on_download, notify_mute_token)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token
 `
 
 type CreatePackageParams struct {
@@ -58,6 +58,8 @@ type CreatePackageParams struct {
 	PasswordHash       sql.NullString
 	ExpiresAt          time.Time
 	MaxDownloads       sql.NullInt64
+	NotifyOnDownload   int64
+	NotifyMuteToken    sql.NullString
 }
 
 func (q *Queries) CreatePackage(ctx context.Context, arg CreatePackageParams) (Package, error) {
@@ -70,6 +72,8 @@ func (q *Queries) CreatePackage(ctx context.Context, arg CreatePackageParams) (P
 		arg.PasswordHash,
 		arg.ExpiresAt,
 		arg.MaxDownloads,
+		arg.NotifyOnDownload,
+		arg.NotifyMuteToken,
 	)
 	var i Package
 	err := row.Scan(
@@ -85,6 +89,7 @@ func (q *Queries) CreatePackage(ctx context.Context, arg CreatePackageParams) (P
 		&i.NotifyOnDownload,
 		&i.Status,
 		&i.CreatedAt,
+		&i.NotifyMuteToken,
 	)
 	return i, err
 }
@@ -171,7 +176,7 @@ SET expires_at    = ?,
     max_downloads = ?,
     status        = 'active'
 WHERE id = ?
-RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at
+RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token
 `
 
 type ExtendPackageParams struct {
@@ -198,6 +203,7 @@ func (q *Queries) ExtendPackage(ctx context.Context, arg ExtendPackageParams) (P
 		&i.NotifyOnDownload,
 		&i.Status,
 		&i.CreatedAt,
+		&i.NotifyMuteToken,
 	)
 	return i, err
 }
@@ -303,7 +309,7 @@ func (q *Queries) GetPackageAccessRequest(ctx context.Context, id string) (Packa
 }
 
 const getPackageByID = `-- name: GetPackageByID :one
-SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at FROM packages WHERE id = ?
+SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token FROM packages WHERE id = ?
 `
 
 func (q *Queries) GetPackageByID(ctx context.Context, id string) (Package, error) {
@@ -322,6 +328,7 @@ func (q *Queries) GetPackageByID(ctx context.Context, id string) (Package, error
 		&i.NotifyOnDownload,
 		&i.Status,
 		&i.CreatedAt,
+		&i.NotifyMuteToken,
 	)
 	return i, err
 }
@@ -446,7 +453,7 @@ const incrementPackageDownloadCount = `-- name: IncrementPackageDownloadCount :o
 UPDATE packages
 SET download_count = download_count + 1
 WHERE id = ?
-RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at
+RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token
 `
 
 func (q *Queries) IncrementPackageDownloadCount(ctx context.Context, id string) (Package, error) {
@@ -465,6 +472,7 @@ func (q *Queries) IncrementPackageDownloadCount(ctx context.Context, id string) 
 		&i.NotifyOnDownload,
 		&i.Status,
 		&i.CreatedAt,
+		&i.NotifyMuteToken,
 	)
 	return i, err
 }
@@ -558,7 +566,7 @@ func (q *Queries) ListPackageRecipientsByPackageIDs(ctx context.Context, package
 }
 
 const listPackagesByUser = `-- name: ListPackagesByUser :many
-SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at FROM packages
+SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token FROM packages
 WHERE created_by_user_id = ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
@@ -592,6 +600,7 @@ func (q *Queries) ListPackagesByUser(ctx context.Context, arg ListPackagesByUser
 			&i.NotifyOnDownload,
 			&i.Status,
 			&i.CreatedAt,
+			&i.NotifyMuteToken,
 		); err != nil {
 			return nil, err
 		}
@@ -833,12 +842,56 @@ func (q *Queries) MarkPackageRecipientVerified(ctx context.Context, id int64) er
 	return err
 }
 
+const mutePackageNotificationsByToken = `-- name: MutePackageNotificationsByToken :one
+UPDATE packages SET notify_on_download = 0
+WHERE notify_mute_token = ? AND notify_mute_token IS NOT NULL
+RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token
+`
+
+// The mail's one-click opt-out. Idempotent: an already-muted package still
+// matches, so a second click confirms rather than 404s. Returns the row so the
+// page can name the package it just quietened.
+func (q *Queries) MutePackageNotificationsByToken(ctx context.Context, notifyMuteToken sql.NullString) (Package, error) {
+	row := q.db.QueryRowContext(ctx, mutePackageNotificationsByToken, notifyMuteToken)
+	var i Package
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedByUserID,
+		&i.Name,
+		&i.Message,
+		&i.VerificationMethod,
+		&i.PasswordHash,
+		&i.ExpiresAt,
+		&i.MaxDownloads,
+		&i.DownloadCount,
+		&i.NotifyOnDownload,
+		&i.Status,
+		&i.CreatedAt,
+		&i.NotifyMuteToken,
+	)
+	return i, err
+}
+
 const revokePackage = `-- name: RevokePackage :exec
 UPDATE packages SET status = 'revoked' WHERE id = ?
 `
 
 func (q *Queries) RevokePackage(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, revokePackage, id)
+	return err
+}
+
+const setPackageNotifyOnDownload = `-- name: SetPackageNotifyOnDownload :exec
+UPDATE packages SET notify_on_download = ? WHERE id = ?
+`
+
+type SetPackageNotifyOnDownloadParams struct {
+	NotifyOnDownload int64
+	ID               string
+}
+
+func (q *Queries) SetPackageNotifyOnDownload(ctx context.Context, arg SetPackageNotifyOnDownloadParams) error {
+	_, err := q.db.ExecContext(ctx, setPackageNotifyOnDownload, arg.NotifyOnDownload, arg.ID)
 	return err
 }
 

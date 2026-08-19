@@ -1,6 +1,6 @@
 -- name: CreatePackage :one
-INSERT INTO packages (id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO packages (id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, notify_on_download, notify_mute_token)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetPackageByID :one
@@ -17,6 +17,17 @@ SELECT COUNT(*) FROM packages WHERE created_by_user_id = ?;
 
 -- name: RevokePackage :exec
 UPDATE packages SET status = 'revoked' WHERE id = ?;
+
+-- name: SetPackageNotifyOnDownload :exec
+UPDATE packages SET notify_on_download = ? WHERE id = ?;
+
+-- name: MutePackageNotificationsByToken :one
+-- The mail's one-click opt-out. Idempotent: an already-muted package still
+-- matches, so a second click confirms rather than 404s. Returns the row so the
+-- page can name the package it just quietened.
+UPDATE packages SET notify_on_download = 0
+WHERE notify_mute_token = ? AND notify_mute_token IS NOT NULL
+RETURNING *;
 
 -- name: IncrementPackageDownloadCount :one
 UPDATE packages

@@ -56,6 +56,7 @@ type Package struct {
 	NotifyOnDownload   int64
 	Status             string
 	CreatedAt          time.Time
+	NotifyMuteToken    sql.NullString
 }
 
 type PackageAccessRequest struct {

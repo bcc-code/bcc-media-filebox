@@ -148,6 +148,85 @@ func (h *Handlers) notifyAccessRequest(pkg db.Package, req db.PackageAccessReque
 	}
 }
 
+// notifyDownloads mails a package's author one summary of a closed coalescing
+// window: what was taken, by whom when that's knowable, and where the download
+// budget now stands. Detached like the others — it runs off a timer goroutine,
+// with no request left to attach to.
+func (h *Handlers) notifyDownloads(b *downloadBatch) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("mail: panic notifying author of downloads of package %s: %v\n%s", b.pkg.ID, r, debug.Stack())
+		}
+	}()
+
+	if len(b.order) == 0 || !mail.IsEnabled(h.mailer) {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), notifyTimeout)
+	defer cancel()
+
+	author, err := h.queries.GetUser(ctx, b.pkg.CreatedByUserID)
+	if err != nil {
+		log.Printf("mail: cannot notify author of package %s: %v", b.pkg.ID, err)
+		return
+	}
+	if !author.Email.Valid || author.Email.String == "" {
+		// No address from the provider. download_count on the card still moved.
+		log.Printf("mail: author of package %s has no email address, downloads not reported", b.pkg.ID)
+		return
+	}
+
+	manageURL, err := mail.ManageURL(h.mailBaseURL, b.pkg.ID)
+	if err != nil {
+		log.Printf("mail: cannot notify author of package %s: %v", b.pkg.ID, err)
+		return
+	}
+
+	// Read the budget now rather than from the batch: the window may have closed
+	// minutes ago. Best effort — on failure the mail drops the budget line.
+	var downloadCount int64
+	if c, err := h.queries.GetPackageMaxAccessCount(ctx, b.pkg.ID); err == nil {
+		downloadCount = c
+	}
+
+	files := make([]mail.DownloadedFile, 0, len(b.order))
+	for _, name := range b.order {
+		t := b.files[name]
+		files = append(files, mail.DownloadedFile{Name: name, Size: t.size, Count: t.count})
+	}
+
+	// Best effort: without a token the mail simply omits the opt-out link.
+	muteURL := ""
+	if b.pkg.NotifyMuteToken.Valid {
+		if u, err := mail.MuteURL(h.mailBaseURL, b.pkg.NotifyMuteToken.String); err == nil {
+			muteURL = u
+		}
+	}
+
+	msg, err := mail.BuildDownloadNotification(author.Email.String, mail.DownloadNotification{
+		AuthorName:    author.Name.String,
+		PackageName:   b.pkg.Name,
+		ManageURL:     manageURL,
+		MuteURL:       muteURL,
+		LogoURL:       mail.LogoURL(h.mailBaseURL),
+		Files:         files,
+		Downloaders:   b.who,
+		Truncated:     b.dropped,
+		MaxDownloads:  int(b.pkg.MaxDownloads.Int64),
+		DownloadCount: int(downloadCount),
+		ExpiresAt:     b.pkg.ExpiresAt,
+		FirstAt:       b.first,
+		LastAt:        b.last,
+	})
+	if err == nil {
+		err = h.mailer.Send(ctx, msg)
+	}
+	if err != nil {
+		log.Printf("mail: download report for package %s to %s failed: %v", b.pkg.ID, author.Email.String, err)
+	}
+}
+
 // notifyAccessGranted mails everyone whose request an extend just answered.
 // Without it, granting is silent to the person waiting on the link.
 func (h *Handlers) notifyAccessGranted(pkg db.Package, granted []db.PackageAccessRequest, caller *auth.Caller) {

@@ -123,6 +123,8 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.recordDownload(r, pkg, upload)
+
 	// Handed off to S3, so the traffic never transits this server. The signed URL
 	// carries its own Content-Disposition.
 	if signedURL != "" {

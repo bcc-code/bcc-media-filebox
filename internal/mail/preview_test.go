@@ -66,6 +66,40 @@ func sampleAccessRequest(t *testing.T) AccessRequestNotification {
 	}
 }
 
+// sampleDownloads is realistic data for the author-facing download report: a
+// coalesced window, one named downloader, one file taken twice.
+func sampleDownloads(t *testing.T) DownloadNotification {
+	t.Helper()
+
+	manageURL, err := ManageURL(sampleOrigin(), "9f3ac21b7d")
+	if err != nil {
+		t.Fatalf("build sample manage URL: %v", err)
+	}
+	muteURL, err := MuteURL(sampleOrigin(), "b41c9e7a52f0")
+	if err != nil {
+		t.Fatalf("build sample mute URL: %v", err)
+	}
+
+	return DownloadNotification{
+		AuthorName:  "John Doe",
+		PackageName: "Summer conference rushes",
+		ManageURL:   manageURL,
+		MuteURL:     muteURL,
+		LogoURL:     LogoURL(sampleOrigin()),
+		Files: []DownloadedFile{
+			{Name: "opening-wide-4k.mov", Size: 4823400000, Count: 2},
+			{Name: "interview-anna-cam-a.mov", Size: 1288490188, Count: 1},
+			{Name: "shot-notes.pdf", Size: 82043, Count: 1},
+		},
+		Downloaders:   []string{"Anna Berg"},
+		MaxDownloads:  3,
+		DownloadCount: 2,
+		ExpiresAt:     time.Now().Add(5 * 24 * time.Hour),
+		FirstAt:       time.Now().Add(-8 * time.Minute),
+		LastAt:        time.Now().Add(-1 * time.Minute),
+	}
+}
+
 // TestWritePreview dumps the rendered bodies to disk so the design can be
 // eyeballed in a browser. Skipped unless MAIL_PREVIEW_DIR is set:
 //
@@ -95,7 +129,12 @@ func TestWritePreview(t *testing.T) {
 		t.Fatalf("build access request notification: %v", err)
 	}
 
-	for prefix, msg := range map[string]Message{"share": share, "granted": granted, "request": request} {
+	downloads, err := BuildDownloadNotification("john.doe@bcc.no", sampleDownloads(t))
+	if err != nil {
+		t.Fatalf("build download notification: %v", err)
+	}
+
+	for prefix, msg := range map[string]Message{"share": share, "granted": granted, "request": request, "downloads": downloads} {
 		for name, body := range map[string]string{prefix + ".html": msg.HTML, prefix + ".txt": msg.Text} {
 			path := filepath.Join(dir, name)
 			if err := os.WriteFile(path, []byte(body), 0o644); err != nil {

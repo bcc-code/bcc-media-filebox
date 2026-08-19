@@ -228,3 +228,33 @@ func TestCreatePackageCanonicalisesRecipients(t *testing.T) {
 		t.Errorf("recipients = %v, want just the bare address once", got)
 	}
 }
+
+// notify_on_download decides whether downloads are reported at all, so it has to
+// survive the create — the column was there long before anything wrote to it.
+func TestCreatePackagePersistsNotifyOnDownload(t *testing.T) {
+	q := newTestDB(t)
+	h := NewHandlers(q, t.TempDir(), nil, mail.NoopSender{}, "https://filebox.example.com")
+	alice, _ := twoSenders(t, q)
+
+	for _, tc := range []struct {
+		notify string
+		want   int64
+	}{{"true", 1}, {"false", 0}} {
+		body := `{"name":"p","uploadIds":["alice-up"],"expiresInDays":7,"notifyOnDownload":` + tc.notify + `}`
+		w := createPackageAs(t, h, alice, body)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("notify=%s: status = %d (%s)", tc.notify, w.Code, w.Body.String())
+		}
+		var created CreatePackageResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
+			t.Fatalf("decode create: %v", err)
+		}
+		pkg, err := q.GetPackageByID(context.Background(), created.PackageID)
+		if err != nil {
+			t.Fatalf("reload package: %v", err)
+		}
+		if pkg.NotifyOnDownload != tc.want {
+			t.Errorf("notify=%s: notify_on_download = %d, want %d", tc.notify, pkg.NotifyOnDownload, tc.want)
+		}
+	}
+}

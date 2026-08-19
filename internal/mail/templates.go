@@ -43,6 +43,17 @@ func ManageURL(baseURL, packageID string) (string, error) {
 	return u.String(), nil
 }
 
+// MuteURL builds the download report's opt-out link, mirroring the frontend's
+// /mute/:token route.
+func MuteURL(baseURL, token string) (string, error) {
+	u, err := linkOrigin(baseURL)
+	if err != nil {
+		return "", err
+	}
+	u.Path = strings.TrimSuffix(u.Path, "/") + "/mute/" + url.PathEscape(token)
+	return u.String(), nil
+}
+
 func linkOrigin(baseURL string) (*url.URL, error) {
 	if baseURL == "" {
 		return nil, fmt.Errorf("no link origin configured — cannot build a link (set MAIL_LINK_BASE_URL or BASE_URL)")

@@ -5,7 +5,7 @@ import SentPackageCard from './SentPackageCard.vue'
 
 const emit = defineEmits<{ preview: [packageId: string] }>()
 
-const { packages, loading, revokePackage, extendPackage, dismissAccessRequest } = usePackages()
+const { packages, loading, revokePackage, extendPackage, dismissAccessRequest, setNotifyOnDownload } = usePackages()
 // Per-package so one slow extend doesn't disable every other card's button.
 const extendingId = ref<string | null>(null)
 const toast = ref('')
@@ -48,6 +48,15 @@ async function extend(packageId: string, expiresInDays: number, maxDownloads: nu
   }
 }
 
+async function setNotify(packageId: string, notifyOnDownload: boolean) {
+  try {
+    await setNotifyOnDownload(packageId, notifyOnDownload)
+    flash(notifyOnDownload ? 'Download notifications on' : 'Download notifications off')
+  } catch (e) {
+    flash((e as Error).message || 'Failed to update notifications')
+  }
+}
+
 async function dismiss(packageId: string, requestId: string) {
   try {
     await dismissAccessRequest(packageId, requestId)
@@ -75,6 +84,7 @@ async function dismiss(packageId: string, requestId: string) {
       @revoke="revoke(p.packageId, p.name)"
       @extend="(days, max) => extend(p.packageId, days, max)"
       @dismiss-request="(id) => dismiss(p.packageId, id)"
+      @set-notify="(on) => setNotify(p.packageId, on)"
     />
   </div>
   <div v-if="toast" class="toast fb-pop"><span class="ok">✓</span>{{ toast }}</div>

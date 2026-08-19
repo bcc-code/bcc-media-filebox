@@ -221,6 +221,8 @@ func (s *Server) setupAPI(uploadDir string) {
 	s.mux.HandleFunc("POST /api/packages/{id}/access-request", h.RequestPackageAccess)
 	s.mux.HandleFunc("POST /api/packages/{id}/extend", h.ExtendPackage)
 	s.mux.HandleFunc("DELETE /api/packages/{id}/access-requests/{requestId}", h.DismissPackageAccessRequest)
+	s.mux.HandleFunc("PATCH /api/packages/{id}/notify", h.SetPackageNotify)
+	s.mux.HandleFunc("POST /api/notifications/mute/{token}", h.MutePackageNotifications)
 
 	admin := api.NewAdminHandlers(s.queries, uploadDir)
 	admin.Register(s.mux)

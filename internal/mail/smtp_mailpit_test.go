@@ -41,13 +41,18 @@ func TestSendAgainstMailpit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build access request notification: %v", err)
 	}
+	downloads, err := BuildDownloadNotification("john.doe@bcc.no", sampleDownloads(t))
+	if err != nil {
+		t.Fatalf("build download notification: %v", err)
+	}
 
-	// All three at once: the point of the run is comparing how a client treats
+	// All of them at once: the point of the run is comparing how a client treats
 	// them side by side, since they share one layout.
-	for _, msg := range []Message{share, request, granted} {
+	msgs := []Message{share, request, granted, downloads}
+	for _, msg := range msgs {
 		if err := s.Send(t.Context(), msg); err != nil {
 			t.Fatalf("send %q via mailpit: %v", msg.Subject, err)
 		}
 	}
-	t.Log("sent 3 messages — inspect them at http://localhost:8025")
+	t.Logf("sent %d messages — inspect them at http://localhost:8025", len(msgs))
 }

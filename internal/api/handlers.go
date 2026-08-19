@@ -21,13 +21,16 @@ type Handlers struct {
 	// Public origin for recipient links (MAIL_LINK_BASE_URL), which need not be
 	// the server's own base URL.
 	mailBaseURL string
+	downloads   *downloadNotifier
 }
 
 // NewHandlers builds the public API handlers. A nil store means S3 is
 // unconfigured and downloads come from local target dirs; a nil or NoopSender
 // mailer means delivery is off.
 func NewHandlers(queries *db.Queries, uploadDir string, store *objectstore.Client, mailer mail.Sender, mailBaseURL string) *Handlers {
-	return &Handlers{queries: queries, uploadDir: uploadDir, store: store, mailer: mailer, mailBaseURL: mailBaseURL}
+	h := &Handlers{queries: queries, uploadDir: uploadDir, store: store, mailer: mailer, mailBaseURL: mailBaseURL}
+	h.downloads = newDownloadNotifier(h.notifyDownloads)
+	return h
 }
 
 const (
@@ -55,6 +58,15 @@ func decodePublicJSON(w http.ResponseWriter, r *http.Request, limit int64, dst a
 		return false
 	}
 	return true
+}
+
+// boolToInt64 adapts a Go bool to SQLite's INTEGER booleans, which sqlc surfaces
+// as int64 rather than bool.
+func boolToInt64(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 type UploadResponse struct {

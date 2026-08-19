@@ -9,6 +9,7 @@ const emit = defineEmits<{
   revoke: []
   extend: [expiresInDays: number, maxDownloads: number | undefined]
   dismissRequest: [requestId: string]
+  setNotify: [notifyOnDownload: boolean]
 }>()
 
 function fmtBytes(bytes: number): string {
@@ -184,6 +185,17 @@ function submitExtend() {
         @click="openExtend"
       >
         {{ displayStatus === 'active' ? 'Extend' : 'Reopen' }}
+      </button>
+      <button
+        class="btn sm"
+        :class="{ notifying: pkg.notifyOnDownload }"
+        :title="pkg.notifyOnDownload ? 'Stop emailing me when this is downloaded' : 'Email me when this is downloaded'"
+        :aria-pressed="pkg.notifyOnDownload"
+        @click="emit('setNotify', !pkg.notifyOnDownload)"
+      >
+        <svg v-if="pkg.notifyOnDownload" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 3A6 6 0 0 1 18 8c0 7 3 9 3 9H6"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M2 2l20 20"/></svg>
+        Notify {{ pkg.notifyOnDownload ? 'on' : 'off' }}
       </button>
       <button v-if="displayStatus === 'active'" class="btn sm btn-danger" @click="emit('revoke')">Revoke</button>
     </div>
