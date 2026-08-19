@@ -1,6 +1,6 @@
 {{- /* Plain-text twin of the HTML mail: same order, same wording. */ -}}
 FileBox
-{{.WhoLabel}} downloaded {{.FileLabel}}
+{{.FileLabel}} {{.DownloadedVerb}} downloaded from your package
 {{- if .PackageName}}
 {{.PackageName}}
 {{- end}}

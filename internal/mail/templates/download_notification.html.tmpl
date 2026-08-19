@@ -9,7 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <meta name="supported-color-schemes" content="dark">
-<title>{{.WhoLabel}} downloaded {{.FileLabel}}</title>
+<title>{{.FileLabel}} {{.DownloadedVerb}} downloaded</title>
 <style>
   :root { color-scheme: dark; supported-color-schemes: dark; }
   a { color: #73a9e1; }
@@ -46,7 +46,7 @@
         {{/* .public-from + .public-pkgname */}}
         <tr>
           <td style="font-size:14px; line-height:1.5; color:#aeb8cc;">
-            <strong style="color:#e7ecf5; font-weight:600; word-break:break-all;">{{.WhoLabel}}</strong> downloaded {{.FileLabel}} from your package
+            <strong style="color:#e7ecf5; font-weight:600;">{{.FileLabel}}</strong> {{.DownloadedVerb}} downloaded from your package
           </td>
         </tr>
         {{if .PackageName}}

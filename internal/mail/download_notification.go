@@ -82,6 +82,16 @@ func (d DownloadNotification) FileLabel() string {
 	return fmt.Sprintf("%d files", len(d.Files))
 }
 
+// DownloadedVerb agrees with FileLabel in the headline, which never names who
+// downloaded: a link may be opened by anyone it was forwarded to, so the session
+// serving the file doesn't identify the person behind it.
+func (d DownloadNotification) DownloadedVerb() string {
+	if len(d.Files) == 1 {
+		return "was"
+	}
+	return "were"
+}
+
 // WhoLabel names the downloaders, or admits the package can't identify them.
 // Only verification methods that authenticate a person yield names.
 func (d DownloadNotification) WhoLabel() string {
