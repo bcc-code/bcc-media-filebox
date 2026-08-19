@@ -5,7 +5,8 @@ import SentPackageCard from './SentPackageCard.vue'
 
 const emit = defineEmits<{ preview: [packageId: string] }>()
 
-const { packages, loading, revokePackage, extendPackage, dismissAccessRequest, setNotifyOnDownload } = usePackages()
+const { packages, total, loading, loadMorePackages, revokePackage, extendPackage, dismissAccessRequest, setNotifyOnDownload } =
+  usePackages()
 // Per-package so one slow extend doesn't disable every other card's button.
 const extendingId = ref<string | null>(null)
 const toast = ref('')
@@ -23,8 +24,7 @@ function copyLink(packageId: string) {
   flash('Download link copied')
 }
 
-async function revoke(packageId: string, name: string) {
-  if (!confirm(`Revoke "${name}"? The link will stop working immediately.`)) return
+async function revoke(packageId: string) {
   try {
     await revokePackage(packageId)
     flash('Package revoked')
@@ -81,11 +81,14 @@ async function dismiss(packageId: string, requestId: string) {
       :extending="extendingId === p.packageId"
       @copy-link="copyLink(p.packageId)"
       @preview="emit('preview', p.packageId)"
-      @revoke="revoke(p.packageId, p.name)"
+      @revoke="revoke(p.packageId)"
       @extend="(days, max) => extend(p.packageId, days, max)"
       @dismiss-request="(id) => dismiss(p.packageId, id)"
       @set-notify="(on) => setNotify(p.packageId, on)"
     />
+    <button v-if="packages.length < total" class="btn" :disabled="loading" @click="loadMorePackages">
+      {{ loading ? 'Loading…' : `Load more (${packages.length}/${total})` }}
+    </button>
   </div>
   <div v-if="toast" class="toast fb-pop"><span class="ok">✓</span>{{ toast }}</div>
 </template>

@@ -104,6 +104,8 @@ const packages = ref<PackageInfo[]>([])
 const total = ref(0)
 const loading = ref(false)
 const lastError = ref<string | null>(null)
+const currentPage = ref(1)
+const currentPageSize = ref(20)
 
 async function fetchPackages(page = 1, pageSize = 20) {
   loading.value = true
@@ -114,6 +116,29 @@ async function fetchPackages(page = 1, pageSize = 20) {
     )
     packages.value = data.packages
     total.value = data.total
+    currentPage.value = data.page
+    currentPageSize.value = data.pageSize
+  } catch (e) {
+    lastError.value = (e as Error).message
+  } finally {
+    loading.value = false
+  }
+}
+
+// Appends rather than replaces, so the list built by fetchPackages keeps
+// growing instead of jumping back to page 1.
+async function loadMorePackages() {
+  if (loading.value || packages.value.length >= total.value) return
+  loading.value = true
+  lastError.value = null
+  try {
+    const nextPage = currentPage.value + 1
+    const data = await jsonFetch<{ packages: PackageInfo[]; page: number; pageSize: number; total: number }>(
+      `/api/packages?page=${nextPage}&pageSize=${currentPageSize.value}`,
+    )
+    packages.value = [...packages.value, ...data.packages]
+    total.value = data.total
+    currentPage.value = data.page
   } catch (e) {
     lastError.value = (e as Error).message
   } finally {
@@ -181,6 +206,7 @@ export function usePackages() {
     loading,
     lastError,
     fetchPackages,
+    loadMorePackages,
     createPackage,
     revokePackage,
     setNotifyOnDownload,
