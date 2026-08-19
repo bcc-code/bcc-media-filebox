@@ -11,9 +11,10 @@ import (
 // Request reasons, mirroring package_access_requests.reason: the state the
 // package was in when asked, since the author may read the mail days later.
 const (
-	ReasonExpired      = "expired"
-	ReasonRevoked      = "revoked"
-	ReasonLimitReached = "limit_reached"
+	ReasonExpired            = "expired"
+	ReasonRevoked            = "revoked"
+	ReasonLimitReached       = "limit_reached"
+	ReasonPermanentlyExpired = "permanently_expired"
 )
 
 // AccessRequestNotification is the data behind the mail telling an author
@@ -23,19 +24,12 @@ type AccessRequestNotification struct {
 	AuthorName     string
 	PackageName    string
 	RequesterEmail string
-	// Reason is one of the Reason* constants, or "" when unknown.
 	Reason string
-	// Message is the requester's own note, may be empty.
 	Message string
-	// ManageURL points the author at the package's card in the Send UI.
 	ManageURL string
-	// LogoURL is optional; empty renders the wordmark alone.
 	LogoURL string
-	// The expiry as of the request; in the past when Reason is ReasonExpired.
 	ExpiresAt time.Time
-	// MaxDownloads is the per-file budget; 0 means unlimited.
 	MaxDownloads int
-	// Fetches of the most-downloaded file.
 	DownloadCount int
 	RequestedAt   time.Time
 }

@@ -53,6 +53,10 @@ function onPreview(packageId: string) {
 
       <h1 class="page-title">Send files</h1>
       <p class="page-sub">Bundle files into a single package and send a secure download link to anyone by email.</p>
+      <p class="page-note">
+        Files are permanently deleted from storage 90 days after upload — packages can no longer be renewed after
+        that.
+      </p>
 
       <div class="view-tabs">
         <button :class="{ active: view === 'compose' }" @click="view = 'compose'">New package</button>

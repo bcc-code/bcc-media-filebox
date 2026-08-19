@@ -206,11 +206,17 @@ func (h *Handlers) VerifyPackage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"verified": true})
 }
 
+func isPermanentlyExpired(pkg db.Package) bool {
+	return !pkg.CreatedAt.AddDate(0, 0, maxPackageLifetimeDays).After(time.Now())
+}
+
 // unavailableReason names why pkg is unreachable, or "" if it isn't.
 // minAccessCount is the least-downloaded share's count (GetPackageMinAccessCount);
 // nil skips the limit check, since the limit is per file, not per package.
 func unavailableReason(pkg db.Package, minAccessCount *int64) string {
 	switch {
+	case isPermanentlyExpired(pkg):
+		return mail.ReasonPermanentlyExpired
 	case pkg.Status != "active":
 		return mail.ReasonRevoked
 	case !pkg.ExpiresAt.After(time.Now()):
@@ -224,6 +230,8 @@ func unavailableReason(pkg db.Package, minAccessCount *int64) string {
 
 func unavailableMessage(reason string) string {
 	switch reason {
+	case mail.ReasonPermanentlyExpired:
+		return "This package's files have been permanently deleted and can no longer be reopened."
 	case mail.ReasonRevoked:
 		return "This package has been revoked by the sender."
 	case mail.ReasonExpired:
@@ -254,11 +262,11 @@ func (h *Handlers) writePackageUnavailable(w http.ResponseWriter, r *http.Reques
 		senderName = sender.Name.String
 	}
 	writeJSON(w, http.StatusGone, packageUnavailableResponse{
-		Error:            unavailableMessage(reason),
-		Reason:           reason,
-		Name:             pkg.Name,
-		SenderName:       senderName,
-		CanRequestAccess: true,
+		Error:      unavailableMessage(reason),
+		Reason:     reason,
+		Name:       pkg.Name,
+		SenderName: senderName,
+		CanRequestAccess: reason != mail.ReasonPermanentlyExpired,
 		RecipientsOnly:   h.packageHasRecipients(r.Context(), pkg.ID),
 	})
 }

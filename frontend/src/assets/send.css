@@ -85,7 +85,8 @@
 
 /* ============ Page title + view tabs ============ */
 .send-root .page-title { margin: 0 0 4px; font-size: 26px; font-weight: 600; letter-spacing: -0.4px; }
-.send-root .page-sub { margin: 0 0 24px; font-size: 14.5px; color: var(--ink-2); line-height: 1.5; }
+.send-root .page-sub { margin: 0 0 6px; font-size: 14.5px; color: var(--ink-2); line-height: 1.5; }
+.send-root .page-note { margin: 0 0 24px; font-size: 12px; color: var(--ink-3); line-height: 1.5; }
 
 .send-root .view-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 26px; }
 .send-root .view-tabs button {
@@ -259,13 +260,16 @@
 /* ============ Sent packages ============ */
 .send-root .pkg-list { display: flex; flex-direction: column; gap: 12px; }
 .send-root .pkg-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 13px; padding: 16px 18px; }
+.send-root .pkg-card.gone { opacity: 0.55; }
+.send-root .pkg-gone-note { font-size: 12px; color: var(--ink-3); }
 .send-root .pkg-top { display: flex; align-items: flex-start; gap: 14px; }
 .send-root .pkg-ic { width: 40px; height: 40px; border-radius: 10px; background: var(--bg-3); border: 1px solid var(--line-2); color: var(--ink-2); display: grid; place-items: center; flex-shrink: 0; }
 .send-root .pkg-main { flex: 1; min-width: 0; }
 .send-root .pkg-name { font-size: 15px; font-weight: 600; color: var(--ink); }
 .send-root .pkg-recips { font-size: 12.5px; color: var(--ink-2); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.send-root .pkg-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 12px; color: var(--ink-3); font-family: 'JetBrains Mono', monospace; }
+.send-root .pkg-meta { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 12px; font-size: 12px; color: var(--ink-3); font-family: 'JetBrains Mono', monospace; }
 .send-root .pkg-meta .mk { color: var(--ink-2); }
+.send-root .pkg-meta > span:not(:first-child)::before { content: '·'; margin-right: 8px; color: var(--line-2); }
 .send-root .pkg-badges { display: flex; gap: 7px; flex-shrink: 0; align-items: center; }
 .send-root .pkg-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .send-root .pkg-foot .spacer { flex: 1; }
@@ -278,6 +282,7 @@
 .send-root .pill.active { background: color-mix(in oklch, var(--ok), transparent 80%); color: oklch(0.82 0.11 160); border: 1px solid color-mix(in oklch, var(--ok), transparent 60%); }
 .send-root .pill.expired { background: var(--bg-3); color: var(--ink-3); border: 1px solid var(--line-2); }
 .send-root .pill.revoked { background: color-mix(in oklch, var(--danger), transparent 80%); color: oklch(0.82 0.13 25); border: 1px solid color-mix(in oklch, var(--danger), transparent 58%); }
+.send-root .pill.deleted { background: var(--bg-3); color: var(--ink-3); border: 1px solid var(--line-2); }
 .send-root .chip-sm { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 500; background: var(--bg-3); border: 1px solid var(--line-2); color: var(--ink-2); white-space: nowrap; }
 .send-root .chip-sm.lock { color: oklch(0.80 0.10 250); border-color: color-mix(in oklch, var(--accent), transparent 55%); background: color-mix(in oklch, var(--accent), transparent 88%); }
 .send-root .chip-sm.warn { color: oklch(0.85 0.13 75); border-color: color-mix(in oklch, var(--warn), transparent 55%); background: color-mix(in oklch, var(--warn), transparent 88%); }

@@ -30,6 +30,20 @@ function expiryText(iso: string): string {
   return `expires in ${days} day${days === 1 ? '' : 's'}`
 }
 
+function dateText(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+const permanentDeleteWarningDays = 14
+
+function daysUntilFilesDeleted(iso: string): number {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000)
+}
+
+function permanentDeleteText(days: number): string {
+  return `files deleted in ${days} day${days === 1 ? '' : 's'}`
+}
+
 function agoText(iso: string): string {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
   if (mins < 1) return 'just now'
@@ -56,10 +70,13 @@ const verifyShortLabels: Partial<Record<VerificationMethod, string>> = {
 const verifyShort = computed(() => verifyShortLabels[props.pkg.verificationMethod] ?? props.pkg.verificationMethod)
 
 const displayStatus = computed(() => {
+  if (props.pkg.permanentlyExpired) return 'deleted'
   if (props.pkg.status === 'revoked') return 'revoked'
   if (props.pkg.isExpired) return 'expired'
   return 'active'
 })
+
+const canNotify = computed(() => displayStatus.value === 'active' && !props.pkg.isDownloadLimitHit)
 
 // Extend form, prefilled with a week and the current budget, since "same limits,
 // more time" is the usual answer. Blank downloads means unlimited.
@@ -89,7 +106,7 @@ function submitExtend() {
 </script>
 
 <template>
-  <div class="pkg-card">
+  <div class="pkg-card" :class="{ gone: displayStatus === 'deleted' }">
     <div class="pkg-top">
       <span class="pkg-ic">
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
@@ -117,8 +134,12 @@ function submitExtend() {
     <div class="pkg-meta">
       <span><span class="mk">{{ pkg.fileCount }}</span> file{{ pkg.fileCount === 1 ? '' : 's' }} · {{ fmtBytes(pkg.totalSize) }}</span>
       <span><span class="mk">{{ pkg.downloadCount }}{{ pkg.maxDownloads ? '/' + pkg.maxDownloads : '' }}</span> downloads</span>
-      <span v-if="displayStatus === 'revoked'">revoked</span>
+      <span v-if="displayStatus === 'deleted'">files permanently deleted</span>
+      <span v-else-if="displayStatus === 'revoked'">revoked</span>
       <span v-else>{{ expiryText(pkg.expiresAt) }}</span>
+      <span v-if="displayStatus !== 'deleted' && daysUntilFilesDeleted(pkg.filesDeletedAt) <= permanentDeleteWarningDays">
+        {{ permanentDeleteText(daysUntilFilesDeleted(pkg.filesDeletedAt)) }}
+      </span>
     </div>
 
     <!-- Pending access requests. On the card rather than only in the author's
@@ -142,7 +163,10 @@ function submitExtend() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
-      <p class="ask-hint">
+      <p v-if="displayStatus === 'deleted'" class="ask-hint">
+        These files have been permanently deleted from storage — dismiss requests you can no longer fulfill.
+      </p>
+      <p v-else class="ask-hint">
         Extending answers every request here at once and emails each person the working link.
       </p>
     </div>
@@ -162,6 +186,8 @@ function submitExtend() {
         Counted from today, so the link is live for {{ extendValid ? extendDays : '—' }} more
         day{{ extendDays === 1 ? '' : 's' }}. Leave downloads blank for unlimited; this replaces the current limit
         rather than adding to it.<template v-if="displayStatus === 'revoked'"> This also un-revokes the package.</template>
+        Files are permanently deleted from storage on {{ dateText(pkg.filesDeletedAt) }} — extending won't be
+        possible after that.
       </p>
       <div class="ex-actions">
         <button class="btn sm btn-primary" :disabled="!extendValid || extending" @click="submitExtend">
@@ -178,8 +204,9 @@ function submitExtend() {
       </button>
       <button class="btn sm" @click="emit('preview')">Preview</button>
       <span class="spacer"></span>
+      <span v-if="displayStatus === 'deleted'" class="pkg-gone-note">Files deleted — can't be renewed</span>
       <button
-        v-if="!showExtend"
+        v-else-if="!showExtend"
         class="btn sm"
         :class="{ 'btn-primary': pkg.pendingRequests.length > 0 }"
         @click="openExtend"
@@ -187,6 +214,7 @@ function submitExtend() {
         {{ displayStatus === 'active' ? 'Extend' : 'Reopen' }}
       </button>
       <button
+        v-if="canNotify"
         class="btn sm"
         :class="{ notifying: pkg.notifyOnDownload }"
         :title="pkg.notifyOnDownload ? 'Stop emailing me when this is downloaded' : 'Email me when this is downloaded'"

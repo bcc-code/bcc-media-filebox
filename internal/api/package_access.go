@@ -13,6 +13,7 @@ import (
 
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
+	"filebox/internal/mail"
 )
 
 // Throttles on this public endpoint: per email, and per package since a fresh
@@ -129,6 +130,11 @@ func (h *Handlers) RequestPackageAccess(w http.ResponseWriter, r *http.Request) 
 		writeJSONError(w, http.StatusConflict, "This package is still available — try the download link again.")
 		return
 	}
+	// A permanently deleted package can never be reopened, so asking is pointless.
+	if reason == mail.ReasonPermanentlyExpired {
+		writeJSONError(w, http.StatusGone, unavailableMessage(reason))
+		return
+	}
 
 	last, err := h.queries.GetLatestPackageAccessRequestByEmail(r.Context(), db.GetLatestPackageAccessRequestByEmailParams{
 		PackageID: pkg.ID,
@@ -215,6 +221,10 @@ func (h *Handlers) ExtendPackage(w http.ResponseWriter, r *http.Request) {
 	}
 	if pkg.CreatedByUserID != caller.UserID {
 		writeJSONError(w, http.StatusForbidden, "not authorized to extend this package")
+		return
+	}
+	if isPermanentlyExpired(pkg) {
+		writeJSONError(w, http.StatusGone, unavailableMessage(mail.ReasonPermanentlyExpired))
 		return
 	}
 

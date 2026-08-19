@@ -31,6 +31,8 @@ export interface PackageInfo {
   createdAt: string
   notifyOnDownload: boolean
   pendingRequests: AccessRequest[]
+  permanentlyExpired: boolean
+  filesDeletedAt: string
 }
 
 export interface ExtendPackageInput {

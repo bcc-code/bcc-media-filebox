@@ -21,6 +21,7 @@ const (
 	defaultSharesPageSize = 20
 	maxSharesPageSize     = 100
 	maxShareExpiryDays    = 30
+	maxPackageLifetimeDays = 90
 )
 
 var validVerificationMethods = map[string]bool{
@@ -240,9 +241,9 @@ type PackageListItem struct {
 	IsDownloadLimitHit bool     `json:"isDownloadLimitHit"`
 	Status             string   `json:"status"`
 	CreatedAt          string   `json:"createdAt"`
+	PermanentlyExpired bool     `json:"permanentlyExpired"`
+	FilesDeletedAt     string   `json:"filesDeletedAt"`
 	NotifyOnDownload   bool     `json:"notifyOnDownload"`
-	// Carried here so the author sees asks on the card itself, not only in the
-	// email that may be lost in an inbox.
 	PendingRequests []AccessRequestView `json:"pendingRequests"`
 }
 
@@ -401,6 +402,7 @@ func (h *Handlers) buildPackageListItems(ctx context.Context, pkgs []db.Package)
 		if asks == nil {
 			asks = []AccessRequestView{}
 		}
+		filesDeletedAt := pkg.CreatedAt.AddDate(0, 0, maxPackageLifetimeDays)
 		items[i] = PackageListItem{
 			PackageID:          pkg.ID,
 			Name:               pkg.Name,
@@ -418,6 +420,8 @@ func (h *Handlers) buildPackageListItems(ctx context.Context, pkgs []db.Package)
 			Status:             pkg.Status,
 			CreatedAt:          pkg.CreatedAt.Format("2006-01-02T15:04:05Z"),
 			PendingRequests:    asks,
+			PermanentlyExpired: isPermanentlyExpired(pkg),
+			FilesDeletedAt:     filesDeletedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		}
 	}
 	return items, nil
