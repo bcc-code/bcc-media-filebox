@@ -50,7 +50,7 @@ func main() {
 		log.Fatalf("failed to create upload directory: %v", err)
 	}
 
-	database, err := sql.Open("sqlite", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	database, err := sql.Open("sqlite", dbpkg.SQLiteDSN(dbPath))
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}

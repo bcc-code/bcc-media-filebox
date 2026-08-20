@@ -69,14 +69,22 @@ const verifyShortLabels: Partial<Record<VerificationMethod, string>> = {
 }
 const verifyShort = computed(() => verifyShortLabels[props.pkg.verificationMethod] ?? props.pkg.verificationMethod)
 
+const isLive = computed(
+  () => !props.pkg.permanentlyExpired && props.pkg.status !== 'revoked' && !props.pkg.isExpired,
+)
+const downloadsReady = computed(() => props.pkg.preparationStatus === 'ready')
+const preparationProgress = computed(() => Math.min(100, Math.max(0, props.pkg.preparationProgress || 0)))
+
 const displayStatus = computed(() => {
   if (props.pkg.permanentlyExpired) return 'deleted'
   if (props.pkg.status === 'revoked') return 'revoked'
   if (props.pkg.isExpired) return 'expired'
+  if (props.pkg.preparationStatus === 'processing') return 'preparing'
+  if (props.pkg.preparationStatus === 'failed') return 'failed'
   return 'active'
 })
 
-const canNotify = computed(() => displayStatus.value === 'active' && !props.pkg.isDownloadLimitHit)
+const canNotify = computed(() => isLive.value && downloadsReady.value && !props.pkg.isDownloadLimitHit)
 
 // Extend form, prefilled with a week and the current budget, since "same limits,
 // more time" is the usual answer. Blank downloads means unlimited.
@@ -133,13 +141,48 @@ function submitExtend() {
     </div>
     <div class="pkg-meta">
       <span><span class="mk">{{ pkg.fileCount }}</span> file{{ pkg.fileCount === 1 ? '' : 's' }} · {{ fmtBytes(pkg.totalSize) }}</span>
-      <span><span class="mk">{{ pkg.downloadCount }}{{ pkg.maxDownloads ? '/' + pkg.maxDownloads : '' }}</span> downloads</span>
+      <span v-if="pkg.preparationStatus === 'ready'">
+        <span class="mk">{{ pkg.artifactCount }}</span> artifact{{ pkg.artifactCount === 1 ? '' : 's' }}
+      </span>
+      <span v-if="pkg.preparationStatus === 'ready'">
+        Most used:
+        <span class="mk">{{ pkg.downloadCount }}{{ pkg.maxDownloads != null ? '/' + pkg.maxDownloads : '' }}</span>
+      </span>
       <span v-if="displayStatus === 'deleted'">files permanently deleted</span>
       <span v-else-if="displayStatus === 'revoked'">revoked</span>
       <span v-else>{{ expiryText(pkg.expiresAt) }}</span>
       <span v-if="displayStatus !== 'deleted' && daysUntilFilesDeleted(pkg.filesDeletedAt) <= permanentDeleteWarningDays">
         {{ permanentDeleteText(daysUntilFilesDeleted(pkg.filesDeletedAt)) }}
       </span>
+    </div>
+
+    <div v-if="pkg.preparationStatus === 'processing'" class="pkg-preparation" aria-live="polite">
+      <div class="pkg-preparation-head">
+        <span>Preparing download files</span>
+        <span class="mono">{{ Math.round(preparationProgress) }}%</span>
+      </div>
+      <div
+        class="preparation-track"
+        role="progressbar"
+        aria-label="Preparing package downloads"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-valuenow="Math.round(preparationProgress)"
+      >
+        <span class="preparation-fill" :style="{ width: `${preparationProgress}%` }"></span>
+      </div>
+      <div class="pkg-preparation-meta">
+        <template v-if="pkg.preparationBytesTotal > 0">
+          {{ fmtBytes(pkg.preparationBytesDone) }} of {{ fmtBytes(pkg.preparationBytesTotal) }} processed
+        </template>
+        <template v-else>Starting preparation…</template>
+      </div>
+    </div>
+    <div v-else-if="pkg.preparationStatus === 'failed'" class="pkg-preparation failed" role="alert">
+      <div class="pkg-preparation-head">Download preparation failed</div>
+      <div class="pkg-preparation-meta">
+        {{ pkg.preparationError || 'The original files are still safe, but the download files could not be prepared.' }}
+      </div>
     </div>
 
     <!-- Pending access requests. On the card rather than only in the author's
@@ -178,7 +221,7 @@ function submitExtend() {
           <input v-model.number="extendDays" class="inp" type="number" min="1" max="30" step="1" />
         </label>
         <label class="ex-f">
-          <span class="ex-lab">Downloads per file</span>
+          <span class="ex-lab">Downloads per artifact</span>
           <input v-model.number="extendMaxDownloads" class="inp" type="number" min="1" step="1" placeholder="Unlimited" />
         </label>
       </div>
@@ -198,11 +241,21 @@ function submitExtend() {
     </div>
 
     <div class="pkg-foot">
-      <button class="btn sm" @click="emit('copyLink')">
+      <button
+        class="btn sm"
+        :disabled="!downloadsReady"
+        :title="downloadsReady ? 'Copy recipient link' : 'Available after download preparation finishes'"
+        @click="emit('copyLink')"
+      >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
         Copy link
       </button>
-      <button class="btn sm" @click="emit('preview')">Preview</button>
+      <button
+        class="btn sm"
+        :disabled="!downloadsReady"
+        :title="downloadsReady ? 'Preview recipient page' : 'Available after download preparation finishes'"
+        @click="emit('preview')"
+      >Preview</button>
       <span class="spacer"></span>
       <span v-if="displayStatus === 'deleted'" class="pkg-gone-note">Files deleted — can't be renewed</span>
       <button
@@ -211,7 +264,7 @@ function submitExtend() {
         :class="{ 'btn-primary': pkg.pendingRequests.length > 0 }"
         @click="openExtend"
       >
-        {{ displayStatus === 'active' ? 'Extend' : 'Reopen' }}
+        {{ isLive ? 'Extend' : 'Reopen' }}
       </button>
       <button
         v-if="canNotify"
@@ -225,7 +278,7 @@ function submitExtend() {
         <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 3A6 6 0 0 1 18 8c0 7 3 9 3 9H6"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M2 2l20 20"/></svg>
         Notify {{ pkg.notifyOnDownload ? 'on' : 'off' }}
       </button>
-      <button v-if="displayStatus === 'active'" class="btn sm btn-danger" @click="emit('revoke')">Revoke</button>
+      <button v-if="isLive" class="btn sm btn-danger" @click="emit('revoke')">Revoke</button>
     </div>
   </div>
 </template>

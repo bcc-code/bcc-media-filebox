@@ -37,6 +37,213 @@ func NewEventProcessor(queries *db.Queries, uploadDir, tempDir string, store *ob
 	return &EventProcessor{queries: queries, uploadDir: uploadDir, tempDir: tempDir, store: store}
 }
 
+// RecoverPending resumes completed TUS uploads whose asynchronous promotion to
+// local storage or S3 was interrupted by a process restart. If the temporary
+// bytes still exist, normal finalization is replayed. If they do not, recovery
+// checks whether the final object was already published before the process
+// stopped and completes only the missing database bookkeeping.
+func (ep *EventProcessor) RecoverPending(ctx context.Context) error {
+	uploads, err := ep.queries.ListPendingStorageUploads(ctx)
+	if err != nil {
+		return fmt.Errorf("list pending storage uploads: %w", err)
+	}
+
+	var recoveryErrs []error
+	for _, upload := range uploads {
+		if err := ctx.Err(); err != nil {
+			recoveryErrs = append(recoveryErrs, err)
+			break
+		}
+		if err := ep.recoverPendingUpload(ctx, upload); err != nil {
+			wrapped := fmt.Errorf("upload %s: %w", upload.ID, err)
+			log.Printf("storage recovery: %v", wrapped)
+			recoveryErrs = append(recoveryErrs, wrapped)
+		}
+	}
+	return errors.Join(recoveryErrs...)
+}
+
+func (ep *EventProcessor) recoverPendingUpload(ctx context.Context, upload db.Upload) error {
+	info := ep.recoveryFileInfo(upload)
+	completedAt := upload.CreatedAt
+	if upload.CompletedAt.Valid {
+		completedAt = upload.CompletedAt.Time
+	}
+
+	tempPath := filepath.Join(ep.tempDir, upload.ID)
+	stat, err := os.Stat(tempPath)
+	switch {
+	case err == nil && !stat.Mode().IsRegular():
+		return ep.failRecovery(ctx, upload.ID, "temporary upload is not a regular file")
+	case err == nil:
+		// Run synchronously so startup recovery can verify the resulting state.
+		ep.finalizeUpload(info, completedAt)
+		updated, getErr := ep.queries.GetUpload(ctx, upload.ID)
+		if getErr != nil {
+			return fmt.Errorf("read state after finalization: %w", getErr)
+		}
+		if updated.StorageStatus != "ready" {
+			return fmt.Errorf("finalization ended with storage status %q", updated.StorageStatus)
+		}
+		return nil
+	case !os.IsNotExist(err):
+		return fmt.Errorf("inspect temporary upload: %w", err)
+	}
+
+	// The source disappeared, which can be the normal crash window after the
+	// final rename/upload but before MarkUploadStorageReady committed.
+	if upload.TargetName.Valid && upload.TargetName.String == objectstore.TargetName {
+		if ep.store == nil {
+			// This can be fixed by restoring S3 configuration, so leave the row
+			// pending for the next restart rather than turning it into data loss.
+			return errors.New("S3 destination configured but object store is unavailable")
+		}
+		key := ep.store.Key(upload.ID, upload.Filename)
+		exists, existsErr := ep.store.Exists(ctx, key)
+		if existsErr != nil {
+			return fmt.Errorf("check final S3 object: %w", existsErr)
+		}
+		if !exists {
+			return ep.failRecovery(ctx, upload.ID, "temporary upload and final S3 object are missing")
+		}
+		if err := ep.queries.MarkUploadStorageReady(ctx, upload.ID); err != nil {
+			return fmt.Errorf("mark recovered S3 upload ready: %w", err)
+		}
+		ep.cleanupFinalization(info, completedAt)
+		log.Printf("storage recovery: upload %s was already present at s3://%s/%s", upload.ID, ep.store.Bucket(), key)
+		return nil
+	}
+
+	finalPath, found, err := ep.findRecoveredLocalFile(ctx, info, upload)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return ep.failRecovery(ctx, upload.ID, "temporary upload and final local file are missing")
+	}
+	finalName := filepath.Base(finalPath)
+	if _, err := ep.queries.FinalizeUploadStorage(ctx, db.FinalizeUploadStorageParams{
+		Filename: finalName,
+		ID:       upload.ID,
+	}); err != nil {
+		return fmt.Errorf("record recovered local upload: %w", err)
+	}
+	ep.cleanupFinalization(info, completedAt)
+	log.Printf("storage recovery: upload %s was already present at %s", upload.ID, finalPath)
+	return nil
+}
+
+// recoveryFileInfo prefers tusd's sidecar because it retains concatenation
+// metadata, then overwrites the fields used for storage routing with the
+// database row. The fallback makes recovery work even if tusd removed or did
+// not finish writing the .info file.
+func (ep *EventProcessor) recoveryFileInfo(upload db.Upload) handler.FileInfo {
+	info := handler.FileInfo{}
+	data, err := os.ReadFile(filepath.Join(ep.tempDir, upload.ID+".info"))
+	if err == nil {
+		if unmarshalErr := json.Unmarshal(data, &info); unmarshalErr != nil {
+			log.Printf("storage recovery: ignoring invalid info file for %s: %v", upload.ID, unmarshalErr)
+			info = handler.FileInfo{}
+		} else if info.ID != "" && info.ID != upload.ID {
+			log.Printf("storage recovery: ignoring mismatched info file for %s (contains %s)", upload.ID, info.ID)
+			info = handler.FileInfo{}
+		}
+	} else if !os.IsNotExist(err) {
+		log.Printf("storage recovery: cannot read info file for %s, using database metadata: %v", upload.ID, err)
+	}
+
+	if info.MetaData == nil {
+		info.MetaData = handler.MetaData{}
+	}
+	info.ID = upload.ID
+	info.Size = upload.Size
+	info.Offset = upload.Size
+	info.IsPartial = false
+	info.MetaData["filename"] = upload.Filename
+	info.MetaData["userid"] = upload.UserID
+	info.MetaData["filetype"] = upload.ContentType.String
+	info.MetaData["sha256"] = upload.Sha256.String
+	info.MetaData["target"] = upload.TargetName.String
+	info.MetaData["formdata"] = upload.FormData.String
+	return info
+}
+
+func (ep *EventProcessor) findRecoveredLocalFile(ctx context.Context, info handler.FileInfo, upload db.Upload) (string, bool, error) {
+	targetDir := filepath.Join(ep.uploadDir, "RawMaterial")
+	desiredName := info.MetaData["filename"]
+	configuredTarget := false
+	if upload.TargetName.Valid && upload.TargetName.String != "" {
+		target, err := ep.queries.GetTargetByName(ctx, upload.TargetName.String)
+		if err == nil {
+			configuredTarget = true
+			targetDir = target.Path
+			if target.FormKey.Valid && target.FormKey.String != "" {
+				if form, ok := forms.Get(target.FormKey.String); ok {
+					desiredName = forms.BuildFilename(form, parseFormData(info.MetaData["formdata"]), filepath.Ext(desiredName))
+				}
+			}
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return "", false, fmt.Errorf("resolve local target: %w", err)
+		}
+	}
+	if stat, err := os.Stat(targetDir); err != nil {
+		if configuredTarget || !os.IsNotExist(err) {
+			return "", false, fmt.Errorf("storage target %s is unavailable: %w", targetDir, err)
+		}
+		return "", false, nil
+	} else if !stat.IsDir() {
+		return "", false, fmt.Errorf("storage target %s is not a directory", targetDir)
+	}
+
+	candidates := []string{upload.Filename}
+	if sanitized, err := SanitizeFilename(desiredName); err == nil && sanitized != upload.Filename {
+		candidates = append(candidates, sanitized)
+	}
+	var match string
+	for _, name := range candidates {
+		if name == "" || name == "." || name == ".." || filepath.Base(name) != name {
+			continue
+		}
+		candidate := filepath.Join(targetDir, name)
+		stat, err := os.Stat(candidate)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return "", false, fmt.Errorf("inspect possible final file %s: %w", candidate, err)
+		}
+		if !stat.Mode().IsRegular() || stat.Size() != upload.Size {
+			continue
+		}
+		if upload.Sha256.Valid && upload.Sha256.String != "" {
+			actual, err := computeFileSHA256(candidate)
+			if err != nil {
+				return "", false, fmt.Errorf("verify possible final file %s: %w", candidate, err)
+			}
+			if actual != upload.Sha256.String {
+				continue
+			}
+		} else if upload.CompletedAt.Valid && stat.ModTime().Before(upload.CompletedAt.Time.Add(-5*time.Second)) {
+			// With no content hash, do not mistake an older same-name file for
+			// the upload that vanished from the temporary directory.
+			continue
+		}
+		if match != "" && match != candidate {
+			return "", false, errors.New("multiple possible final local files found")
+		}
+		match = candidate
+	}
+	return match, match != "", nil
+}
+
+func (ep *EventProcessor) failRecovery(ctx context.Context, uploadID, reason string) error {
+	if err := ep.queries.FailUpload(ctx, uploadID); err != nil {
+		return fmt.Errorf("%s; mark storage failed: %w", reason, err)
+	}
+	_ = os.Remove(filepath.Join(ep.tempDir, uploadID+".info"))
+	return errors.New(reason)
+}
+
 // Run processes all tus events in a single goroutine to avoid race conditions.
 // With concatenation, CreatedUploads and CompleteUploads for the final upload
 // fire within the same HTTP request — separate goroutines can process them
@@ -82,7 +289,7 @@ func (ep *EventProcessor) handleCreated(event handler.HookEvent) {
 	targetName := info.MetaData["target"]
 	formData := info.MetaData["formdata"]
 
-	err := ep.queries.CreateUpload(context.Background(), db.CreateUploadParams{
+	err := ep.queries.CreatePendingUpload(context.Background(), db.CreatePendingUploadParams{
 		ID:       info.ID,
 		UserID:   userID,
 		Filename: filename,
@@ -151,12 +358,31 @@ func (ep *EventProcessor) handleComplete(event handler.HookEvent) {
 // finalizeUpload moves a completed upload out of the temp area into its final
 // home, then does the bookkeeping common to every destination.
 func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time.Time) {
+	var storedFilename string
+	stored := false
 	if ep.store != nil && info.MetaData["target"] == objectstore.TargetName {
-		ep.storeToS3(info)
+		storedFilename, stored = ep.storeToS3(info)
 	} else {
-		ep.storeToDisk(info, completedAt)
+		storedFilename, stored = ep.storeToDisk(info, completedAt)
 	}
+	if stored {
+		if _, err := ep.queries.FinalizeUploadStorage(context.Background(), db.FinalizeUploadStorageParams{
+			Filename: storedFilename,
+			ID:       info.ID,
+		}); err != nil {
+			// Keep tusd's sidecar for restart reconciliation. The published bytes
+			// remain inaccessible to package preparation until this atomic state
+			// transition succeeds.
+			log.Printf("warning: failed to record final storage for upload %s: %v", info.ID, err)
+			return
+		}
+	}
+	ep.cleanupFinalization(info, completedAt)
+}
 
+// cleanupFinalization removes tusd's temporary bookkeeping after either normal
+// finalization or restart recovery, including concatenation partials.
+func (ep *EventProcessor) cleanupFinalization(info handler.FileInfo, completedAt time.Time) {
 	// For concatenated uploads, fix the duration to measure from the earliest
 	// partial upload's creation time (the final upload is created and completed
 	// in the same request, so its created_at == completed_at).
@@ -197,7 +423,7 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 // storeToS3 promotes a Send upload into the object store, verifying the SHA-256
 // before transferring (unlike the local path) so a corrupt file costs no
 // bandwidth. No form handling: an S3-bound upload can't have one.
-func (ep *EventProcessor) storeToS3(info handler.FileInfo) {
+func (ep *EventProcessor) storeToS3(info handler.FileInfo) (string, bool) {
 	srcPath := filepath.Join(ep.tempDir, info.ID)
 
 	filename, err := SanitizeFilename(info.MetaData["filename"])
@@ -205,7 +431,7 @@ func (ep *EventProcessor) storeToS3(info handler.FileInfo) {
 		log.Printf("rejecting upload %s: %v", info.ID, err)
 		ep.queries.FailUpload(context.Background(), info.ID)
 		os.Remove(srcPath)
-		return
+		return "", false
 	}
 
 	if expected := info.MetaData["sha256"]; expected != "" {
@@ -216,7 +442,7 @@ func (ep *EventProcessor) storeToS3(info handler.FileInfo) {
 			log.Printf("integrity check FAILED for upload %s: expected %s, got %s", info.ID, expected, actual)
 			ep.queries.FailUpload(context.Background(), info.ID)
 			os.Remove(srcPath)
-			return
+			return "", false
 		} else {
 			log.Printf("integrity verified for %s (SHA-256: %s)", info.ID, actual)
 		}
@@ -230,23 +456,17 @@ func (ep *EventProcessor) storeToS3(info handler.FileInfo) {
 		// work with.
 		log.Printf("error uploading %s to S3: %v", info.ID, err)
 		ep.queries.FailUpload(context.Background(), info.ID)
-		return
-	}
-
-	if err := ep.queries.UpdateUploadFilename(context.Background(), db.UpdateUploadFilenameParams{
-		Filename: filename,
-		ID:       info.ID,
-	}); err != nil {
-		log.Printf("warning: failed to update stored filename for %s: %v", info.ID, err)
+		return "", false
 	}
 
 	if err := os.Remove(srcPath); err != nil {
 		log.Printf("warning: failed to remove temp file %s after S3 upload: %v", srcPath, err)
 	}
 	log.Printf("upload saved: s3://%s/%s", ep.store.Bucket(), key)
+	return filename, true
 }
 
-func (ep *EventProcessor) storeToDisk(info handler.FileInfo, completedAt time.Time) {
+func (ep *EventProcessor) storeToDisk(info handler.FileInfo, completedAt time.Time) (string, bool) {
 	// Resolve the target row from the DB — targets can be added/edited by admins
 	// at runtime, so this can't be cached at startup. When the target is bound to
 	// a hardcoded form, the final filename is derived from the submitted form
@@ -289,17 +509,9 @@ func (ep *EventProcessor) storeToDisk(info handler.FileInfo, completedAt time.Ti
 			dstPath = ep.renameUpload(info.ID, filename, targetDir)
 		}
 	}
-
-	// Record the final on-disk name (form-derived and/or de-duped) so the upload
-	// history reflects what actually landed in the target dir, not the original
-	// client filename captured at create time.
-	if dstPath != "" {
-		if err := ep.queries.UpdateUploadFilename(context.Background(), db.UpdateUploadFilenameParams{
-			Filename: filepath.Base(dstPath),
-			ID:       info.ID,
-		}); err != nil {
-			log.Printf("warning: failed to update stored filename for %s: %v", info.ID, err)
-		}
+	if dstPath == "" {
+		ep.queries.FailUpload(context.Background(), info.ID)
+		return "", false
 	}
 
 	// Verify file integrity against the client-provided SHA-256 hash
@@ -346,6 +558,11 @@ func (ep *EventProcessor) storeToDisk(info handler.FileInfo, completedAt time.Ti
 			ep.fireWebhook(webhookURL, filepath.Base(sidecarPath), ep.relPath(sidecarPath))
 		}
 	}
+
+	if integrityFailed {
+		return "", false
+	}
+	return filepath.Base(dstPath), true
 }
 
 func (ep *EventProcessor) handleTerminated(event handler.HookEvent) {
@@ -356,8 +573,12 @@ func (ep *EventProcessor) handleTerminated(event handler.HookEvent) {
 	}
 }
 
-// renameUpload moves the uploaded file from its hash-based ID to the original filename
-// inside targetDir. If a file with the same name exists, a numeric suffix is added.
+// renameUpload moves the uploaded file from its hash-based ID to the original
+// filename inside targetDir. Destination selection and publication are one
+// atomic, no-replace operation: two processes finishing the same filename can
+// never both choose it and silently replace one another. If a name is already
+// occupied, a numeric suffix is tried.
+//
 // Returns the destination path on success, or empty string on failure.
 func (ep *EventProcessor) renameUpload(id, filename, targetDir string) string {
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
@@ -366,7 +587,6 @@ func (ep *EventProcessor) renameUpload(id, filename, targetDir string) string {
 	}
 
 	src := filepath.Join(ep.tempDir, id)
-	dst := ep.uniquePath(targetDir, filename)
 
 	// Defense in depth: verify the resolved destination is inside targetDir.
 	// SanitizeFilename should already guarantee this, but a containment check
@@ -378,9 +598,9 @@ func (ep *EventProcessor) renameUpload(id, filename, targetDir string) string {
 		log.Printf("error resolving target dir %s: %v", targetDir, err)
 		return ""
 	}
-	absDst, err := filepath.Abs(dst)
+	absDst, err := filepath.Abs(filepath.Join(targetDir, filename))
 	if err != nil {
-		log.Printf("error resolving destination %s: %v", dst, err)
+		log.Printf("error resolving destination %s: %v", filename, err)
 		return ""
 	}
 	rel, err := filepath.Rel(absTarget, absDst)
@@ -389,63 +609,92 @@ func (ep *EventProcessor) renameUpload(id, filename, targetDir string) string {
 		return ""
 	}
 
-	if err := os.Rename(src, dst); err != nil {
-		if !errors.Is(err, syscall.EXDEV) {
-			log.Printf("error renaming upload %s to %s: %v", id, dst, err)
-			return ""
-		}
-		log.Printf("cross-device copy: %s -> %s", src, dst)
-		if err := crossDeviceMove(src, dst); err != nil {
-			log.Printf("error moving upload %s to %s across filesystems: %v", id, dst, err)
-			return ""
-		}
+	dst, err := moveUploadNoReplace(src, targetDir, filename)
+	if errors.Is(err, syscall.EXDEV) {
+		log.Printf("cross-device copy: %s -> %s", src, targetDir)
+		dst, err = crossDeviceMove(src, targetDir, filename)
+	}
+	if err != nil {
+		log.Printf("error moving upload %s into %s: %v", id, targetDir, err)
+		return ""
 	}
 	log.Printf("upload saved: %s", dst)
 	return dst
 }
 
-// crossDeviceMove copies src to dst when os.Rename fails with EXDEV. To keep
-// the destination atomically visible, bytes are written to a sibling
-// "<dst>.part" file (same filesystem as dst, so the closing rename is atomic),
-// then renamed into place. The source is removed only after the destination is
-// safely published; on any error the partial sibling is cleaned up and src is
-// left in place so the upload can be retried.
-func crossDeviceMove(src, dst string) error {
+// moveUploadNoReplace atomically moves src to the first unoccupied destination
+// name. renameNoReplace is implemented with the host OS's exclusive-rename
+// primitive, so checking a candidate and claiming it cannot race with another
+// process.
+func moveUploadNoReplace(src, targetDir, filename string) (string, error) {
+	for suffix := 0; ; suffix++ {
+		dst := uploadCollisionPath(targetDir, filename, suffix)
+		err := renameNoReplace(src, dst)
+		if err == nil {
+			return dst, nil
+		}
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		return "", err
+	}
+}
+
+// crossDeviceMove copies src into a private staging file on the destination
+// filesystem, fsyncs it, and then uses the same atomic no-replace publication
+// as the same-device path. The source is removed only after publication. On an
+// error, the staging file is removed and src remains available for recovery.
+func crossDeviceMove(src, targetDir, filename string) (string, error) {
 	in, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("open source: %w", err)
+		return "", fmt.Errorf("open source: %w", err)
 	}
 	defer in.Close()
 
-	part := dst + ".part"
-	out, err := os.OpenFile(part, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	out, err := os.CreateTemp(targetDir, ".filebox-upload-*.part")
 	if err != nil {
-		return fmt.Errorf("create partial: %w", err)
+		return "", fmt.Errorf("create staging file: %w", err)
 	}
+	part := out.Name()
 	cleanup := func() { _ = os.Remove(part) }
+	if err := out.Chmod(0644); err != nil {
+		out.Close()
+		cleanup()
+		return "", fmt.Errorf("set staging permissions: %w", err)
+	}
 
 	if _, err := io.Copy(out, in); err != nil {
 		out.Close()
 		cleanup()
-		return fmt.Errorf("copy: %w", err)
+		return "", fmt.Errorf("copy: %w", err)
 	}
 	if err := out.Sync(); err != nil {
 		out.Close()
 		cleanup()
-		return fmt.Errorf("sync: %w", err)
+		return "", fmt.Errorf("sync: %w", err)
 	}
 	if err := out.Close(); err != nil {
 		cleanup()
-		return fmt.Errorf("close partial: %w", err)
+		return "", fmt.Errorf("close staging file: %w", err)
 	}
-	if err := os.Rename(part, dst); err != nil {
+	dst, err := moveUploadNoReplace(part, targetDir, filename)
+	if err != nil {
 		cleanup()
-		return fmt.Errorf("rename partial: %w", err)
+		return "", fmt.Errorf("publish staging file: %w", err)
 	}
 	if err := os.Remove(src); err != nil {
 		log.Printf("warning: failed to remove source %s after cross-device move: %v", src, err)
 	}
-	return nil
+	return dst, nil
+}
+
+func uploadCollisionPath(dir, filename string, suffix int) string {
+	if suffix == 0 {
+		return filepath.Join(dir, filename)
+	}
+	ext := filepath.Ext(filename)
+	base := strings.TrimSuffix(filename, ext)
+	return filepath.Join(dir, fmt.Sprintf("%s (%d)%s", base, suffix, ext))
 }
 
 // sidecarPayload is the JSON written next to a form upload, recording the
@@ -546,22 +795,6 @@ func (ep *EventProcessor) fireWebhook(url, sidecarName, relPath string) {
 		}
 		log.Printf("webhook delivered to %s for %s", url, sidecarName)
 	}()
-}
-
-func (ep *EventProcessor) uniquePath(dir, filename string) string {
-	dst := filepath.Join(dir, filename)
-	if _, err := os.Stat(dst); os.IsNotExist(err) {
-		return dst
-	}
-
-	ext := filepath.Ext(filename)
-	base := strings.TrimSuffix(filename, ext)
-	for i := 1; ; i++ {
-		dst = filepath.Join(dir, fmt.Sprintf("%s (%d)%s", base, i, ext))
-		if _, err := os.Stat(dst); os.IsNotExist(err) {
-			return dst
-		}
-	}
 }
 
 // SanitizeFilename returns a filename containing only [A-Za-z0-9_-] plus an

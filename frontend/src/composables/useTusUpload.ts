@@ -1,6 +1,6 @@
 import { reactive, ref } from 'vue'
 import * as tus from 'tus-js-client'
-import type { UploadItem } from '../types'
+import type { UploadItem, UploadRecord } from '../types'
 import { getUserId } from './useUserId'
 
 let idCounter = 0
@@ -75,6 +75,7 @@ export function useTusUpload() {
         speed: 0,
         error: reason,
         uploadId: null,
+        restored: false,
       })
       uploads.value.push(item)
       if (!reason) startUpload(item, target, formData)
@@ -82,11 +83,14 @@ export function useTusUpload() {
   }
 
   async function startUpload(item: UploadItem, target: string, formData?: Record<string, string>) {
+    const file = item.file
+    if (!file) return
+
     let lastBytes = 0
     let lastTime = Date.now()
     const parallel = await detectParallelUploads()
 
-    const upload = new tus.Upload(item.file, {
+    const upload = new tus.Upload(file, {
       endpoint: '/files/',
       chunkSize: 50 * 1024 * 1024,
       parallelUploads: parallel,
@@ -94,7 +98,7 @@ export function useTusUpload() {
       removeFingerprintOnSuccess: true,
       metadata: {
         filename: item.displayName,
-        filetype: item.file.type || 'application/octet-stream',
+        filetype: file.type || 'application/octet-stream',
         userid: getUserId(),
         target: target,
         ...(formData ? { formdata: JSON.stringify(formData) } : {}),
@@ -139,6 +143,32 @@ export function useTusUpload() {
       upload.start()
       item.status = 'uploading'
     })
+  }
+
+  // Reconstruct a completed upload after the Send form was unmounted or the
+  // browser reloaded. Identity is the server upload ID: filename and size are
+  // not safe deduplication keys because two distinct files may share both.
+  function addServerUpload(record: UploadRecord): boolean {
+    if (!record.id || record.status !== 'completed') return false
+    if (uploads.value.some((item) => item.uploadId === record.id)) return false
+
+    uploads.value.push(
+      reactive<UploadItem>({
+        id: `server-${record.id}`,
+        file: null,
+        displayName: record.filename,
+        tusUpload: null,
+        status: 'completed',
+        progress: 100,
+        bytesUploaded: record.size,
+        bytesTotal: record.size,
+        speed: 0,
+        error: null,
+        uploadId: record.id,
+        restored: true,
+      }),
+    )
+    return true
   }
 
   function pauseUpload(item: UploadItem) {
@@ -193,5 +223,6 @@ export function useTusUpload() {
     retryUpload,
     cancelUpload,
     forgetUpload,
+    addServerUpload,
   }
 }

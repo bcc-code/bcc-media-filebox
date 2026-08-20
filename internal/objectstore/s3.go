@@ -5,7 +5,9 @@ package objectstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -14,6 +16,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 )
 
 // TargetName is the reserved `target` metadata value routing an upload to S3.
@@ -23,8 +27,15 @@ const TargetName = "s3"
 
 const defaultKeyPrefix = "send/"
 
+// Streaming ZIPs are non-seekable, so manager.Uploader cannot rewind and
+// automatically increase its part size near S3's 10,000-part limit. At 16 MiB
+// a 100 GiB archive uses at most 6,400 parts (plus modest buffered memory at the
+// uploader's default concurrency).
+const archiveMultipartPartSize = int64(16 << 20)
+
 // Client uploads to and presigns objects in a single S3 bucket.
 type Client struct {
+	client    *s3.Client
 	uploader  *manager.Uploader
 	presigner *s3.PresignClient
 	bucket    string
@@ -57,6 +68,7 @@ func NewFromEnv(ctx context.Context) (*Client, error) {
 
 	cli := s3.NewFromConfig(cfg)
 	return &Client{
+		client:    cli,
 		uploader:  manager.NewUploader(cli),
 		presigner: s3.NewPresignClient(cli),
 		bucket:    bucket,
@@ -72,6 +84,13 @@ func (c *Client) Bucket() string { return c.bucket }
 // out same-name collisions, so no tus.uniquePath equivalent is needed.
 func (c *Client) Key(uploadID, filename string) string {
 	return c.prefix + uploadID + "/" + filename
+}
+
+// PackageArtifactKey returns the private object key for a generated package
+// artifact. The display filename deliberately stays out of the key: package
+// names may change or contain awkward characters, while IDs are immutable.
+func (c *Client) PackageArtifactKey(packageID, artifactID string) string {
+	return c.prefix + "packages/" + packageID + "/artifacts/" + artifactID + ".zip"
 }
 
 // Upload streams the file at path into the bucket under key, switching to a
@@ -91,6 +110,63 @@ func (c *Client) Upload(ctx context.Context, key, path string) error {
 		return fmt.Errorf("upload to s3://%s/%s: %w", c.bucket, key, err)
 	}
 	return nil
+}
+
+// UploadReader streams an object into S3. manager.Uploader performs multipart
+// upload for large, non-seekable readers, which lets the archive worker pipe a
+// ZIP directly to S3 without first allocating up to 100 GiB of local disk.
+func (c *Client) UploadReader(ctx context.Context, key string, body io.Reader, contentType string) error {
+	in := &s3.PutObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+		Body:   body,
+	}
+	if contentType != "" {
+		in.ContentType = aws.String(contentType)
+	}
+	if _, err := c.uploader.Upload(ctx, in, func(u *manager.Uploader) {
+		u.PartSize = archiveMultipartPartSize
+	}); err != nil {
+		return fmt.Errorf("upload to s3://%s/%s: %w", c.bucket, key, err)
+	}
+	return nil
+}
+
+// Open returns a streaming reader for one private object. Callers must close
+// it. Archive generation uses this to copy source uploads into a ZIP without
+// routing the complete source through memory or local disk.
+func (c *Client) Open(ctx context.Context, key string) (io.ReadCloser, error) {
+	out, err := c.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get s3://%s/%s: %w", c.bucket, key, err)
+	}
+	return out.Body, nil
+}
+
+// Exists reports whether a private object is already present. Upload recovery
+// uses this after a restart to distinguish "the S3 upload finished, but the DB
+// update did not" from a genuinely missing object without downloading it.
+func (c *Client) Exists(ctx context.Context, key string) (bool, error) {
+	_, err := c.client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	})
+	if err == nil {
+		return true, nil
+	}
+
+	var notFound *types.NotFound
+	if errors.As(err, &notFound) {
+		return false, nil
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) && (apiErr.ErrorCode() == "NotFound" || apiErr.ErrorCode() == "NoSuchKey") {
+		return false, nil
+	}
+	return false, fmt.Errorf("head s3://%s/%s: %w", c.bucket, key, err)
 }
 
 // PresignDownload returns a URL granting anonymous GET on key until expiry. The

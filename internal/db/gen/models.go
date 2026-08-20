@@ -44,19 +44,23 @@ type GroupMember struct {
 }
 
 type Package struct {
-	ID                 string
-	CreatedByUserID    int64
-	Name               string
-	Message            string
-	VerificationMethod string
-	PasswordHash       sql.NullString
-	ExpiresAt          time.Time
-	MaxDownloads       sql.NullInt64
-	DownloadCount      int64
-	NotifyOnDownload   int64
-	Status             string
-	CreatedAt          time.Time
-	NotifyMuteToken    sql.NullString
+	ID                    string
+	CreatedByUserID       int64
+	Name                  string
+	Message               string
+	VerificationMethod    string
+	PasswordHash          sql.NullString
+	ExpiresAt             time.Time
+	MaxDownloads          sql.NullInt64
+	DownloadCount         int64
+	NotifyOnDownload      int64
+	Status                string
+	CreatedAt             time.Time
+	NotifyMuteToken       sql.NullString
+	PreparationStatus     string
+	PreparationBytesTotal int64
+	PreparationBytesDone  int64
+	PreparationError      sql.NullString
 }
 
 type PackageAccessRequest struct {
@@ -68,6 +72,31 @@ type PackageAccessRequest struct {
 	Status     string
 	CreatedAt  time.Time
 	ResolvedAt sql.NullTime
+}
+
+type PackageArtifact struct {
+	ID            string
+	PackageID     string
+	Kind          string
+	Filename      string
+	Size          int64
+	SourceSize    int64
+	Position      int64
+	Status        string
+	ProgressBytes int64
+	AccessCount   int64
+	Attempts      int64
+	ObjectKey     sql.NullString
+	Error         sql.NullString
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type PackageArtifactMember struct {
+	ArtifactID      string
+	ShareID         string
+	Position        int64
+	ArchiveFilename string
 }
 
 type PackageRecipient struct {
@@ -146,6 +175,7 @@ type Upload struct {
 	Sha256        sql.NullString
 	TargetName    sql.NullString
 	FormData      sql.NullString
+	StorageStatus string
 }
 
 type User struct {

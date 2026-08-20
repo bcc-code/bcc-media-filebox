@@ -22,7 +22,7 @@ func newTestDB(t *testing.T) *db.Queries {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "test.db")
-	conn, err := sql.Open("sqlite", path+"?_journal_mode=WAL&_busy_timeout=5000")
+	conn, err := sql.Open("sqlite", dbpkg.SQLiteDSN(path))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -38,6 +38,23 @@ func newTestDB(t *testing.T) *db.Queries {
 	return db.New(conn)
 }
 
+func TestSQLiteDSNEnablesForeignKeys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "pragma.db")
+	conn, err := sql.Open("sqlite", dbpkg.SQLiteDSN(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	var enabled int
+	if err := conn.QueryRow("PRAGMA foreign_keys").Scan(&enabled); err != nil {
+		t.Fatalf("read PRAGMA foreign_keys: %v", err)
+	}
+	if enabled != 1 {
+		t.Fatalf("foreign_keys = %d, want 1", enabled)
+	}
+}
+
 // Regression test: the limit used to be a separate read-then-increment that two
 // overlapping requests could both pass. "Download all" fires every file at once,
 // so that interleaving is routine, not rare.
@@ -47,10 +64,19 @@ func TestIncrementShareAccessCountIfUnderLimitIsAtomic(t *testing.T) {
 
 	const limit = 3
 	const attempts = 25
+	user, err := queries.UpsertUser(ctx, db.UpsertUserParams{Provider: "bcc", Subject: "counter-author"})
+	if err != nil {
+		t.Fatalf("create author: %v", err)
+	}
+	if err := queries.CreateUpload(ctx, db.CreateUploadParams{
+		ID: "upload1", UserID: "bcc:counter-author", Filename: "one.mov", Size: 1,
+	}); err != nil {
+		t.Fatalf("create upload: %v", err)
+	}
 
 	if _, err := queries.CreatePackage(ctx, db.CreatePackageParams{
 		ID:                 "pkg1",
-		CreatedByUserID:    1,
+		CreatedByUserID:    user.ID,
 		Name:               "pkg",
 		VerificationMethod: "none",
 		ExpiresAt:          time.Now().Add(time.Hour),
@@ -115,10 +141,19 @@ func TestIncrementShareAccessCountIfUnderLimitIsAtomic(t *testing.T) {
 func TestIncrementShareAccessCountIfUnderLimitRejectsAtLimit(t *testing.T) {
 	ctx := context.Background()
 	queries := newTestDB(t)
+	user, err := queries.UpsertUser(ctx, db.UpsertUserParams{Provider: "bcc", Subject: "limit-author"})
+	if err != nil {
+		t.Fatalf("create author: %v", err)
+	}
+	if err := queries.CreateUpload(ctx, db.CreateUploadParams{
+		ID: "upload1", UserID: "bcc:limit-author", Filename: "one.mov", Size: 1,
+	}); err != nil {
+		t.Fatalf("create upload: %v", err)
+	}
 
 	if _, err := queries.CreatePackage(ctx, db.CreatePackageParams{
 		ID:                 "pkg1",
-		CreatedByUserID:    1,
+		CreatedByUserID:    user.ID,
 		Name:               "pkg",
 		VerificationMethod: "none",
 		ExpiresAt:          time.Now().Add(time.Hour),

@@ -2,6 +2,15 @@
 INSERT INTO uploads (id, user_id, filename, size, content_type, is_partial, final_upload_id, sha256, target_name, form_data)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
+-- name: CreatePendingUpload :exec
+-- TUS completion only means all bytes arrived in the temporary area. The
+-- asynchronous finalizer marks this ready after the final move/S3 upload.
+INSERT INTO uploads (
+    id, user_id, filename, size, content_type, is_partial, final_upload_id,
+    sha256, target_name, form_data, storage_status
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending');
+
 -- name: ProjectSeasons :many
 SELECT DISTINCT CAST(json_extract(form_data, '$.season') AS TEXT) AS value
 FROM uploads
@@ -36,7 +45,25 @@ WHERE id = ?;
 UPDATE uploads SET duration_ms = ? WHERE id = ?;
 
 -- name: FailUpload :exec
-UPDATE uploads SET status = 'failed' WHERE id = ?;
+UPDATE uploads SET status = 'failed', storage_status = 'failed' WHERE id = ?;
+
+-- name: MarkUploadStorageReady :exec
+UPDATE uploads SET storage_status = 'ready' WHERE id = ?;
+
+-- name: FinalizeUploadStorage :one
+-- The final filename and readiness are one state transition: a ready row must
+-- never point at the pre-sanitised/pre-deduplicated name.
+UPDATE uploads
+SET filename = ?, storage_status = 'ready'
+WHERE id = ? AND status = 'completed' AND storage_status = 'pending'
+RETURNING *;
+
+-- name: ListPendingStorageUploads :many
+-- Completed TUS transfers whose asynchronous filesystem/S3 promotion did not
+-- finish before the previous process stopped.
+SELECT * FROM uploads
+WHERE is_partial = 0 AND status = 'completed' AND storage_status = 'pending'
+ORDER BY completed_at, created_at, id;
 
 -- name: UpdateUploadFilename :exec
 UPDATE uploads SET filename = ? WHERE id = ?;

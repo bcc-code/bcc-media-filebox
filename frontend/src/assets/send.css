@@ -145,6 +145,14 @@
 .send-root .dropzone .t { font-size: 16px; color: var(--ink); }
 .send-root .dropzone .s { font-size: 13px; color: var(--ink-3); margin-top: 6px; }
 
+/* A compact acknowledgement only appears when this exact Send draft was
+   restored; the full upload history is never rendered in the compose form. */
+.send-root .draft-restore-status { margin-top: 9px; color: oklch(0.80 0.10 160); font-size: 11.5px; }
+.send-root .draft-restore-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; padding: 9px 11px; background: color-mix(in oklch, var(--danger), transparent 88%); border: 1px solid color-mix(in oklch, var(--danger), transparent 64%); border-radius: 8px; color: oklch(0.85 0.10 25); font-size: 11.5px; }
+.send-root .draft-restore-error.pending { background: color-mix(in oklch, var(--warn), transparent 90%); border-color: color-mix(in oklch, var(--warn), transparent 64%); color: oklch(0.86 0.10 75); }
+.send-root .draft-restore-error button { flex-shrink: 0; padding: 2px 4px; background: transparent; border: none; color: var(--ink); font-size: 11.5px; text-decoration: underline; cursor: pointer; }
+.send-root .draft-restore-actions { display: inline-flex; flex-shrink: 0; gap: 5px; }
+
 /* File list */
 .send-root .file-list { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
 .send-root .file-item {
@@ -250,6 +258,8 @@
 .send-root .btn.sm { padding: 7px 12px; font-size: 12.5px; font-weight: 500; border-radius: 8px; }
 .send-root .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .send-root .btn-primary:hover { background: oklch(0.76 0.10 250); border-color: oklch(0.76 0.10 250); }
+.send-root .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.send-root .btn:disabled:hover { border-color: var(--line-2); background: var(--bg-3); }
 .send-root .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 .send-root .btn-primary:disabled:hover { background: var(--accent); border-color: var(--accent); }
 .send-root .btn-danger { background: color-mix(in oklch, var(--danger), transparent 80%); border-color: color-mix(in oklch, var(--danger), transparent 55%); color: oklch(0.86 0.12 25); }
@@ -269,7 +279,7 @@
 .send-root .pkg-recips { font-size: 12.5px; color: var(--ink-2); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .send-root .pkg-meta { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 12px; font-size: 12px; color: var(--ink-3); font-family: 'JetBrains Mono', monospace; }
 .send-root .pkg-meta .mk { color: var(--ink-2); }
-.send-root .pkg-meta > span:not(:first-child)::before { content: '·'; margin-right: 8px; color: var(--line-2); }
+.send-root .pkg-meta > span:not(:first-child)::before { content: '|'; margin-right: 8px; color: var(--line-2); }
 .send-root .pkg-badges { display: flex; gap: 7px; flex-shrink: 0; align-items: center; }
 .send-root .pkg-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .send-root .pkg-foot .spacer { flex: 1; }
@@ -283,9 +293,17 @@
 .send-root .pill.expired { background: var(--bg-3); color: var(--ink-3); border: 1px solid var(--line-2); }
 .send-root .pill.revoked { background: color-mix(in oklch, var(--danger), transparent 80%); color: oklch(0.82 0.13 25); border: 1px solid color-mix(in oklch, var(--danger), transparent 58%); }
 .send-root .pill.deleted { background: var(--bg-3); color: var(--ink-3); border: 1px solid var(--line-2); }
+.send-root .pill.preparing { background: color-mix(in oklch, var(--info), transparent 82%); color: oklch(0.82 0.10 240); border: 1px solid color-mix(in oklch, var(--info), transparent 58%); }
+.send-root .pill.failed { background: color-mix(in oklch, var(--danger), transparent 80%); color: oklch(0.84 0.11 25); border: 1px solid color-mix(in oklch, var(--danger), transparent 58%); }
 .send-root .chip-sm { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 500; background: var(--bg-3); border: 1px solid var(--line-2); color: var(--ink-2); white-space: nowrap; }
 .send-root .chip-sm.lock { color: oklch(0.80 0.10 250); border-color: color-mix(in oklch, var(--accent), transparent 55%); background: color-mix(in oklch, var(--accent), transparent 88%); }
 .send-root .chip-sm.warn { color: oklch(0.85 0.13 75); border-color: color-mix(in oklch, var(--warn), transparent 55%); background: color-mix(in oklch, var(--warn), transparent 88%); }
+
+.send-root .pkg-preparation { margin-top: 13px; padding: 12px 13px; border: 1px solid color-mix(in oklch, var(--info), transparent 65%); background: color-mix(in oklch, var(--info), transparent 92%); border-radius: 10px; }
+.send-root .pkg-preparation.failed { border-color: color-mix(in oklch, var(--danger), transparent 62%); background: color-mix(in oklch, var(--danger), transparent 91%); }
+.send-root .pkg-preparation-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.send-root .pkg-preparation.failed .pkg-preparation-head { color: oklch(0.86 0.10 25); }
+.send-root .pkg-preparation-meta { margin-top: 7px; font-size: 11.5px; color: var(--ink-3); line-height: 1.45; }
 
 .send-root .empty { padding: 40px 18px; border: 1px dashed var(--line-2); border-radius: 12px; text-align: center; color: var(--ink-3); font-size: 13.5px; }
 
@@ -301,7 +319,7 @@
 /* ============ Public recipient screens (shared with the real /s/:id page) ============ */
 .send-root .public-stage { background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 46px 24px 54px; display: grid; place-items: center; }
 .send-root .public-card {
-  width: 100%; max-width: 460px; background: var(--bg-2); border: 1px solid var(--line-2);
+  width: 100%; max-width: 560px; background: var(--bg-2); border: 1px solid var(--line-2);
   border-radius: 16px; padding: 30px 30px 28px; box-shadow: 0 24px 70px rgba(0,0,0,0.45);
 }
 .send-root .public-brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 22px; }
@@ -311,12 +329,18 @@
 .send-root .public-from strong { color: var(--ink); font-weight: 600; }
 .send-root .public-pkgname { font-size: 23px; font-weight: 600; letter-spacing: -0.3px; margin: 6px 0 0; }
 .send-root .public-msg { margin-top: 16px; padding: 13px 15px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; color: var(--ink-2); line-height: 1.55; }
+.send-root .public-section { margin-top: 22px; }
+.send-root .public-section-head { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.send-root .public-section-head > span:last-child { color: var(--ink-3); font-family: 'JetBrains Mono', monospace; }
+.send-root .public-section .public-files { margin-top: 8px; }
 .send-root .public-files { margin-top: 20px; display: flex; flex-direction: column; gap: 7px; }
+.send-root .source-manifest { max-height: 270px; overflow-y: auto; overscroll-behavior: contain; padding-right: 5px; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
 .send-root .public-file { display: flex; align-items: center; gap: 11px; padding: 9px 4px; border-bottom: 1px solid var(--line); }
 .send-root .public-file:last-child { border-bottom: none; }
 .send-root .public-file .fic { color: var(--ink-3); flex-shrink: 0; }
 .send-root .public-file .fn { flex: 1; min-width: 0; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .send-root .public-file .fs { font-size: 12px; color: var(--ink-3); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+.send-root .public-files-empty { padding: 14px 4px; color: var(--ink-3); font-size: 12.5px; }
 .send-root .public-file .file-dl {
   flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
   background: var(--bg-3); border: 1px solid var(--line-2); color: var(--ink-2);
@@ -329,6 +353,28 @@
 .send-root .public-total { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-3); margin-top: 14px; padding-top: 4px; }
 .send-root .public-dl { margin-top: 22px; }
 .send-root .public-note { text-align: center; font-size: 12px; color: var(--ink-3); margin-top: 14px; line-height: 1.5; }
+
+/* Async package preparation and server-produced download artifacts. */
+.send-root .preparation-state { margin-top: 22px; padding: 15px; background: color-mix(in oklch, var(--info), transparent 92%); border: 1px solid color-mix(in oklch, var(--info), transparent 64%); border-radius: 11px; }
+.send-root .preparation-state.failed { background: color-mix(in oklch, var(--danger), transparent 91%); border-color: color-mix(in oklch, var(--danger), transparent 60%); }
+.send-root .preparation-heading { display: flex; justify-content: space-between; gap: 12px; color: var(--ink); font-size: 13.5px; font-weight: 600; }
+.send-root .preparation-state.failed .preparation-heading { color: oklch(0.86 0.10 25); }
+.send-root .preparation-track { height: 7px; margin-top: 10px; overflow: hidden; background: var(--bg); border: 1px solid var(--line-2); border-radius: 999px; }
+.send-root .preparation-fill { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width .35s ease; }
+.send-root .preparation-meta { margin-top: 7px; color: var(--ink-3); font-size: 11.5px; font-family: 'JetBrains Mono', monospace; }
+.send-root .preparation-state p { margin: 9px 0 0; color: var(--ink-2); font-size: 12.5px; line-height: 1.5; }
+.send-root .downloads-section { padding-top: 20px; border-top: 1px solid var(--line); }
+.send-root .artifact-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.send-root .artifact-row { display: flex; align-items: center; gap: 11px; padding: 11px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.send-root .artifact-icon { width: 34px; height: 34px; display: grid; place-items: center; flex-shrink: 0; color: var(--ink-2); background: var(--bg-3); border: 1px solid var(--line-2); border-radius: 8px; }
+.send-root .artifact-icon.zip { color: var(--accent); border-color: color-mix(in oklch, var(--accent), transparent 65%); }
+.send-root .artifact-body { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+.send-root .artifact-name { overflow: hidden; color: var(--ink); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.send-root .artifact-meta { color: var(--ink-3); font-size: 10.5px; line-height: 1.4; }
+.send-root .artifact-dl { display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex-shrink: 0; padding: 7px 9px; color: var(--accent); background: color-mix(in oklch, var(--accent), transparent 90%); border: 1px solid color-mix(in oklch, var(--accent), transparent 62%); border-radius: 7px; font-size: 11.5px; font-weight: 600; transition: background .12s, border-color .12s; }
+.send-root .artifact-dl:hover { background: color-mix(in oklch, var(--accent), transparent 84%); border-color: color-mix(in oklch, var(--accent), transparent 42%); }
+.send-root .artifact-dl.inert { color: var(--ink-3); background: var(--bg-3); border-color: var(--line-2); cursor: default; opacity: .65; }
+.send-root .download-limit-note { margin-top: 12px; padding: 10px 12px; color: oklch(0.86 0.11 75); background: color-mix(in oklch, var(--warn), transparent 90%); border: 1px solid color-mix(in oklch, var(--warn), transparent 62%); border-radius: 9px; font-size: 12px; line-height: 1.5; }
 
 /* Verify screen */
 .send-root .verify-icon { width: 52px; height: 52px; border-radius: 13px; background: color-mix(in oklch, var(--accent), transparent 85%); border: 1px solid color-mix(in oklch, var(--accent), transparent 55%); color: var(--accent); display: grid; place-items: center; margin-bottom: 20px; }
@@ -387,3 +433,13 @@
   box-shadow: 0 14px 40px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 9px;
 }
 .send-root .toast .ok { color: var(--ok); }
+
+@media (max-width: 600px) {
+  .send-root .public-stage { padding: 24px 12px 34px; }
+  .send-root .public-card { padding: 24px 18px; }
+  .send-root .artifact-row { align-items: flex-start; flex-wrap: wrap; }
+  .send-root .artifact-dl { width: 100%; margin-top: 2px; }
+  .send-root .pkg-top { flex-wrap: wrap; }
+  .send-root .pkg-badges { width: 100%; padding-left: 54px; flex-wrap: wrap; }
+  .send-root .pkg-foot { flex-wrap: wrap; }
+}

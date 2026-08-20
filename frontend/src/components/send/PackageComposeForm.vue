@@ -1,20 +1,55 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useTusUpload } from '../../composables/useTusUpload'
 import { usePackages, type VerificationMethod } from '../../composables/usePackages'
+import { getUserId } from '../../composables/useUserId'
+import type { UploadRecord } from '../../types'
 import PackageFileRow from './PackageFileRow.vue'
 import RecipientChipInput from './RecipientChipInput.vue'
 import VerificationMethodPicker from './VerificationMethodPicker.vue'
 
 const emit = defineEmits<{ sent: [packageId: string] }>()
 
-const { uploads, addFiles, cancelUpload, forgetUpload } = useTusUpload()
+const { uploads, addFiles, cancelUpload, forgetUpload, addServerUpload } = useTusUpload()
 const { createPackage } = usePackages()
 
 // Send shows no target picker, so it names its destination symbolically and the
 // tus pre-create hook resolves it (S3 when configured, else a real target).
 // Must not be an empty string: Home submits that when a user has no grants.
 const SEND_TARGET = 'send'
+const SEND_DRAFT_UPLOADS_KEY = 'filebox-send-draft-uploads:'
+
+function draftStorageKey(): string {
+  return `${SEND_DRAFT_UPLOADS_KEY}${getUserId()}`
+}
+
+function readDraftUploadIds(): string[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(draftStorageKey()) || '[]')
+    if (!Array.isArray(value)) return []
+    return [...new Set(value.filter((id): id is string => typeof id === 'string' && id.length > 0))]
+  } catch {
+    return []
+  }
+}
+
+function saveDraftUploadIds(ids: string[]) {
+  try {
+    if (ids.length) localStorage.setItem(draftStorageKey(), JSON.stringify([...new Set(ids)]))
+    else localStorage.removeItem(draftStorageKey())
+  } catch {
+    // Private browsing/storage policies may disable localStorage.
+  }
+}
+
+const initialDraftUploadIds = readDraftUploadIds()
+let hydratingDraft = initialDraftUploadIds.length > 0
+const restoringDraft = ref(initialDraftUploadIds.length > 0)
+const serverUploads = ref<UploadRecord[]>([])
+const serverUploadsLoaded = ref(false)
+const serverUploadsLoading = ref(false)
+const serverUploadsError = ref<string | null>(null)
+const unresolvedDraftUploadIds = ref<string[]>([])
 
 const isDragging = ref(false)
 const filePicker = ref<HTMLInputElement | null>(null)
@@ -67,6 +102,79 @@ const badRecipients = computed(() => recipients.value.filter((r) => !isEmail(r))
 const maxDownloadsValid = computed(() => maxDownloads.value === '' || maxDownloads.value >= 1)
 const completedUploads = computed(() => uploads.value.filter((u) => u.status === 'completed' && u.uploadId))
 const stillUploading = computed(() => uploads.value.some((u) => u.status === 'uploading' || u.status === 'pending'))
+const restoredUploadCount = computed(() => uploads.value.filter((u) => u.restored).length)
+
+// Persist only completed server IDs. File objects cannot be reconstructed after
+// a reload, while an upload ID can be safely revalidated against the caller's
+// server-side upload history.
+watch(
+  () => completedUploads.value.map((upload) => upload.uploadId as string),
+  (ids) => {
+    if (!hydratingDraft) saveDraftUploadIds([...unresolvedDraftUploadIds.value, ...ids])
+  },
+  { flush: 'sync' },
+)
+
+async function loadServerUploads(force = false): Promise<boolean> {
+  if (serverUploadsLoaded.value && !force) return true
+  if (serverUploadsLoading.value) return false
+
+  serverUploadsLoading.value = true
+  serverUploadsError.value = null
+  try {
+    const response = await fetch(`/api/uploads?user_id=${encodeURIComponent(getUserId())}`)
+    if (!response.ok) throw new Error(`Upload history returned ${response.status}`)
+    const records: unknown = await response.json()
+    if (!Array.isArray(records)) throw new Error('Upload history returned an invalid response')
+    serverUploads.value = records as UploadRecord[]
+    serverUploadsLoaded.value = true
+    return true
+  } catch {
+    serverUploadsError.value = 'Could not load files that are already on the server.'
+    return false
+  } finally {
+    serverUploadsLoading.value = false
+  }
+}
+
+async function restoreDraftUploads(force = false) {
+  const draftIds = readDraftUploadIds()
+  if (!draftIds.length) {
+    hydratingDraft = false
+    restoringDraft.value = false
+    return
+  }
+
+  hydratingDraft = true
+  restoringDraft.value = true
+  const loaded = await loadServerUploads(force)
+  if (loaded) {
+    const byId = new Map(serverUploads.value.map((record) => [record.id, record]))
+    const unresolved: string[] = []
+    for (const id of draftIds) {
+      const record = byId.get(id)
+      if (record) addServerUpload(record)
+      else unresolved.push(id)
+    }
+    unresolvedDraftUploadIds.value = unresolved
+  } else {
+    unresolvedDraftUploadIds.value = draftIds
+  }
+  hydratingDraft = false
+  restoringDraft.value = false
+
+  const selected = completedUploads.value.map((upload) => upload.uploadId as string)
+  // On a transient fetch failure retain the old IDs as well as any upload that
+  // completed meanwhile, so Retry can still recover the entire draft.
+  saveDraftUploadIds([...unresolvedDraftUploadIds.value, ...selected])
+}
+
+function forgetUnresolvedDraftUploads() {
+  unresolvedDraftUploadIds.value = []
+  saveDraftUploadIds(completedUploads.value.map((upload) => upload.uploadId as string))
+}
+
+onMounted(() => void restoreDraftUploads())
 
 const verifyLabels: Partial<Record<VerificationMethod, string>> = {
   none: 'No verification',
@@ -83,16 +191,22 @@ const canSend = computed(
     badRecipients.value.length === 0 &&
     maxDownloadsValid.value &&
     (verify.value !== 'password' || password.value.trim().length > 0) &&
+    !restoringDraft.value &&
+    unresolvedDraftUploadIds.value.length === 0 &&
     !sending.value,
 )
 
 const blockReason = computed(() => {
+  if (restoringDraft.value) return 'Restoring files already uploaded to the server.'
+  if (unresolvedDraftUploadIds.value.length) {
+    return `Wait for ${unresolvedDraftUploadIds.value.length} saved upload${unresolvedDraftUploadIds.value.length === 1 ? '' : 's'} to become available, or forget the missing selection.`
+  }
   if (uploads.value.length === 0) return 'Add at least one file.'
   if (stillUploading.value) return 'Wait for files to finish uploading.'
   if (completedUploads.value.length === 0) return 'At least one file must finish uploading.'
   if (!name.value.trim()) return 'Give the package a name.'
   if (badRecipients.value.length) return `Fix or remove ${badRecipients.value.join(', ')} — not a valid email address.`
-  if (!maxDownloadsValid.value) return 'Max downloads must be 1 or more, or blank for unlimited.'
+  if (!maxDownloadsValid.value) return 'Max downloads per artifact must be 1 or more, or blank for unlimited.'
   if (verify.value === 'password' && !password.value.trim()) return 'Set a password.'
   return ''
 })
@@ -156,6 +270,27 @@ async function send() {
           <div class="s">Add as many as you like — they'll be sent as one package</div>
           <input ref="filePicker" type="file" multiple hidden @change="onFilesPicked" />
         </div>
+        <div v-if="restoringDraft || restoredUploadCount" class="draft-restore-status" aria-live="polite">
+          <span v-if="restoringDraft">Restoring your uploaded files…</span>
+          <span v-else>
+            {{ restoredUploadCount }} file{{ restoredUploadCount === 1 ? '' : 's' }} restored after reload
+          </span>
+        </div>
+
+        <div v-if="serverUploadsError && initialDraftUploadIds.length" class="draft-restore-error" role="alert">
+          <span>{{ serverUploadsError }} Your draft IDs are still saved.</span>
+          <button type="button" @click="restoreDraftUploads(true)">Retry</button>
+        </div>
+        <div v-else-if="unresolvedDraftUploadIds.length" class="draft-restore-error pending" role="status">
+          <span>
+            {{ unresolvedDraftUploadIds.length }} saved upload{{ unresolvedDraftUploadIds.length === 1 ? '' : 's' }}
+            {{ unresolvedDraftUploadIds.length === 1 ? 'is' : 'are' }} still being finalized or no longer available.
+          </span>
+          <span class="draft-restore-actions">
+            <button type="button" @click="restoreDraftUploads(true)">Retry</button>
+            <button type="button" @click="forgetUnresolvedDraftUploads">Forget missing</button>
+          </span>
+        </div>
         <div v-if="uploads.length" class="file-list">
           <PackageFileRow v-for="item in uploads" :key="item.id" :item="item" @remove="cancelUpload(item)" />
         </div>
@@ -193,7 +328,7 @@ async function send() {
             </select>
             <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
           </div>
-          <input v-model="maxDownloads" class="inp" type="number" min="1" step="1" placeholder="Max downloads (optional)" />
+          <input v-model="maxDownloads" class="inp" type="number" min="1" step="1" placeholder="Max downloads per item" />
         </div>
       </div>
 
@@ -241,7 +376,7 @@ async function send() {
       <div class="sum-line"><span class="k">Name</span><span class="v">{{ name.trim() || '—' }}</span></div>
       <div class="sum-line"><span class="k">Recipients</span><span class="v">{{ validRecipients.length || '—' }}</span></div>
       <div class="sum-line"><span class="k">Expires</span><span class="v">In {{ expiresInDays }} day{{ expiresInDays === 1 ? '' : 's' }}</span></div>
-      <div class="sum-line"><span class="k">Downloads</span><span class="v mono">{{ maxDownloads === '' ? 'unlimited' : `max ${maxDownloads}` }}</span></div>
+      <div class="sum-line"><span class="k">Downloads / item</span><span class="v mono">{{ maxDownloads === '' ? 'unlimited' : `max ${maxDownloads}` }}</span></div>
       <div class="sum-line"><span class="k">Verification</span><span class="v">{{ verifyName }}</span></div>
       <div class="sum-line"><span class="k">Notify</span><span class="v">{{ notify ? 'On' : 'Off' }}</span></div>
       <button class="btn btn-primary btn-block" style="margin-top: 16px" :disabled="!canSend" @click="send">

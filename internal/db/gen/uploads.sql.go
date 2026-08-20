@@ -25,6 +25,45 @@ func (q *Queries) CompleteUpload(ctx context.Context, id string) error {
 	return err
 }
 
+const createPendingUpload = `-- name: CreatePendingUpload :exec
+INSERT INTO uploads (
+    id, user_id, filename, size, content_type, is_partial, final_upload_id,
+    sha256, target_name, form_data, storage_status
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+`
+
+type CreatePendingUploadParams struct {
+	ID            string
+	UserID        string
+	Filename      string
+	Size          int64
+	ContentType   sql.NullString
+	IsPartial     int64
+	FinalUploadID sql.NullString
+	Sha256        sql.NullString
+	TargetName    sql.NullString
+	FormData      sql.NullString
+}
+
+// TUS completion only means all bytes arrived in the temporary area. The
+// asynchronous finalizer marks this ready after the final move/S3 upload.
+func (q *Queries) CreatePendingUpload(ctx context.Context, arg CreatePendingUploadParams) error {
+	_, err := q.db.ExecContext(ctx, createPendingUpload,
+		arg.ID,
+		arg.UserID,
+		arg.Filename,
+		arg.Size,
+		arg.ContentType,
+		arg.IsPartial,
+		arg.FinalUploadID,
+		arg.Sha256,
+		arg.TargetName,
+		arg.FormData,
+	)
+	return err
+}
+
 const createUpload = `-- name: CreateUpload :exec
 INSERT INTO uploads (id, user_id, filename, size, content_type, is_partial, final_upload_id, sha256, target_name, form_data)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -78,7 +117,7 @@ func (q *Queries) DeleteUpload(ctx context.Context, id string) error {
 }
 
 const failUpload = `-- name: FailUpload :exec
-UPDATE uploads SET status = 'failed' WHERE id = ?
+UPDATE uploads SET status = 'failed', storage_status = 'failed' WHERE id = ?
 `
 
 func (q *Queries) FailUpload(ctx context.Context, id string) error {
@@ -86,8 +125,46 @@ func (q *Queries) FailUpload(ctx context.Context, id string) error {
 	return err
 }
 
+const finalizeUploadStorage = `-- name: FinalizeUploadStorage :one
+UPDATE uploads
+SET filename = ?, storage_status = 'ready'
+WHERE id = ? AND status = 'completed' AND storage_status = 'pending'
+RETURNING id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data, storage_status
+`
+
+type FinalizeUploadStorageParams struct {
+	Filename string
+	ID       string
+}
+
+// The final filename and readiness are one state transition: a ready row must
+// never point at the pre-sanitised/pre-deduplicated name.
+func (q *Queries) FinalizeUploadStorage(ctx context.Context, arg FinalizeUploadStorageParams) (Upload, error) {
+	row := q.db.QueryRowContext(ctx, finalizeUploadStorage, arg.Filename, arg.ID)
+	var i Upload
+	err := row.Scan(
+		&i.ID,
+		&i.Filename,
+		&i.Size,
+		&i.Offset,
+		&i.ContentType,
+		&i.Status,
+		&i.IsPartial,
+		&i.FinalUploadID,
+		&i.CreatedAt,
+		&i.CompletedAt,
+		&i.UserID,
+		&i.DurationMs,
+		&i.Sha256,
+		&i.TargetName,
+		&i.FormData,
+		&i.StorageStatus,
+	)
+	return i, err
+}
+
 const getUpload = `-- name: GetUpload :one
-SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data FROM uploads WHERE id = ?
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data, storage_status FROM uploads WHERE id = ?
 `
 
 func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
@@ -109,6 +186,7 @@ func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
 		&i.Sha256,
 		&i.TargetName,
 		&i.FormData,
+		&i.StorageStatus,
 	)
 	return i, err
 }
@@ -162,8 +240,56 @@ func (q *Queries) ListCompletedFormUploads(ctx context.Context) ([]ListCompleted
 	return items, nil
 }
 
+const listPendingStorageUploads = `-- name: ListPendingStorageUploads :many
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data, storage_status FROM uploads
+WHERE is_partial = 0 AND status = 'completed' AND storage_status = 'pending'
+ORDER BY completed_at, created_at, id
+`
+
+// Completed TUS transfers whose asynchronous filesystem/S3 promotion did not
+// finish before the previous process stopped.
+func (q *Queries) ListPendingStorageUploads(ctx context.Context) ([]Upload, error) {
+	rows, err := q.db.QueryContext(ctx, listPendingStorageUploads)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Upload
+	for rows.Next() {
+		var i Upload
+		if err := rows.Scan(
+			&i.ID,
+			&i.Filename,
+			&i.Size,
+			&i.Offset,
+			&i.ContentType,
+			&i.Status,
+			&i.IsPartial,
+			&i.FinalUploadID,
+			&i.CreatedAt,
+			&i.CompletedAt,
+			&i.UserID,
+			&i.DurationMs,
+			&i.Sha256,
+			&i.TargetName,
+			&i.FormData,
+			&i.StorageStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUploads = `-- name: ListUploads :many
-SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = ? ORDER BY created_at DESC
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data, storage_status FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = ? ORDER BY created_at DESC
 `
 
 func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, error) {
@@ -191,6 +317,7 @@ func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, err
 			&i.Sha256,
 			&i.TargetName,
 			&i.FormData,
+			&i.StorageStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -203,6 +330,15 @@ func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, err
 		return nil, err
 	}
 	return items, nil
+}
+
+const markUploadStorageReady = `-- name: MarkUploadStorageReady :exec
+UPDATE uploads SET storage_status = 'ready' WHERE id = ?
+`
+
+func (q *Queries) MarkUploadStorageReady(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, markUploadStorageReady, id)
+	return err
 }
 
 const projectEpisodes = `-- name: ProjectEpisodes :many

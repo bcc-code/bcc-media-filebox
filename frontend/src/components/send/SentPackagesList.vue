@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { usePackages } from '../../composables/usePackages'
 import SentPackageCard from './SentPackageCard.vue'
 
 const emit = defineEmits<{ preview: [packageId: string] }>()
 
-const { packages, total, loading, loadMorePackages, revokePackage, extendPackage, dismissAccessRequest, setNotifyOnDownload } =
-  usePackages()
+const {
+  packages,
+  total,
+  loading,
+  loadMorePackages,
+  revokePackage,
+  extendPackage,
+  dismissAccessRequest,
+  setNotifyOnDownload,
+  startPreparationPolling,
+  stopPreparationPolling,
+} = usePackages()
 // Per-package so one slow extend doesn't disable every other card's button.
 const extendingId = ref<string | null>(null)
 const toast = ref('')
@@ -68,6 +78,8 @@ async function dismiss(packageId: string, requestId: string) {
 
 // No fetch on mount: usePackages() is a shared singleton, and Send.vue already
 // fetches on mount and after each send.
+onMounted(startPreparationPolling)
+onUnmounted(stopPreparationPolling)
 </script>
 
 <template>

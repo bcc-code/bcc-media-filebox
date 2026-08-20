@@ -20,13 +20,14 @@ import (
 // in which VerifyPackage reaches its body decode.
 func seedPasswordPackage(t *testing.T, q *db.Queries, password string) db.Package {
 	t.Helper()
+	author := seedAuthor(t, q, "password-sender@example.com")
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 	if err != nil {
 		t.Fatalf("hash password: %v", err)
 	}
 	pkg, err := q.CreatePackage(context.Background(), db.CreatePackageParams{
 		ID:                 "pwpkg",
-		CreatedByUserID:    1,
+		CreatedByUserID:    author.ID,
 		Name:               "Summer conference rushes",
 		VerificationMethod: "password",
 		PasswordHash:       sql.NullString{String: string(hash), Valid: true},

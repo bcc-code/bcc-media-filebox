@@ -40,6 +40,16 @@ func (h *Handlers) notifyRecipients(pkg db.Package, recipients []db.PackageRecip
 		return
 	}
 
+	// The goroutine is detached from package creation, so the author may revoke
+	// the package before it gets scheduled. Never deliver a link that is already
+	// unavailable, and leave sent_at empty so a later explicit reopen can retry.
+	current, err := h.queries.GetPackageByID(context.Background(), pkg.ID)
+	if err != nil || current.PreparationStatus != "ready" || current.Status != "active" ||
+		!current.ExpiresAt.After(time.Now()) || isPermanentlyExpired(current) {
+		return
+	}
+	pkg = current
+
 	shareURL, err := mail.ShareURL(h.mailBaseURL, pkg.ID)
 	if err != nil {
 		// Startup already refuses this combination, so reaching here means

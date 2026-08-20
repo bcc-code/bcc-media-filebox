@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
@@ -20,15 +21,20 @@ type Handlers struct {
 	mailer    mail.Sender
 	// Public origin for recipient links (MAIL_LINK_BASE_URL), which need not be
 	// the server's own base URL.
-	mailBaseURL string
-	downloads   *downloadNotifier
+	mailBaseURL            string
+	downloads              *downloadNotifier
+	packagePreparationWake chan struct{}
+	packageWorkerOnce      sync.Once
 }
 
 // NewHandlers builds the public API handlers. A nil store means S3 is
 // unconfigured and downloads come from local target dirs; a nil or NoopSender
 // mailer means delivery is off.
 func NewHandlers(queries *db.Queries, uploadDir string, store *objectstore.Client, mailer mail.Sender, mailBaseURL string) *Handlers {
-	h := &Handlers{queries: queries, uploadDir: uploadDir, store: store, mailer: mailer, mailBaseURL: mailBaseURL}
+	h := &Handlers{
+		queries: queries, uploadDir: uploadDir, store: store, mailer: mailer, mailBaseURL: mailBaseURL,
+		packagePreparationWake: make(chan struct{}, 1),
+	}
 	h.downloads = newDownloadNotifier(h.notifyDownloads)
 	return h
 }

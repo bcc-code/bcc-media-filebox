@@ -225,6 +225,13 @@ func (h *Handlers) MutePackageNotifications(w http.ResponseWriter, r *http.Reque
 // if they asked for one. Called after the access counters are committed, so a
 // download that was refused is never reported.
 func (h *Handlers) recordDownload(r *http.Request, pkg db.Package, upload db.Upload) {
+	h.recordDownloadItem(r, pkg, upload.Filename, upload.Size)
+}
+
+// recordDownloadItem is the artifact-aware form of recordDownload. Generated
+// ZIPs do not have an uploads row, but download reports should still name and
+// size exactly what the recipient fetched.
+func (h *Handlers) recordDownloadItem(r *http.Request, pkg db.Package, filename string, size int64) {
 	if pkg.NotifyOnDownload == 0 || !mail.IsEnabled(h.mailer) {
 		return
 	}
@@ -240,8 +247,8 @@ func (h *Handlers) recordDownload(r *http.Request, pkg db.Package, upload db.Upl
 	}
 
 	h.downloads.record(pkg, downloadHit{
-		filename: upload.Filename,
-		size:     upload.Size,
+		filename: filename,
+		size:     size,
 		who:      who,
 		at:       time.Now(),
 	})

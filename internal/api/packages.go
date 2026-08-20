@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	defaultSharesPageSize = 20
-	maxSharesPageSize     = 100
-	maxShareExpiryDays    = 30
+	defaultSharesPageSize  = 20
+	maxSharesPageSize      = 100
+	maxShareExpiryDays     = 30
 	maxPackageLifetimeDays = 90
 )
 
@@ -45,14 +45,16 @@ type CreatePackageRequest struct {
 }
 
 type CreatePackageResponse struct {
-	PackageID  string `json:"packageId"`
-	PackageURL string `json:"packageUrl"`
-	ExpiresAt  string `json:"expiresAt"`
+	PackageID         string `json:"packageId"`
+	PackageURL        string `json:"packageUrl"`
+	ExpiresAt         string `json:"expiresAt"`
+	PreparationStatus string `json:"preparationStatus"`
+	ArtifactCount     int    `json:"artifactCount"`
 }
 
 // CreatePackage bundles already-uploaded files into one shareable package
-// ("Send"). Each file becomes its own shares row; verification is enforced at
-// the package level, before any individual file is reached.
+// ("Send"). Shares retain the original-file manifest; package_artifacts are the
+// actual recipient downloads (direct files and/or generated ZIPs).
 func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 	caller := auth.CallerFrom(r.Context())
 	if caller == nil {
@@ -136,6 +138,7 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 	// Check every upload first, so a package is never partly created against a
 	// file the caller can't share.
 	uploads := make([]db.Upload, 0, len(req.UploadIDs))
+	sources := make([]PackageArchiveSource, 0, len(req.UploadIDs))
 	for _, uploadID := range req.UploadIDs {
 		upload, err := h.queries.GetUpload(r.Context(), uploadID)
 		if err != nil {
@@ -146,7 +149,26 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusForbidden, fmt.Sprintf("not authorized to share upload %q", uploadID))
 			return
 		}
+		// The TUS completion notification is handled before its HTTP response is
+		// returned, so a legitimate client only reaches this endpoint after this
+		// state flip. Storage promotion may still be pending; that is deliberately
+		// handled by the package worker and exposed through preparation progress.
+		if upload.IsPartial != 0 {
+			writeJSONError(w, http.StatusConflict, fmt.Sprintf("upload %q is only one part of a file", uploadID))
+			return
+		}
+		if upload.Status != "completed" {
+			writeJSONError(w, http.StatusConflict, fmt.Sprintf("upload %q has not finished", uploadID))
+			return
+		}
 		uploads = append(uploads, upload)
+		sources = append(sources, PackageArchiveSource{ID: upload.ID, Filename: upload.Filename, Size: upload.Size})
+	}
+
+	plan, err := planPackageArchives(sources)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "files cannot be packaged: "+err.Error())
+		return
 	}
 
 	packageID, err := generateShareID()
@@ -166,8 +188,19 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	muteToken := sql.NullString{String: muteTokenValue, Valid: true}
+	tx, q, err := h.queries.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to start package creation")
+		return
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
 
-	pkg, err := h.queries.CreatePackage(r.Context(), db.CreatePackageParams{
+	pkg, err := q.CreatePackage(r.Context(), db.CreatePackageParams{
 		ID:                 packageID,
 		CreatedByUserID:    caller.UserID,
 		Name:               req.Name,
@@ -184,15 +217,16 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	shareByUploadID := make(map[string]string, len(uploads))
 	for _, upload := range uploads {
 		shareID, err := generateShareID()
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "failed to generate share id")
 			return
 		}
-		// No expiry or limit here: a share in a package carries no policy of its
-		// own, and GetShare enforces the package's instead.
-		if _, err := h.queries.CreateShare(r.Context(), db.CreateShareParams{
+		// No expiry or limit here: source-manifest shares carry no policy of their
+		// own. Recipient-visible artifacts enforce the package policy.
+		if _, err := q.CreateShare(r.Context(), db.CreateShareParams{
 			ID:        shareID,
 			PackageID: packageID,
 			UploadID:  upload.ID,
@@ -200,11 +234,88 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusInternalServerError, "failed to attach file to package")
 			return
 		}
+		shareByUploadID[upload.ID] = shareID
+	}
+
+	var preparationBytesTotal int64
+	for _, artifact := range plan.Artifacts {
+		preparationBytesTotal += artifact.PayloadSize
+	}
+	zipCount := 0
+	for _, artifact := range plan.Artifacts {
+		if artifact.Kind == PackageArchiveArtifactZIP {
+			zipCount++
+		}
+	}
+	zipIndex := 0
+	allReady := true
+	var initiallyPreparedBytes int64
+	for position, planned := range plan.Artifacts {
+		artifactID, err := generateShareID()
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "failed to generate download id")
+			return
+		}
+
+		filename := planned.Members[0].Source.Filename
+		status := "ready"
+		size := planned.PayloadSize
+		progress := planned.PayloadSize
+		objectKey := sql.NullString{}
+		if planned.Kind == PackageArchiveArtifactZIP {
+			zipIndex++
+			filename = packageArchiveFilename(pkg.Name, zipIndex, zipCount)
+			status = "pending"
+			size = 0
+			progress = 0
+			if h.store != nil {
+				objectKey = sql.NullString{String: h.store.PackageArtifactKey(pkg.ID, artifactID), Valid: true}
+			}
+		} else {
+			upload, ok := uploadByID(uploads, planned.Members[0].Source.ID)
+			if !ok || upload.StorageStatus != "ready" {
+				status = "pending"
+				progress = 0
+			}
+		}
+		if status != "ready" {
+			allReady = false
+		} else {
+			initiallyPreparedBytes += planned.PayloadSize
+		}
+
+		if _, err := q.CreatePackageArtifact(r.Context(), db.CreatePackageArtifactParams{
+			ID:            artifactID,
+			PackageID:     pkg.ID,
+			Kind:          string(planned.Kind),
+			Filename:      filename,
+			Size:          size,
+			SourceSize:    planned.PayloadSize,
+			Position:      int64(position),
+			Status:        status,
+			ProgressBytes: progress,
+			ObjectKey:     objectKey,
+		}); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "failed to create package download")
+			return
+		}
+		for memberPosition, member := range planned.Members {
+			shareID := shareByUploadID[member.Source.ID]
+			if _, err := q.CreatePackageArtifactMember(r.Context(), db.CreatePackageArtifactMemberParams{
+				ArtifactID:      artifactID,
+				ShareID:         shareID,
+				Position:        int64(memberPosition),
+				ArchiveFilename: member.ArchiveName,
+			}); err != nil {
+				writeJSONError(w, http.StatusInternalServerError, "failed to create package download")
+				return
+			}
+		}
 	}
 
 	recipients := make([]db.PackageRecipient, 0, len(recipientEmails))
 	for _, email := range recipientEmails {
-		rcpt, err := h.queries.CreatePackageRecipient(r.Context(), db.CreatePackageRecipientParams{
+		rcpt, err := q.CreatePackageRecipient(r.Context(), db.CreatePackageRecipientParams{
 			PackageID: packageID,
 			Email:     email,
 		})
@@ -215,36 +326,83 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		recipients = append(recipients, rcpt)
 	}
 
-	// Detached: the package exists either way, and delivery state lands on
-	// package_recipients.
-	go h.notifyRecipients(pkg, recipients, uploads, caller)
+	// Publish the durable job only after its complete plan and recipient list
+	// exist. The worker scans processing packages, so this ordering prevents it
+	// from claiming a half-created package between individual SQLite writes.
+	pkg, err = q.SetPackagePreparationProcessing(r.Context(), db.SetPackagePreparationProcessingParams{
+		PreparationBytesTotal: preparationBytesTotal,
+		ID:                    pkg.ID,
+	})
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to initialise package preparation")
+		return
+	}
+	if allReady {
+		pkg, err = q.FinalizePackagePreparation(r.Context(), pkg.ID)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "failed to finish package preparation")
+			return
+		}
+	} else if initiallyPreparedBytes > 0 {
+		pkg, err = q.UpdatePackagePreparationProgress(r.Context(), db.UpdatePackagePreparationProgressParams{
+			PreparationBytesDone: initiallyPreparedBytes,
+			ID:                   pkg.ID,
+		})
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "failed to record package preparation progress")
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to commit package creation")
+		return
+	}
+	committed = true
+
+	// A package that only contains direct, storage-ready files can be delivered
+	// immediately. ZIP packages are mailed by the preparation worker only after
+	// every artifact is atomically ready, so recipients never land on a partial
+	// download set.
+	if pkg.PreparationStatus == "ready" {
+		go h.notifyRecipients(pkg, recipients, uploads, caller)
+	} else {
+		h.wakePackagePreparation()
+	}
 
 	writeJSON(w, http.StatusCreated, CreatePackageResponse{
-		PackageID:  pkg.ID,
-		PackageURL: packageID,
-		ExpiresAt:  expTime.UTC().Format("2006-01-02T15:04:05Z"),
+		PackageID:         pkg.ID,
+		PackageURL:        packageID,
+		ExpiresAt:         expTime.UTC().Format("2006-01-02T15:04:05Z"),
+		PreparationStatus: pkg.PreparationStatus,
+		ArtifactCount:     len(plan.Artifacts),
 	})
 }
 
 type PackageListItem struct {
-	PackageID          string   `json:"packageId"`
-	Name               string   `json:"name"`
-	Message            string   `json:"message"`
-	VerificationMethod string   `json:"verificationMethod"`
-	Recipients         []string `json:"recipients"`
-	FileCount          int      `json:"fileCount"`
-	TotalSize          int64    `json:"totalSize"`
-	DownloadCount      int64    `json:"downloadCount"`
-	MaxDownloads       *int64   `json:"maxDownloads"`
-	ExpiresAt          string   `json:"expiresAt"`
-	IsExpired          bool     `json:"isExpired"`
-	IsDownloadLimitHit bool     `json:"isDownloadLimitHit"`
-	Status             string   `json:"status"`
-	CreatedAt          string   `json:"createdAt"`
-	PermanentlyExpired bool     `json:"permanentlyExpired"`
-	FilesDeletedAt     string   `json:"filesDeletedAt"`
-	NotifyOnDownload   bool     `json:"notifyOnDownload"`
-	PendingRequests []AccessRequestView `json:"pendingRequests"`
+	PackageID             string              `json:"packageId"`
+	Name                  string              `json:"name"`
+	Message               string              `json:"message"`
+	VerificationMethod    string              `json:"verificationMethod"`
+	Recipients            []string            `json:"recipients"`
+	FileCount             int                 `json:"fileCount"`
+	TotalSize             int64               `json:"totalSize"`
+	DownloadCount         int64               `json:"downloadCount"`
+	MaxDownloads          *int64              `json:"maxDownloads"`
+	ExpiresAt             string              `json:"expiresAt"`
+	IsExpired             bool                `json:"isExpired"`
+	IsDownloadLimitHit    bool                `json:"isDownloadLimitHit"`
+	Status                string              `json:"status"`
+	CreatedAt             string              `json:"createdAt"`
+	PermanentlyExpired    bool                `json:"permanentlyExpired"`
+	FilesDeletedAt        string              `json:"filesDeletedAt"`
+	NotifyOnDownload      bool                `json:"notifyOnDownload"`
+	PreparationStatus     string              `json:"preparationStatus"`
+	PreparationBytesDone  int64               `json:"preparationBytesDone"`
+	PreparationBytesTotal int64               `json:"preparationBytesTotal"`
+	PreparationProgress   int                 `json:"preparationProgress"`
+	PreparationError      string              `json:"preparationError,omitempty"`
+	ArtifactCount         int                 `json:"artifactCount"`
+	PendingRequests       []AccessRequestView `json:"pendingRequests"`
 }
 
 // AccessRequestView is one row of package_access_requests as the author sees it.
@@ -362,6 +520,16 @@ func (h *Handlers) buildPackageListItems(ctx context.Context, pkgs []db.Package)
 		maxAccess[c.PackageID] = c.MaxAccessCount
 		minAccess[c.PackageID] = c.MinAccessCount
 	}
+	artifactCount := make(map[string]int64, len(pkgs))
+	artifactCounts, err := h.queries.GetPackageArtifactAccessCountsByPackageIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("compute package artifact downloads: %w", err)
+	}
+	for _, c := range artifactCounts {
+		artifactCount[c.PackageID] = c.ArtifactCount
+		maxAccess[c.PackageID] = c.MaxAccessCount
+		minAccess[c.PackageID] = c.MinAccessCount
+	}
 
 	recipientRows, err := h.queries.ListPackageRecipientsByPackageIDs(ctx, ids)
 	if err != nil {
@@ -404,24 +572,30 @@ func (h *Handlers) buildPackageListItems(ctx context.Context, pkgs []db.Package)
 		}
 		filesDeletedAt := pkg.CreatedAt.AddDate(0, 0, maxPackageLifetimeDays)
 		items[i] = PackageListItem{
-			PackageID:          pkg.ID,
-			Name:               pkg.Name,
-			Message:            pkg.Message,
-			VerificationMethod: pkg.VerificationMethod,
-			Recipients:         recs,
-			FileCount:          fileCount[pkg.ID],
-			TotalSize:          totalSize[pkg.ID],
-			DownloadCount:      maxAccess[pkg.ID],
-			MaxDownloads:       maxDownloads,
-			ExpiresAt:          pkg.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
-			IsExpired:          pkg.Status == "active" && pkg.ExpiresAt.Before(time.Now()),
-			IsDownloadLimitHit: pkg.MaxDownloads.Valid && minAccess[pkg.ID] >= pkg.MaxDownloads.Int64,
-			NotifyOnDownload:   pkg.NotifyOnDownload != 0,
-			Status:             pkg.Status,
-			CreatedAt:          pkg.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			PendingRequests:    asks,
-			PermanentlyExpired: isPermanentlyExpired(pkg),
-			FilesDeletedAt:     filesDeletedAt.UTC().Format("2006-01-02T15:04:05Z"),
+			PackageID:             pkg.ID,
+			Name:                  pkg.Name,
+			Message:               pkg.Message,
+			VerificationMethod:    pkg.VerificationMethod,
+			Recipients:            recs,
+			FileCount:             fileCount[pkg.ID],
+			TotalSize:             totalSize[pkg.ID],
+			DownloadCount:         maxAccess[pkg.ID],
+			MaxDownloads:          maxDownloads,
+			ExpiresAt:             pkg.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
+			IsExpired:             pkg.Status == "active" && pkg.ExpiresAt.Before(time.Now()),
+			IsDownloadLimitHit:    pkg.MaxDownloads.Valid && minAccess[pkg.ID] >= pkg.MaxDownloads.Int64,
+			NotifyOnDownload:      pkg.NotifyOnDownload != 0,
+			PreparationStatus:     pkg.PreparationStatus,
+			PreparationBytesDone:  pkg.PreparationBytesDone,
+			PreparationBytesTotal: pkg.PreparationBytesTotal,
+			PreparationProgress:   preparationProgress(pkg),
+			PreparationError:      pkg.PreparationError.String,
+			ArtifactCount:         int(artifactCount[pkg.ID]),
+			Status:                pkg.Status,
+			CreatedAt:             pkg.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			PendingRequests:       asks,
+			PermanentlyExpired:    isPermanentlyExpired(pkg),
+			FilesDeletedAt:        filesDeletedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		}
 	}
 	return items, nil

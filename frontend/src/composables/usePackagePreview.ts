@@ -1,5 +1,7 @@
-import { computed, ref } from 'vue'
+import { computed, onScopeDispose, ref } from 'vue'
 import type { AccessRequestReason, PackagePreview } from './usePackages'
+
+const preparationPollIntervalMs = 2_000
 
 // The 410 body GetPackagePreview returns for a dead package. Carries the reason
 // and sender so the page can offer to ask that person to reopen it.
@@ -24,17 +26,39 @@ export function usePackagePreview() {
   const requesting = ref(false)
   const requestError = ref<string | null>(null)
   const requestSent = ref(false)
+  let pollTimer: number | null = null
+  let loadGeneration = 0
+  let disposed = false
 
-  async function load(packageId: string) {
-    loading.value = true
-    error.value = null
-    unavailable.value = null
+  function clearPollTimer() {
+    if (pollTimer != null) {
+      window.clearTimeout(pollTimer)
+      pollTimer = null
+    }
+  }
+
+  function schedulePreparationPoll(packageId: string, generation: number) {
+    clearPollTimer()
+    if (disposed || generation !== loadGeneration || preview.value?.preparationStatus !== 'processing') return
+    pollTimer = window.setTimeout(() => void fetchPreview(packageId, generation, true), preparationPollIntervalMs)
+  }
+
+  async function fetchPreview(packageId: string, generation: number, polling: boolean) {
+    if (!polling) {
+      loading.value = true
+      error.value = null
+      unavailable.value = null
+    }
+
     try {
       const res = await fetch(`/api/packages/${encodeURIComponent(packageId)}/preview`, {
         credentials: 'same-origin',
       })
+      if (disposed || generation !== loadGeneration) return
       if (!res.ok) {
         const body = await res.json().catch(() => null)
+        if (disposed || generation !== loadGeneration) return
+        if (polling && res.status >= 500) return
         error.value = body?.error || `Request failed (${res.status})`
         // 410 means it existed and stopped working. Anything else leaves this
         // null, so no form is offered for a link that may never have been valid.
@@ -42,27 +66,52 @@ export function usePackagePreview() {
         preview.value = null
         return
       }
-      preview.value = await res.json()
+      const nextPreview = (await res.json()) as PackagePreview
+      if (disposed || generation !== loadGeneration) return
+      preview.value = nextPreview
+      error.value = null
+      unavailable.value = null
     } catch {
-      error.value = 'Failed to load package'
-      preview.value = null
+      if (disposed || generation !== loadGeneration) return
+      // A transient polling failure should not replace useful progress with an
+      // error page. Keep the last response visible and try again.
+      if (!polling) {
+        error.value = 'Failed to load package'
+        preview.value = null
+      }
     } finally {
-      loading.value = false
+      if (!disposed && generation === loadGeneration) {
+        if (!polling) loading.value = false
+        schedulePreparationPoll(packageId, generation)
+      }
     }
   }
 
-  function recordDownload(shareId: string) {
-    const file = preview.value?.files?.find((f) => f.shareId === shareId)
-    if (file) file.accessCount++
+  async function load(packageId: string) {
+    clearPollTimer()
+    const generation = ++loadGeneration
+    await fetchPreview(packageId, generation, false)
   }
 
-  // Whether every file has used its budget. Only meaningful once files are
-  // loaded and a limit is set; the server still serves the preview in this
-  // state, so this is purely a display concern.
+  function recordDownload(artifactId: string) {
+    const artifact = preview.value?.downloads?.find((item) => item.id === artifactId)
+    if (artifact) artifact.accessCount++
+  }
+
+  // Download limits apply independently to prepared artifacts, not to source
+  // manifest rows. This remains a display concern; the server enforces it.
   const allDownloadsExhausted = computed(() => {
     const p = preview.value
-    if (!p || p.maxDownloads == null || !p.files || p.files.length === 0) return false
-    return p.files.every((f) => f.accessCount >= p.maxDownloads!)
+    if (
+      !p ||
+      p.preparationStatus !== 'ready' ||
+      p.maxDownloads == null ||
+      !p.downloads ||
+      p.downloads.length === 0
+    ) {
+      return false
+    }
+    return p.downloads.every((item) => item.accessCount >= p.maxDownloads!)
   })
 
   // requestAccess asks the author to reopen the package. Unauthenticated by
@@ -112,6 +161,12 @@ export function usePackagePreview() {
       verifying.value = false
     }
   }
+
+  onScopeDispose(() => {
+    disposed = true
+    loadGeneration++
+    clearPollTimer()
+  })
 
   return {
     preview,

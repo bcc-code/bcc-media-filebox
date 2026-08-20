@@ -36,6 +36,9 @@ func twoSenders(t *testing.T, q *db.Queries) (a, b *auth.Caller) {
 		}); err != nil {
 			t.Fatalf("seed upload for %s: %v", sub, err)
 		}
+		if err := q.CompleteUpload(ctx, sub+"-up"); err != nil {
+			t.Fatalf("complete upload for %s: %v", sub, err)
+		}
 		c := &auth.Caller{UserID: user.ID, Provider: "bcc", Subject: sub, Email: sub + "@bcc.no", Name: sub}
 		if i == 0 {
 			a = c
@@ -107,6 +110,67 @@ func TestCreatePackageRejectsAnotherSendersUpload(t *testing.T) {
 		t.Fatalf("status = %d (%s), want 403", w.Code, w.Body.String())
 	}
 	if list := listPackagesAs(t, h, bob); list.Total != 0 {
+		t.Errorf("a refused create left %d packages behind", list.Total)
+	}
+}
+
+func TestCreatePackageRejectsAnIncompleteUpload(t *testing.T) {
+	q := newTestDB(t)
+	h := NewHandlers(q, t.TempDir(), nil, mail.NoopSender{}, "https://filebox.example.com")
+	alice, _ := twoSenders(t, q)
+
+	if err := q.CreateUpload(context.Background(), db.CreateUploadParams{
+		ID: "still-uploading", Filename: "unfinished.mov", Size: 2048, UserID: alice.CanonicalUserID(),
+	}); err != nil {
+		t.Fatalf("seed incomplete upload: %v", err)
+	}
+
+	w := createPackageAs(t, h, alice, `{"name":"too soon","uploadIds":["still-uploading"],"expiresInDays":7}`)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status = %d (%s), want 409", w.Code, w.Body.String())
+	}
+	if list := listPackagesAs(t, h, alice); list.Total != 0 {
+		t.Errorf("a refused create left %d packages behind", list.Total)
+	}
+}
+
+// A restored draft and the manual server picker can discover the same upload
+// at nearly the same time. The frontend merges by ID, and the API must remain a
+// second line of defence so one source cannot become two package members.
+func TestCreatePackageRejectsDuplicateUploadID(t *testing.T) {
+	q := newTestDB(t)
+	h := NewHandlers(q, t.TempDir(), nil, mail.NoopSender{}, "https://filebox.example.com")
+	alice, _ := twoSenders(t, q)
+
+	w := createPackageAs(t, h, alice, `{"name":"duplicate","uploadIds":["alice-up","alice-up"],"expiresInDays":7}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d (%s), want 400", w.Code, w.Body.String())
+	}
+	if list := listPackagesAs(t, h, alice); list.Total != 0 {
+		t.Errorf("a refused duplicate created %d package(s)", list.Total)
+	}
+}
+
+func TestCreatePackageRejectsACompletedPartialUpload(t *testing.T) {
+	q := newTestDB(t)
+	h := NewHandlers(q, t.TempDir(), nil, mail.NoopSender{}, "https://filebox.example.com")
+	alice, _ := twoSenders(t, q)
+	ctx := context.Background()
+
+	if err := q.CreateUpload(ctx, db.CreateUploadParams{
+		ID: "partial", Filename: "partial.mov", Size: 2048, UserID: alice.CanonicalUserID(), IsPartial: 1,
+	}); err != nil {
+		t.Fatalf("seed partial upload: %v", err)
+	}
+	if err := q.CompleteUpload(ctx, "partial"); err != nil {
+		t.Fatalf("complete partial upload: %v", err)
+	}
+
+	w := createPackageAs(t, h, alice, `{"name":"partial package","uploadIds":["partial"],"expiresInDays":7}`)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status = %d (%s), want 409", w.Code, w.Body.String())
+	}
+	if list := listPackagesAs(t, h, alice); list.Total != 0 {
 		t.Errorf("a refused create left %d packages behind", list.Total)
 	}
 }

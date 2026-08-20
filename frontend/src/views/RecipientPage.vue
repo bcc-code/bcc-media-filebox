@@ -71,12 +71,25 @@ function signInBcc() {
             @submit-password="(pw) => verifyPassword(packageId, pw)"
             @sign-in-bcc="signInBcc"
           />
-          <template v-else-if="allDownloadsExhausted">
-            <PackageUnavailableScreen
-              heading="Download limit reached"
-              message="Every file in this package has reached its download limit."
+          <template v-else>
+            <PackageDownloadScreen
+              :package-name="preview.name"
+              :sender-name="preview.senderName"
+              :message="preview.message"
+              :files="preview.files ?? []"
+              :downloads="preview.downloads ?? []"
+              :expires-at="preview.expiresAt"
+              :max-downloads="preview.maxDownloads"
+              :preparation-status="preview.preparationStatus"
+              :preparation-bytes-done="preview.preparationBytesDone"
+              :preparation-bytes-total="preview.preparationBytesTotal"
+              :preparation-progress="preview.preparationProgress"
+              :preparation-error="preview.preparationError"
+              :interactive="true"
+              @downloaded="recordDownload"
             />
             <PackageAccessRequestForm
+              v-if="allDownloadsExhausted"
               reason="limit_reached"
               :sender-name="preview.senderName"
               :recipients-only="preview.recipientsOnly"
@@ -87,17 +100,6 @@ function signInBcc() {
               @submit="(email, message) => requestAccess(packageId, email, message)"
             />
           </template>
-          <PackageDownloadScreen
-            v-else
-            :package-name="preview.name"
-            :sender-name="preview.senderName"
-            :message="preview.message"
-            :files="preview.files ?? []"
-            :expires-at="preview.expiresAt"
-            :max-downloads="preview.maxDownloads"
-            :interactive="true"
-            @downloaded="recordDownload"
-          />
         </template>
       </div>
     </div>

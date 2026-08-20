@@ -46,7 +46,7 @@ func (q *Queries) CountRecentPackageAccessRequests(ctx context.Context, arg Coun
 const createPackage = `-- name: CreatePackage :one
 INSERT INTO packages (id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, notify_on_download, notify_mute_token)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token
+RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
 type CreatePackageParams struct {
@@ -90,6 +90,10 @@ func (q *Queries) CreatePackage(ctx context.Context, arg CreatePackageParams) (P
 		&i.Status,
 		&i.CreatedAt,
 		&i.NotifyMuteToken,
+		&i.PreparationStatus,
+		&i.PreparationBytesTotal,
+		&i.PreparationBytesDone,
+		&i.PreparationError,
 	)
 	return i, err
 }
@@ -176,7 +180,7 @@ SET expires_at    = ?,
     max_downloads = ?,
     status        = 'active'
 WHERE id = ?
-RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token
+RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
 type ExtendPackageParams struct {
@@ -185,7 +189,7 @@ type ExtendPackageParams struct {
 	ID           string
 }
 
-// Pushes expiry out, replaces the per-file download budget, and clears
+// Pushes expiry out, replaces the per-artifact download budget, and clears
 // 'revoked': an author who explicitly extends means to make it reachable.
 func (q *Queries) ExtendPackage(ctx context.Context, arg ExtendPackageParams) (Package, error) {
 	row := q.db.QueryRowContext(ctx, extendPackage, arg.ExpiresAt, arg.MaxDownloads, arg.ID)
@@ -204,6 +208,10 @@ func (q *Queries) ExtendPackage(ctx context.Context, arg ExtendPackageParams) (P
 		&i.Status,
 		&i.CreatedAt,
 		&i.NotifyMuteToken,
+		&i.PreparationStatus,
+		&i.PreparationBytesTotal,
+		&i.PreparationBytesDone,
+		&i.PreparationError,
 	)
 	return i, err
 }
@@ -309,7 +317,7 @@ func (q *Queries) GetPackageAccessRequest(ctx context.Context, id string) (Packa
 }
 
 const getPackageByID = `-- name: GetPackageByID :one
-SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token FROM packages WHERE id = ?
+SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error FROM packages WHERE id = ?
 `
 
 func (q *Queries) GetPackageByID(ctx context.Context, id string) (Package, error) {
@@ -329,6 +337,10 @@ func (q *Queries) GetPackageByID(ctx context.Context, id string) (Package, error
 		&i.Status,
 		&i.CreatedAt,
 		&i.NotifyMuteToken,
+		&i.PreparationStatus,
+		&i.PreparationBytesTotal,
+		&i.PreparationBytesDone,
+		&i.PreparationError,
 	)
 	return i, err
 }
@@ -337,8 +349,9 @@ const getPackageMaxAccessCount = `-- name: GetPackageMaxAccessCount :one
 SELECT CAST(COALESCE(MAX(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?
 `
 
-// max_downloads is a per-file budget (see GetShare), so the owner's download
-// count is the most-downloaded file's, not the sum across every file.
+// Legacy/fallback aggregate. New package artifacts keep member share counters
+// in sync, so this still reads as the most-downloaded artifact rather than a
+// sum across the package.
 func (q *Queries) GetPackageMaxAccessCount(ctx context.Context, packageID string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getPackageMaxAccessCount, packageID)
 	var column_1 int64
@@ -453,7 +466,7 @@ const incrementPackageDownloadCount = `-- name: IncrementPackageDownloadCount :o
 UPDATE packages
 SET download_count = download_count + 1
 WHERE id = ?
-RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token
+RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
 func (q *Queries) IncrementPackageDownloadCount(ctx context.Context, id string) (Package, error) {
@@ -473,6 +486,10 @@ func (q *Queries) IncrementPackageDownloadCount(ctx context.Context, id string) 
 		&i.Status,
 		&i.CreatedAt,
 		&i.NotifyMuteToken,
+		&i.PreparationStatus,
+		&i.PreparationBytesTotal,
+		&i.PreparationBytesDone,
+		&i.PreparationError,
 	)
 	return i, err
 }
@@ -566,7 +583,7 @@ func (q *Queries) ListPackageRecipientsByPackageIDs(ctx context.Context, package
 }
 
 const listPackagesByUser = `-- name: ListPackagesByUser :many
-SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token FROM packages
+SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error FROM packages
 WHERE created_by_user_id = ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
@@ -601,6 +618,10 @@ func (q *Queries) ListPackagesByUser(ctx context.Context, arg ListPackagesByUser
 			&i.Status,
 			&i.CreatedAt,
 			&i.NotifyMuteToken,
+			&i.PreparationStatus,
+			&i.PreparationBytesTotal,
+			&i.PreparationBytesDone,
+			&i.PreparationError,
 		); err != nil {
 			return nil, err
 		}
@@ -845,7 +866,7 @@ func (q *Queries) MarkPackageRecipientVerified(ctx context.Context, id int64) er
 const mutePackageNotificationsByToken = `-- name: MutePackageNotificationsByToken :one
 UPDATE packages SET notify_on_download = 0
 WHERE notify_mute_token = ? AND notify_mute_token IS NOT NULL
-RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token
+RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
 // The mail's one-click opt-out. Idempotent: an already-muted package still
@@ -868,6 +889,10 @@ func (q *Queries) MutePackageNotificationsByToken(ctx context.Context, notifyMut
 		&i.Status,
 		&i.CreatedAt,
 		&i.NotifyMuteToken,
+		&i.PreparationStatus,
+		&i.PreparationBytesTotal,
+		&i.PreparationBytesDone,
+		&i.PreparationError,
 	)
 	return i, err
 }

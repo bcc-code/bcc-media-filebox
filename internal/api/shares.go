@@ -20,10 +20,27 @@ import (
 // checks the signature only at request start), but lower breaks paused resumes.
 const presignTTL = 5 * time.Minute
 
-// GetShare serves a share's underlying file. Expiry, download limits, and
-// verification all live on the parent package, not here.
+// GetShare preserves old share URLs. Shares that belong to the artifact model
+// are served through the artifact path so they cannot bypass preparation state
+// or the artifact's download budget. An unmapped share retains the legacy
+// one-file behavior for compatibility.
 func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodHead {
+		w.Header().Set("Allow", http.MethodGet)
+		writeJSONError(w, http.StatusMethodNotAllowed, "use GET to download this item")
+		return
+	}
 	shareID := r.PathValue("id")
+
+	artifact, err := h.queries.GetPackageArtifactByShareID(r.Context(), shareID)
+	if err == nil {
+		h.servePackageArtifact(w, r, artifact.ID)
+		return
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		writeJSONError(w, http.StatusInternalServerError, "failed to prepare download")
+		return
+	}
 
 	share, err := h.queries.GetShareByID(r.Context(), shareID)
 	if err != nil {
@@ -89,7 +106,11 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 				targetDir = target.Path
 			}
 		}
-		filePath = filepath.Join(targetDir, upload.Filename)
+		filePath, err = safeLocalUploadPath(targetDir, upload.Filename)
+		if err != nil {
+			writeJSONError(w, http.StatusNotFound, "file not found")
+			return
+		}
 
 		if _, err := os.Stat(filePath); err != nil {
 			writeJSONError(w, http.StatusNotFound, "file not found on disk")

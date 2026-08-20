@@ -1,25 +1,37 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { PackageFile } from '../../composables/usePackages'
+import type { PackageArtifact, PackageSourceFile, PreparationStatus } from '../../composables/usePackages'
 
 const props = defineProps<{
   packageName: string
   senderName: string
   message: string
-  files: PackageFile[]
+  files: PackageSourceFile[]
+  downloads: PackageArtifact[]
   expiresAt: string
   maxDownloads: number | null
-  // When false, file rows are inert — the sender's "Recipient preview" tab, so
-  // trying it out never increments the real access counts.
+  preparationStatus: PreparationStatus
+  preparationBytesDone: number
+  preparationBytesTotal: number
+  preparationProgress: number
+  preparationError?: string | null
   interactive: boolean
 }>()
 
-// The download is a plain <a href download> so the browser streams it natively,
-// which means nothing here sees it finish. The server increments access_count as
-// soon as the request arrives, so emitting on click matches it closely enough.
-const emit = defineEmits<{ downloaded: [shareId: string] }>()
+// The browser streams artifacts directly. The server records an access as soon
+// as the request arrives, so updating the visible count on click is the closest
+// useful reflection of it here.
+const emit = defineEmits<{ downloaded: [artifactId: string] }>()
 
-const totalSize = computed(() => props.files.reduce((sum, f) => sum + f.size, 0))
+const totalSize = computed(() => props.files.reduce((sum, file) => sum + file.size, 0))
+const progress = computed(() => Math.min(100, Math.max(0, props.preparationProgress || 0)))
+const allArtifactsExhausted = computed(
+  () =>
+    props.preparationStatus === 'ready' &&
+    props.maxDownloads != null &&
+    props.downloads.length > 0 &&
+    props.downloads.every((artifact) => isExhausted(artifact)),
+)
 
 function fmtBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -39,24 +51,13 @@ function expiryText(iso: string): string {
   return `expires in ${days} day${days === 1 ? '' : 's'}`
 }
 
-function isExhausted(f: PackageFile): boolean {
-  return props.maxDownloads != null && f.accessCount >= props.maxDownloads
+function isExhausted(artifact: PackageArtifact): boolean {
+  return props.maxDownloads != null && artifact.accessCount >= props.maxDownloads
 }
 
-// "Download all" with no backend endpoint: fire each file's own link. Fine for a
-// handful; zipping many small files is a separate, unbuilt piece.
-function downloadAll() {
-  if (!props.interactive) return
-  for (const f of props.files) {
-    if (isExhausted(f)) continue
-    const a = document.createElement('a')
-    a.href = `/api/shares/${encodeURIComponent(f.shareId)}`
-    a.download = f.filename
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    emit('downloaded', f.shareId)
-  }
+function artifactKindText(artifact: PackageArtifact): string {
+  if (artifact.kind === 'file') return 'Original file'
+  return `ZIP archive · ${artifact.fileCount} file${artifact.fileCount === 1 ? '' : 's'}`
 }
 </script>
 
@@ -72,41 +73,102 @@ function downloadAll() {
   <h2 class="public-pkgname">{{ packageName }}</h2>
   <div v-if="message" class="public-msg">{{ message }}</div>
 
-  <div class="public-files">
-    <div v-for="f in files" :key="f.shareId" class="public-file">
-      <span class="fic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
-      <span class="fn">{{ f.filename }}</span>
-      <span class="fs">{{ fmtBytes(f.size) }}</span>
-      <span class="fs">{{ f.accessCount }}{{ maxDownloads ? '/' + maxDownloads : '' }} downloads<template v-if="isExhausted(f)"> · limit reached</template></span>
-      <span v-if="isExhausted(f)" class="file-dl inert" title="This file has reached its download limit">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-      </span>
-      <a
-        v-else-if="interactive"
-        class="file-dl"
-        :href="`/api/shares/${encodeURIComponent(f.shareId)}`"
-        :download="f.filename"
-        title="Download this file"
-        @click="emit('downloaded', f.shareId)"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-      </a>
-      <span v-else class="file-dl inert" title="Preview only — download disabled">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-      </span>
+  <section class="public-section">
+    <div class="public-section-head">
+      <span>Files in this package</span>
+      <span>{{ files.length }}</span>
     </div>
+    <div class="public-files source-manifest">
+      <div v-for="file in files" :key="file.id" class="public-file">
+        <span class="fic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+        <span class="fn">{{ file.filename }}</span>
+        <span class="fs">{{ fmtBytes(file.size) }}</span>
+      </div>
+      <div v-if="!files.length" class="public-files-empty">No source files are available.</div>
+    </div>
+    <div class="public-total">
+      <span>{{ files.length }} file{{ files.length === 1 ? '' : 's' }}</span>
+      <span class="mono">{{ fmtBytes(totalSize) }}</span>
+    </div>
+  </section>
+
+  <div v-if="preparationStatus === 'processing'" class="preparation-state" aria-live="polite">
+    <div class="preparation-heading">
+      <span>Preparing your downloads</span>
+      <span class="mono">{{ Math.round(progress) }}%</span>
+    </div>
+    <div
+      class="preparation-track"
+      role="progressbar"
+      aria-label="Preparing downloads"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      :aria-valuenow="Math.round(progress)"
+    >
+      <span class="preparation-fill" :style="{ width: `${progress}%` }"></span>
+    </div>
+    <div class="preparation-meta">
+      <span v-if="preparationBytesTotal > 0">
+        {{ fmtBytes(preparationBytesDone) }} of {{ fmtBytes(preparationBytesTotal) }} processed
+      </span>
+      <span v-else>Starting preparation…</span>
+    </div>
+    <p>Your files are safe. This page updates automatically while the download files are being prepared.</p>
   </div>
 
-  <div class="public-total"><span>{{ files.length }} file{{ files.length === 1 ? '' : 's' }}</span><span class="mono">{{ fmtBytes(totalSize) }}</span></div>
-
-  <div class="public-dl">
-    <button class="btn btn-primary btn-block" :disabled="!interactive" @click="downloadAll">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-      Download all · {{ fmtBytes(totalSize) }}
-    </button>
+  <div v-else-if="preparationStatus === 'failed'" class="preparation-state failed" role="alert">
+    <div class="preparation-heading">We couldn't prepare the downloads</div>
+    <p>{{ preparationError || 'Something went wrong while preparing this package. Please ask the sender to try again.' }}</p>
   </div>
+
+  <section v-else class="public-section downloads-section">
+    <div class="public-section-head">
+      <span>Downloads</span>
+      <span>{{ downloads.length }}</span>
+    </div>
+    <div v-if="downloads.length" class="artifact-list">
+      <div v-for="artifact in downloads" :key="artifact.id" class="artifact-row">
+        <span class="artifact-icon" :class="artifact.kind">
+          <svg v-if="artifact.kind === 'zip'" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M10 6h2M10 10h2M10 14h2M10 18h2"/></svg>
+          <svg v-else width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        </span>
+        <span class="artifact-body">
+          <span class="artifact-name">{{ artifact.filename }}</span>
+          <span class="artifact-meta">
+            {{ artifactKindText(artifact) }} · {{ fmtBytes(artifact.size) }} ·
+            {{ artifact.accessCount }}{{ maxDownloads != null ? '/' + maxDownloads : '' }} downloads
+            <template v-if="isExhausted(artifact)"> · limit reached</template>
+          </span>
+        </span>
+        <span v-if="isExhausted(artifact)" class="artifact-dl inert" title="This download has reached its limit">
+          Unavailable
+        </span>
+        <a
+          v-else-if="interactive"
+          class="artifact-dl"
+          :href="`/api/artifacts/${encodeURIComponent(artifact.id)}`"
+          :download="artifact.filename"
+          @click="emit('downloaded', artifact.id)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+          Download
+        </a>
+        <span v-else class="artifact-dl inert" title="Preview only — download disabled">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+          Download
+        </span>
+      </div>
+    </div>
+    <div v-else class="preparation-state failed">
+      <div class="preparation-heading">No downloads are available</div>
+      <p>The package finished preparing, but it doesn't contain a downloadable item.</p>
+    </div>
+    <div v-if="allArtifactsExhausted" class="download-limit-note">
+      Every download item has reached its limit. You can ask the sender to make the package available again.
+    </div>
+  </section>
 
   <div class="public-note">
-    {{ expiryText(expiresAt) }}<template v-if="maxDownloads"> · {{ maxDownloads }} downloads allowed</template>
+    {{ expiryText(expiresAt) }}<template v-if="maxDownloads != null"> · {{ maxDownloads }} downloads allowed per item</template>
   </div>
 </template>

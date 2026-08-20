@@ -24,7 +24,7 @@ func newTestDB(t *testing.T) *db.Queries {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "test.db")
-	conn, err := sql.Open("sqlite", path+"?_journal_mode=WAL&_busy_timeout=5000")
+	conn, err := sql.Open("sqlite", dbpkg.SQLiteDSN(path))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -60,10 +60,14 @@ func (f *fakeSender) Send(_ context.Context, msg mail.Message) error {
 func seedPackage(t *testing.T, q *db.Queries, emails []string) (db.Package, []db.PackageRecipient) {
 	t.Helper()
 	ctx := context.Background()
+	author, err := q.UpsertUser(ctx, db.UpsertUserParams{Provider: "bcc", Subject: "mail-author"})
+	if err != nil {
+		t.Fatalf("create package author: %v", err)
+	}
 
 	pkg, err := q.CreatePackage(ctx, db.CreatePackageParams{
 		ID:                 "pkg123",
-		CreatedByUserID:    1,
+		CreatedByUserID:    author.ID,
 		Name:               "Summer conference rushes",
 		Message:            "Here are the files.",
 		VerificationMethod: "none",

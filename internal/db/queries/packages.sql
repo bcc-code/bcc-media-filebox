@@ -43,8 +43,9 @@ WHERE s.package_id = ?
 ORDER BY s.created_at ASC;
 
 -- name: GetPackageMaxAccessCount :one
--- max_downloads is a per-file budget (see GetShare), so the owner's download
--- count is the most-downloaded file's, not the sum across every file.
+-- Legacy/fallback aggregate. New package artifacts keep member share counters
+-- in sync, so this still reads as the most-downloaded artifact rather than a
+-- sum across the package.
 SELECT CAST(COALESCE(MAX(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?;
 
 -- name: GetPackageMinAccessCount :one
@@ -115,7 +116,7 @@ SET sent_at = NULL, send_error = ?
 WHERE id = ?;
 
 -- name: ExtendPackage :one
--- Pushes expiry out, replaces the per-file download budget, and clears
+-- Pushes expiry out, replaces the per-artifact download budget, and clears
 -- 'revoked': an author who explicitly extends means to make it reachable.
 UPDATE packages
 SET expires_at    = ?,

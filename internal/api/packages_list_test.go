@@ -148,10 +148,10 @@ func TestBuildPackageListItemsWithNoPackages(t *testing.T) {
 	}
 }
 
-// A share whose upload row was deleted still counts toward the download limit:
-// shares has no ON DELETE and the foreign_keys pragma is off, so the row stays.
-// The joined file list drops it, which is why the aggregates are their own query.
-func TestBuildPackageListItemsCountsSharesWithDeletedUploads(t *testing.T) {
+// A shared source is retained while its package references it. Foreign-key
+// enforcement prevents cleanup from silently turning a package manifest into
+// an orphan with different limit semantics.
+func TestSharedUploadCannotBeDeletedWhilePackageReferencesIt(t *testing.T) {
 	q := newTestDB(t)
 	h := NewHandlers(q, t.TempDir(), nil, mail.NoopSender{}, "https://filebox.example.com")
 	ctx := context.Background()
@@ -163,16 +163,16 @@ func TestBuildPackageListItemsCountsSharesWithDeletedUploads(t *testing.T) {
 	limit := int64(1)
 	pkg := seedListPackage(t, q, user.ID, "orphan", &limit, map[string]int64{"gone.mov": 1}, nil, nil)
 
-	if err := q.DeleteUpload(ctx, "orphan-gone.mov"); err != nil {
-		t.Fatalf("delete upload: %v", err)
+	if err := q.DeleteUpload(ctx, "orphan-gone.mov"); err == nil {
+		t.Fatal("deleting a shared upload unexpectedly succeeded")
 	}
 
 	items, err := h.buildPackageListItems(ctx, []db.Package{pkg})
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	if items[0].FileCount != 0 {
-		t.Errorf("fileCount = %d, want 0 (the join drops the orphan)", items[0].FileCount)
+	if items[0].FileCount != 1 {
+		t.Errorf("fileCount = %d, want retained source", items[0].FileCount)
 	}
 	if !items[0].IsDownloadLimitHit {
 		t.Error("isDownloadLimitHit = false, want true (the orphaned share still counts)")

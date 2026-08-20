@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 
 export type VerificationMethod = 'none' | 'password' | 'bcc_login' | 'email_otp' | 'magic_link'
+export type PreparationStatus = 'processing' | 'ready' | 'failed'
 
 // Mirrors package_access_requests: a recipient's unanswered ask to reopen a dead
 // package. What they need goes in `message`; `reason` is server-derived.
@@ -33,11 +34,17 @@ export interface PackageInfo {
   pendingRequests: AccessRequest[]
   permanentlyExpired: boolean
   filesDeletedAt: string
+  preparationStatus: PreparationStatus
+  preparationBytesDone: number
+  preparationBytesTotal: number
+  preparationProgress: number
+  preparationError?: string | null
+  artifactCount: number
 }
 
 export interface ExtendPackageInput {
   expiresInDays: number
-  // Replaces the stored per-file budget rather than adding to it; omit for
+  // Replaces the stored per-artifact budget rather than adding to it; omit for
   // unlimited. Always send it, or an extension silently lifts the limit.
   maxDownloads?: number
 }
@@ -58,12 +65,22 @@ export interface CreatePackageResult {
   packageId: string
   packageUrl: string
   expiresAt: string
+  preparationStatus: PreparationStatus
+  artifactCount: number
 }
 
-export interface PackageFile {
-  shareId: string
+export interface PackageSourceFile {
+  id: string
   filename: string
   size: number
+}
+
+export interface PackageArtifact {
+  id: string
+  filename: string
+  size: number
+  kind: 'zip' | 'file'
+  fileCount: number
   accessCount: number
 }
 
@@ -79,7 +96,14 @@ export interface PackagePreview {
   // Whether an access request has to come from one of the addresses the package
   // was mailed to. Only words the request form's copy.
   recipientsOnly: boolean
-  files?: PackageFile[]
+  preparationStatus: PreparationStatus
+  preparationBytesDone: number
+  preparationBytesTotal: number
+  preparationProgress: number
+  preparationError?: string | null
+  artifactCount: number
+  files?: PackageSourceFile[]
+  downloads?: PackageArtifact[]
 }
 
 async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
@@ -102,20 +126,87 @@ async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+interface PackageListResponse {
+  packages: PackageInfo[]
+  page: number
+  pageSize: number
+  total: number
+}
+
 const packages = ref<PackageInfo[]>([])
 const total = ref(0)
 const loading = ref(false)
 const lastError = ref<string | null>(null)
 const currentPage = ref(1)
 const currentPageSize = ref(20)
+const preparationPollIntervalMs = 2_000
+let preparationPollingEnabled = false
+let preparationPollTimer: number | null = null
+let preparationPollRequestRunning = false
+
+function clearPreparationPollTimer() {
+  if (preparationPollTimer != null) {
+    window.clearTimeout(preparationPollTimer)
+    preparationPollTimer = null
+  }
+}
+
+function schedulePreparationPoll() {
+  clearPreparationPollTimer()
+  if (!preparationPollingEnabled || !packages.value.some((pkg) => pkg.preparationStatus === 'processing')) return
+  preparationPollTimer = window.setTimeout(() => void refreshProcessingPackages(), preparationPollIntervalMs)
+}
+
+// Refresh only the loaded pages that currently contain a processing package.
+// This preserves the user's pagination position and keeps background polling
+// silent instead of flashing the list's initial loading state.
+async function refreshProcessingPackages() {
+  if (!preparationPollingEnabled) return
+  if (loading.value || preparationPollRequestRunning) {
+    schedulePreparationPoll()
+    return
+  }
+
+  const pages = new Set<number>()
+  for (const [index, pkg] of packages.value.entries()) {
+    if (pkg.preparationStatus === 'processing') pages.add(Math.floor(index / currentPageSize.value) + 1)
+  }
+  if (pages.size === 0) return
+
+  preparationPollRequestRunning = true
+  try {
+    const responses = await Promise.all(
+      [...pages].map((page) =>
+        jsonFetch<PackageListResponse>(`/api/packages?page=${page}&pageSize=${currentPageSize.value}`),
+      ),
+    )
+    const refreshed = new Map(responses.flatMap((response) => response.packages).map((pkg) => [pkg.packageId, pkg]))
+    packages.value = packages.value.map((pkg) => refreshed.get(pkg.packageId) ?? pkg)
+    if (responses[0]) total.value = responses[0].total
+  } catch {
+    // A temporary refresh failure should not replace the existing package
+    // cards with an error. The next interval retries it.
+  } finally {
+    preparationPollRequestRunning = false
+    schedulePreparationPoll()
+  }
+}
+
+function startPreparationPolling() {
+  preparationPollingEnabled = true
+  schedulePreparationPoll()
+}
+
+function stopPreparationPolling() {
+  preparationPollingEnabled = false
+  clearPreparationPollTimer()
+}
 
 async function fetchPackages(page = 1, pageSize = 20) {
   loading.value = true
   lastError.value = null
   try {
-    const data = await jsonFetch<{ packages: PackageInfo[]; page: number; pageSize: number; total: number }>(
-      `/api/packages?page=${page}&pageSize=${pageSize}`,
-    )
+    const data = await jsonFetch<PackageListResponse>(`/api/packages?page=${page}&pageSize=${pageSize}`)
     packages.value = data.packages
     total.value = data.total
     currentPage.value = data.page
@@ -124,6 +215,7 @@ async function fetchPackages(page = 1, pageSize = 20) {
     lastError.value = (e as Error).message
   } finally {
     loading.value = false
+    schedulePreparationPoll()
   }
 }
 
@@ -135,7 +227,7 @@ async function loadMorePackages() {
   lastError.value = null
   try {
     const nextPage = currentPage.value + 1
-    const data = await jsonFetch<{ packages: PackageInfo[]; page: number; pageSize: number; total: number }>(
+    const data = await jsonFetch<PackageListResponse>(
       `/api/packages?page=${nextPage}&pageSize=${currentPageSize.value}`,
     )
     packages.value = [...packages.value, ...data.packages]
@@ -145,6 +237,7 @@ async function loadMorePackages() {
     lastError.value = (e as Error).message
   } finally {
     loading.value = false
+    schedulePreparationPoll()
   }
 }
 
@@ -164,6 +257,7 @@ async function extendPackage(packageId: string, input: ExtendPackageInput): Prom
   })
   const i = packages.value.findIndex((p) => p.packageId === packageId)
   if (i !== -1) packages.value[i] = updated
+  schedulePreparationPoll()
   return updated
 }
 
@@ -199,6 +293,7 @@ async function revokePackage(packageId: string) {
   await jsonFetch<void>(`/api/packages/${encodeURIComponent(packageId)}`, { method: 'DELETE' })
   const pkg = packages.value.find((p) => p.packageId === packageId)
   if (pkg) pkg.status = 'revoked'
+  schedulePreparationPoll()
 }
 
 export function usePackages() {
@@ -209,6 +304,8 @@ export function usePackages() {
     lastError,
     fetchPackages,
     loadMorePackages,
+    startPreparationPolling,
+    stopPreparationPolling,
     createPackage,
     revokePackage,
     setNotifyOnDownload,

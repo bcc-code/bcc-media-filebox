@@ -197,7 +197,7 @@ func (h *Handlers) RequestPackageAccess(w http.ResponseWriter, r *http.Request) 
 type extendPackageRequest struct {
 	// Counted from now, not from the old expiry.
 	ExpiresInDays int `json:"expiresInDays"`
-	// Replaces the stored per-file budget rather than adding to it; null means
+	// Replaces the stored per-artifact budget rather than adding to it; null means
 	// unlimited, as in CreatePackageRequest.
 	MaxDownloads *int `json:"maxDownloads"`
 }
@@ -269,6 +269,12 @@ func (h *Handlers) ExtendPackage(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(granted) > 0 {
 		go h.notifyAccessGranted(updated, granted, caller)
+	}
+	// A package may have finished preparing while revoked or expired, in which
+	// case its original recipient mail was intentionally left unsent. Reopening
+	// it is the point at which that durable delivery can resume.
+	if updated.PreparationStatus == "ready" {
+		go h.notifyPreparedPackage(updated.ID)
 	}
 
 	item, err := h.buildPackageListItem(r.Context(), updated)

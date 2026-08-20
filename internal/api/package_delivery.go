@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -13,7 +14,7 @@ import (
 )
 
 // packageVerified reports whether r's caller has satisfied the package's
-// verification_method. Shared by GetPackagePreview and GetShare, which must
+// verification_method. Shared by preview and artifact delivery, which must
 // agree on what counts as verified.
 func (h *Handlers) packageVerified(r *http.Request, pkg db.Package) bool {
 	switch pkg.VerificationMethod {
@@ -39,25 +40,40 @@ func (h *Handlers) packageVerified(r *http.Request, pkg db.Package) bool {
 }
 
 type packageFileView struct {
-	ShareID     string `json:"shareId"`
+	ID       string `json:"id"`
+	Filename string `json:"filename"`
+	Size     int64  `json:"size"`
+}
+
+type packageArtifactView struct {
+	ID          string `json:"id"`
 	Filename    string `json:"filename"`
 	Size        int64  `json:"size"`
+	Kind        string `json:"kind"`
+	FileCount   int    `json:"fileCount"`
 	AccessCount int64  `json:"accessCount"`
 }
 
 type packagePreviewResponse struct {
-	Name               string `json:"name"`
-	SenderName         string `json:"senderName"`
-	Message            string `json:"message"`
-	VerificationMethod string `json:"verificationMethod"`
-	ExpiresAt          string `json:"expiresAt"`
-	MaxDownloads       *int64 `json:"maxDownloads"`
-	DownloadCount      int64  `json:"downloadCount"`
-	Verified           bool   `json:"verified"`
+	Name                  string `json:"name"`
+	SenderName            string `json:"senderName"`
+	Message               string `json:"message"`
+	VerificationMethod    string `json:"verificationMethod"`
+	ExpiresAt             string `json:"expiresAt"`
+	MaxDownloads          *int64 `json:"maxDownloads"`
+	DownloadCount         int64  `json:"downloadCount"`
+	PreparationStatus     string `json:"preparationStatus"`
+	PreparationBytesDone  int64  `json:"preparationBytesDone"`
+	PreparationBytesTotal int64  `json:"preparationBytesTotal"`
+	PreparationProgress   int    `json:"preparationProgress"`
+	PreparationError      string `json:"preparationError,omitempty"`
+	ArtifactCount         int    `json:"artifactCount"`
+	Verified              bool   `json:"verified"`
 	// Whether an access request must come from a named recipient. Only words the
 	// request form's copy; the rule itself lives in RequestPackageAccess.
-	RecipientsOnly bool              `json:"recipientsOnly"`
-	Files          []packageFileView `json:"files,omitempty"`
+	RecipientsOnly bool                  `json:"recipientsOnly"`
+	Files          []packageFileView     `json:"files,omitempty"`
+	Downloads      []packageArtifactView `json:"downloads,omitempty"`
 }
 
 // packageHasRecipients reports whether the package was mailed to named
@@ -81,7 +97,7 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// unavailableReason is passed nil so it skips the download limit: viewing
-	// isn't downloading, and GetShare gates each file separately.
+	// isn't downloading, and artifact delivery gates each item separately.
 	if reason := unavailableReason(pkg, nil); reason != "" {
 		h.writePackageUnavailable(w, r, pkg, reason)
 		return
@@ -97,6 +113,14 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "Failed to compute package downloads")
 		return
 	}
+	artifactAccess, err := h.queries.GetPackageArtifactAccessCounts(r.Context(), pkg.ID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Failed to compute package downloads")
+		return
+	}
+	if artifactAccess.ArtifactCount > 0 {
+		maxAccessCount = artifactAccess.MaxAccessCount
+	}
 
 	sender, err := h.queries.GetUser(r.Context(), pkg.CreatedByUserID)
 	if err != nil {
@@ -105,15 +129,23 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := packagePreviewResponse{
-		Name:               pkg.Name,
-		SenderName:         sender.Name.String,
-		Message:            pkg.Message,
-		VerificationMethod: pkg.VerificationMethod,
-		ExpiresAt:          pkg.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
-		MaxDownloads:       maxDownloads,
-		DownloadCount:      maxAccessCount,
-		Verified:           h.packageVerified(r, pkg),
-		RecipientsOnly:     h.packageHasRecipients(r.Context(), pkg.ID),
+		Name:                  pkg.Name,
+		SenderName:            sender.Name.String,
+		Message:               pkg.Message,
+		VerificationMethod:    pkg.VerificationMethod,
+		ExpiresAt:             pkg.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z"),
+		MaxDownloads:          maxDownloads,
+		DownloadCount:         maxAccessCount,
+		PreparationStatus:     pkg.PreparationStatus,
+		PreparationBytesDone:  pkg.PreparationBytesDone,
+		PreparationBytesTotal: pkg.PreparationBytesTotal,
+		PreparationProgress:   preparationProgress(pkg),
+		ArtifactCount:         int(artifactAccess.ArtifactCount),
+		Verified:              h.packageVerified(r, pkg),
+		RecipientsOnly:        h.packageHasRecipients(r.Context(), pkg.ID),
+	}
+	if pkg.PreparationStatus == "failed" {
+		resp.PreparationError = "Package preparation failed. Please contact the sender."
 	}
 
 	if resp.Verified {
@@ -125,13 +157,35 @@ func (h *Handlers) GetPackagePreview(w http.ResponseWriter, r *http.Request) {
 		files := make([]packageFileView, len(rows))
 		for i, row := range rows {
 			files[i] = packageFileView{
-				ShareID:     row.ShareID,
-				Filename:    row.Filename,
-				Size:        row.Size,
-				AccessCount: row.AccessCount,
+				ID:       "source-" + strconv.Itoa(i+1),
+				Filename: row.Filename,
+				Size:     row.Size,
 			}
 		}
 		resp.Files = files
+
+		artifacts, err := h.queries.ListPackageArtifacts(r.Context(), pkg.ID)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Failed to list package downloads")
+			return
+		}
+		downloads := make([]packageArtifactView, 0, len(artifacts))
+		for _, artifact := range artifacts {
+			members, err := h.queries.ListPackageArtifactMembersWithUploads(r.Context(), artifact.ID)
+			if err != nil {
+				writeJSONError(w, http.StatusInternalServerError, "Failed to list package downloads")
+				return
+			}
+			downloads = append(downloads, packageArtifactView{
+				ID:          artifact.ID,
+				Filename:    artifact.Filename,
+				Size:        artifact.Size,
+				Kind:        artifact.Kind,
+				FileCount:   len(members),
+				AccessCount: artifact.AccessCount,
+			})
+		}
+		resp.Downloads = downloads
 	}
 
 	writeJSON(w, http.StatusOK, resp)
@@ -211,8 +265,9 @@ func isPermanentlyExpired(pkg db.Package) bool {
 }
 
 // unavailableReason names why pkg is unreachable, or "" if it isn't.
-// minAccessCount is the least-downloaded share's count (GetPackageMinAccessCount);
-// nil skips the limit check, since the limit is per file, not per package.
+// minAccessCount is the selected artifact's count for a download, or the least
+// downloaded item for whole-package availability. Nil skips the limit check,
+// since the limit is per downloadable artifact rather than a shared pool.
 func unavailableReason(pkg db.Package, minAccessCount *int64) string {
 	switch {
 	case isPermanentlyExpired(pkg):
@@ -262,10 +317,10 @@ func (h *Handlers) writePackageUnavailable(w http.ResponseWriter, r *http.Reques
 		senderName = sender.Name.String
 	}
 	writeJSON(w, http.StatusGone, packageUnavailableResponse{
-		Error:      unavailableMessage(reason),
-		Reason:     reason,
-		Name:       pkg.Name,
-		SenderName: senderName,
+		Error:            unavailableMessage(reason),
+		Reason:           reason,
+		Name:             pkg.Name,
+		SenderName:       senderName,
 		CanRequestAccess: reason != mail.ReasonPermanentlyExpired,
 		RecipientsOnly:   h.packageHasRecipients(r.Context(), pkg.ID),
 	})

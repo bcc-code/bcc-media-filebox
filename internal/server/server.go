@@ -99,7 +99,15 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 	}
 
 	ep := tus.NewEventProcessor(s.queries, uploadDir, tempDir, s.store)
-	go ep.Run(h.UnroutedHandler)
+	go func() {
+		if err := ep.RecoverPending(context.Background()); err != nil {
+			log.Printf("upload storage recovery finished with errors: %v", err)
+		}
+		// Start consuming new upload events only after recovery. Both paths move
+		// the same temporary objects, so serialising startup prevents a live
+		// finalizer and recovery from promoting one row concurrently.
+		ep.Run(h.UnroutedHandler)
+	}()
 
 	s.mux.Handle("/files/", http.StripPrefix("/files/", h))
 	return nil
@@ -213,6 +221,7 @@ func (s *Server) setupAPI(uploadDir string) {
 	s.mux.HandleFunc("GET /api/arrangements/{code}/sub-events", h.ListSubEvents)
 	s.mux.HandleFunc("GET /api/uploads", h.ListUploads)
 	s.mux.HandleFunc("GET /api/shares/{id}", h.GetShare)
+	s.mux.HandleFunc("GET /api/artifacts/{id}", h.GetPackageArtifact)
 	s.mux.HandleFunc("GET /api/packages", h.ListPackagesByUser)
 	s.mux.HandleFunc("POST /api/packages", h.CreatePackage)
 	s.mux.HandleFunc("DELETE /api/packages/{id}", h.RevokePackage)
@@ -223,6 +232,7 @@ func (s *Server) setupAPI(uploadDir string) {
 	s.mux.HandleFunc("DELETE /api/packages/{id}/access-requests/{requestId}", h.DismissPackageAccessRequest)
 	s.mux.HandleFunc("PATCH /api/packages/{id}/notify", h.SetPackageNotify)
 	s.mux.HandleFunc("POST /api/notifications/mute/{token}", h.MutePackageNotifications)
+	h.StartPackagePreparationWorker(context.Background())
 
 	admin := api.NewAdminHandlers(s.queries, uploadDir)
 	admin.Register(s.mux)
