@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { AccessRequest, PackageInfo, VerificationMethod } from '../../composables/usePackages'
 
-const props = defineProps<{ pkg: PackageInfo; extending?: boolean }>()
+const props = defineProps<{ pkg: PackageInfo; extending?: boolean; autoOpen?: boolean }>()
 const emit = defineEmits<{
   copyLink: []
   preview: []
@@ -111,10 +111,19 @@ function submitExtend() {
   emit('extend', extendDays.value, extendMaxDownloads.value === '' ? undefined : extendMaxDownloads.value)
   showExtend.value = false
 }
+
+// Landed here from the "reopen this" email link: bring the card into view and,
+// unless it's past permanent deletion (nothing to reopen), open the panel too.
+const cardRoot = ref<HTMLElement | null>(null)
+onMounted(() => {
+  if (!props.autoOpen) return
+  cardRoot.value?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  if (!props.pkg.permanentlyExpired) openExtend()
+})
 </script>
 
 <template>
-  <div class="pkg-card" :class="{ gone: displayStatus === 'deleted' }">
+  <div ref="cardRoot" class="pkg-card" :class="{ gone: displayStatus === 'deleted' }">
     <div class="pkg-top">
       <span class="pkg-ic">
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>

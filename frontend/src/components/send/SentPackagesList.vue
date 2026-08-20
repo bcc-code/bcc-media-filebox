@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { usePackages } from '../../composables/usePackages'
 import SentPackageCard from './SentPackageCard.vue'
 
+const props = defineProps<{ focusPackageId?: string }>()
 const emit = defineEmits<{ preview: [packageId: string] }>()
 
 const {
@@ -17,6 +18,24 @@ const {
   startPreparationPolling,
   stopPreparationPolling,
 } = usePackages()
+
+// The "reopen this" email link names a package that may be many pages back
+// (list is created_at DESC, and a reopen request implies an old, dead one).
+// Keep paging in the background until it turns up, instead of making the
+// author click "Load more" themselves to find it.
+const seekingFocus = computed(
+  () =>
+    !!props.focusPackageId &&
+    !packages.value.some((p) => p.packageId === props.focusPackageId) &&
+    packages.value.length < total.value,
+)
+watch(
+  [packages, total],
+  () => {
+    if (seekingFocus.value && !loading.value) void loadMorePackages()
+  },
+  { immediate: true },
+)
 // Per-package so one slow extend doesn't disable every other card's button.
 const extendingId = ref<string | null>(null)
 const toast = ref('')
@@ -86,11 +105,13 @@ onUnmounted(stopPreparationPolling)
   <div v-if="loading && !packages.length" class="empty">Loading…</div>
   <div v-else-if="!packages.length" class="empty">No packages sent yet.</div>
   <div v-else class="pkg-list">
+    <p v-if="seekingFocus" class="ask-hint">Loading more packages to find the one from your link…</p>
     <SentPackageCard
       v-for="p in packages"
       :key="p.packageId"
       :pkg="p"
       :extending="extendingId === p.packageId"
+      :auto-open="p.packageId === focusPackageId"
       @copy-link="copyLink(p.packageId)"
       @preview="emit('preview', p.packageId)"
       @revoke="revoke(p.packageId)"

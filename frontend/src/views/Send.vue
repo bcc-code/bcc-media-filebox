@@ -67,7 +67,7 @@ function onPreview(packageId: string) {
       </div>
 
       <PackageComposeForm v-if="view === 'compose'" @sent="onSent" />
-      <SentPackagesList v-else-if="view === 'sent'" @preview="onPreview" />
+      <SentPackagesList v-else-if="view === 'sent'" :focus-package-id="previewPackageId" @preview="onPreview" />
       <RecipientPreviewTab v-else :selected-package-id="previewPackageId" />
     </div>
   </div>
