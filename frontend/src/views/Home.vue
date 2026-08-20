@@ -172,6 +172,16 @@ watch(
       <div class="flex gap-4 items-center text-gray-900 dark:text-gray-100 mb-8">
         <AppLogo class="w-10 h-10" />
         <h1 class="text-3xl font-bold">FileBox</h1>
+        <nav class="flex gap-1 ml-2">
+          <router-link
+            to="/"
+            class="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          >Upload</router-link>
+          <router-link
+            to="/send"
+            class="px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800/60"
+          >Send</router-link>
+        </nav>
         <div class="ml-auto">
           <AuthMenu />
         </div>
