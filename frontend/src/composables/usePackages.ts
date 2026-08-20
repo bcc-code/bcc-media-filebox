@@ -138,7 +138,7 @@ const total = ref(0)
 const loading = ref(false)
 const lastError = ref<string | null>(null)
 const currentPage = ref(1)
-const currentPageSize = ref(20)
+const currentPageSize = ref(50)
 const preparationPollIntervalMs = 2_000
 let preparationPollingEnabled = false
 let preparationPollTimer: number | null = null
@@ -202,7 +202,7 @@ function stopPreparationPolling() {
   clearPreparationPollTimer()
 }
 
-async function fetchPackages(page = 1, pageSize = 20) {
+async function fetchPackages(page = 1, pageSize = 50) {
   loading.value = true
   lastError.value = null
   try {

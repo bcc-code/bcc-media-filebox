@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	defaultSharesPageSize  = 20
+	defaultSharesPageSize  = 50
 	maxSharesPageSize      = 100
 	maxShareExpiryDays     = 30
 	maxPackageLifetimeDays = 90
