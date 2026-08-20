@@ -302,12 +302,13 @@ func unavailableMessage(reason string) string {
 // reason and sender so the page can offer to ask that person to reopen it —
 // no more than the preview already reveals before verification.
 type packageUnavailableResponse struct {
-	Error            string `json:"error"`
-	Reason           string `json:"reason"`
-	Name             string `json:"name"`
-	SenderName       string `json:"senderName"`
-	CanRequestAccess bool   `json:"canRequestAccess"`
-	RecipientsOnly   bool   `json:"recipientsOnly"`
+	Error            string            `json:"error"`
+	Reason           string            `json:"reason"`
+	Name             string            `json:"name"`
+	SenderName       string            `json:"senderName"`
+	CanRequestAccess bool              `json:"canRequestAccess"`
+	RecipientsOnly   bool              `json:"recipientsOnly"`
+	Files            []packageFileView `json:"files,omitempty"`
 }
 
 func (h *Handlers) writePackageUnavailable(w http.ResponseWriter, r *http.Request, pkg db.Package, reason string) {
@@ -316,12 +317,25 @@ func (h *Handlers) writePackageUnavailable(w http.ResponseWriter, r *http.Reques
 	if sender, err := h.queries.GetUser(r.Context(), pkg.CreatedByUserID); err == nil {
 		senderName = sender.Name.String
 	}
-	writeJSON(w, http.StatusGone, packageUnavailableResponse{
+	resp := packageUnavailableResponse{
 		Error:            unavailableMessage(reason),
 		Reason:           reason,
 		Name:             pkg.Name,
 		SenderName:       senderName,
 		CanRequestAccess: reason != mail.ReasonPermanentlyExpired,
 		RecipientsOnly:   h.packageHasRecipients(r.Context(), pkg.ID),
-	})
+	}
+	// The author reviewing their own dead package (e.g. before deciding whether
+	// to extend it) gets to see what was in it. A real recipient never does —
+	// the file list stays withheld pre-verification for everyone else.
+	if caller := auth.CallerFrom(r.Context()); caller != nil && caller.UserID == pkg.CreatedByUserID {
+		if rows, err := h.queries.ListSharesByPackageID(r.Context(), pkg.ID); err == nil {
+			files := make([]packageFileView, len(rows))
+			for i, row := range rows {
+				files[i] = packageFileView{ID: "source-" + strconv.Itoa(i+1), Filename: row.Filename, Size: row.Size}
+			}
+			resp.Files = files
+		}
+	}
+	writeJSON(w, http.StatusGone, resp)
 }

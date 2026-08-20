@@ -7,6 +7,7 @@ import PackageVerifyScreen from './PackageVerifyScreen.vue'
 import PackageDownloadScreen from './PackageDownloadScreen.vue'
 import PackageUnavailableScreen from './PackageUnavailableScreen.vue'
 import PackageAccessRequestForm from './PackageAccessRequestForm.vue'
+import PackageFileManifest from './PackageFileManifest.vue'
 
 const props = defineProps<{ selectedPackageId?: string }>()
 
@@ -65,6 +66,9 @@ function signInBcc() {
         <!-- interactive=false: this is the author previewing their own package,
              so the form renders but cannot mail them their own request. -->
         <div v-if="unavailable" style="text-align: left">
+          <!-- files is only populated for the package's own author, so it can be
+               reviewed here even though the package itself is dead. -->
+          <PackageFileManifest v-if="unavailable.files" :files="unavailable.files" />
           <PackageAccessRequestForm
             :reason="unavailable.reason"
             :sender-name="unavailable.senderName"

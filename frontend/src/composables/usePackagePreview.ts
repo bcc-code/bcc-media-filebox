@@ -1,5 +1,5 @@
 import { computed, onScopeDispose, ref } from 'vue'
-import type { AccessRequestReason, PackagePreview } from './usePackages'
+import type { AccessRequestReason, PackagePreview, PackageSourceFile } from './usePackages'
 
 const preparationPollIntervalMs = 2_000
 
@@ -12,6 +12,9 @@ export interface PackageUnavailable {
   senderName: string
   canRequestAccess: boolean
   recipientsOnly: boolean
+  // Only set for the package's own author: what was in it, so they can judge
+  // whether it's worth extending without that requiring recipient verification.
+  files?: PackageSourceFile[]
 }
 
 // Per-call state, not a singleton like usePackages: the public page and the
