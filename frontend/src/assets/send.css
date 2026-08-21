@@ -279,6 +279,7 @@
 .send-root .pkg-recips { font-size: 12.5px; color: var(--ink-2); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .send-root .pkg-meta { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 12px; font-size: 12px; color: var(--ink-3); font-family: 'JetBrains Mono', monospace; }
 .send-root .pkg-meta .mk { color: var(--ink-2); }
+.send-root .pkg-meta .warn { color: oklch(0.85 0.13 75); font-weight: 600; }
 .send-root .pkg-meta > span:not(:first-child)::before { content: '|'; margin-right: 8px; color: var(--line-2); }
 .send-root .pkg-badges { display: flex; gap: 7px; flex-shrink: 0; align-items: center; }
 .send-root .pkg-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }

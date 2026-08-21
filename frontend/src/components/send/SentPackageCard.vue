@@ -10,6 +10,7 @@ const emit = defineEmits<{
   extend: [expiresInDays: number, maxDownloads: number | undefined]
   dismissRequest: [requestId: string]
   setNotify: [notifyOnDownload: boolean]
+  autoFocused: []
 }>()
 
 function fmtBytes(bytes: number): string {
@@ -119,6 +120,7 @@ onMounted(() => {
   if (!props.autoOpen) return
   cardRoot.value?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   if (!props.pkg.permanentlyExpired) openExtend()
+  emit('autoFocused')
 })
 </script>
 
@@ -160,7 +162,7 @@ onMounted(() => {
       <span v-if="displayStatus === 'deleted'">files permanently deleted</span>
       <span v-else-if="displayStatus === 'revoked'">revoked</span>
       <span v-else>{{ expiryText(pkg.expiresAt) }}</span>
-      <span v-if="displayStatus !== 'deleted' && daysUntilFilesDeleted(pkg.filesDeletedAt) <= permanentDeleteWarningDays">
+      <span v-if="displayStatus !== 'deleted' && daysUntilFilesDeleted(pkg.filesDeletedAt) <= permanentDeleteWarningDays" class="warn">
         {{ permanentDeleteText(daysUntilFilesDeleted(pkg.filesDeletedAt)) }}
       </span>
     </div>

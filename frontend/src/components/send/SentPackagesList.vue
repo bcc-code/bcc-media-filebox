@@ -4,7 +4,7 @@ import { usePackages } from '../../composables/usePackages'
 import SentPackageCard from './SentPackageCard.vue'
 
 const props = defineProps<{ focusPackageId?: string }>()
-const emit = defineEmits<{ preview: [packageId: string] }>()
+const emit = defineEmits<{ preview: [packageId: string]; focusConsumed: [] }>()
 
 const {
   packages,
@@ -112,6 +112,7 @@ onUnmounted(stopPreparationPolling)
       :pkg="p"
       :extending="extendingId === p.packageId"
       :auto-open="p.packageId === focusPackageId"
+      @auto-focused="emit('focusConsumed')"
       @copy-link="copyLink(p.packageId)"
       @preview="emit('preview', p.packageId)"
       @revoke="revoke(p.packageId)"
