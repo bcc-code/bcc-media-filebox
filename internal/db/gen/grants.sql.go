@@ -11,7 +11,7 @@ import (
 )
 
 const addGrantTarget = `-- name: AddGrantTarget :exec
-INSERT INTO grant_targets (grant_id, target_id) VALUES (?, ?)
+INSERT INTO grant_targets (grant_id, target_id) VALUES (?1, ?2)
 `
 
 type AddGrantTargetParams struct {
@@ -25,7 +25,7 @@ func (q *Queries) AddGrantTarget(ctx context.Context, arg AddGrantTargetParams) 
 }
 
 const clearGrantTargets = `-- name: ClearGrantTargets :exec
-DELETE FROM grant_targets WHERE grant_id = ?
+DELETE FROM grant_targets WHERE grant_id = ?1
 `
 
 func (q *Queries) ClearGrantTargets(ctx context.Context, grantID int64) error {
@@ -34,7 +34,7 @@ func (q *Queries) ClearGrantTargets(ctx context.Context, grantID int64) error {
 }
 
 const countGrantsByGroupName = `-- name: CountGrantsByGroupName :one
-SELECT COUNT(*) FROM grants WHERE principal_kind = 'group' AND principal_value = ?
+SELECT COUNT(*) FROM grants WHERE principal_kind = 'group' AND principal_value = ?1
 `
 
 func (q *Queries) CountGrantsByGroupName(ctx context.Context, principalValue string) (int64, error) {
@@ -46,7 +46,7 @@ func (q *Queries) CountGrantsByGroupName(ctx context.Context, principalValue str
 
 const createGrant = `-- name: CreateGrant :one
 INSERT INTO grants (principal_kind, principal_value, admin, all_targets)
-VALUES (?, ?, ?, ?) RETURNING id, principal_kind, principal_value, admin, all_targets, created_at
+VALUES (?1, ?2, ?3, ?4) RETURNING id, principal_kind, principal_value, admin, all_targets, created_at
 `
 
 type CreateGrantParams struct {
@@ -76,7 +76,7 @@ func (q *Queries) CreateGrant(ctx context.Context, arg CreateGrantParams) (Grant
 }
 
 const deleteGrant = `-- name: DeleteGrant :exec
-DELETE FROM grants WHERE id = ?
+DELETE FROM grants WHERE id = ?1
 `
 
 func (q *Queries) DeleteGrant(ctx context.Context, id int64) error {
@@ -85,7 +85,7 @@ func (q *Queries) DeleteGrant(ctx context.Context, id int64) error {
 }
 
 const deleteGrantsByGroupName = `-- name: DeleteGrantsByGroupName :exec
-DELETE FROM grants WHERE principal_kind = 'group' AND principal_value = ?
+DELETE FROM grants WHERE principal_kind = 'group' AND principal_value = ?1
 `
 
 func (q *Queries) DeleteGrantsByGroupName(ctx context.Context, principalValue string) error {
@@ -94,7 +94,7 @@ func (q *Queries) DeleteGrantsByGroupName(ctx context.Context, principalValue st
 }
 
 const deleteGrantsByPrincipal = `-- name: DeleteGrantsByPrincipal :exec
-DELETE FROM grants WHERE principal_kind = ? AND principal_value = ?
+DELETE FROM grants WHERE principal_kind = ?1 AND principal_value = ?2
 `
 
 type DeleteGrantsByPrincipalParams struct {
@@ -118,7 +118,7 @@ SELECT
     CAST(COALESCE(GROUP_CONCAT(gt.target_id), '') AS TEXT) AS target_ids
 FROM grants g
 LEFT JOIN grant_targets gt ON gt.grant_id = g.id
-WHERE g.id = ?
+WHERE g.id = ?1
 GROUP BY g.id
 `
 
@@ -302,7 +302,7 @@ func (q *Queries) ListGrants(ctx context.Context) ([]ListGrantsRow, error) {
 }
 
 const updateGrant = `-- name: UpdateGrant :exec
-UPDATE grants SET admin = ?, all_targets = ? WHERE id = ?
+UPDATE grants SET admin = ?1, all_targets = ?2 WHERE id = ?3
 `
 
 type UpdateGrantParams struct {
@@ -317,7 +317,7 @@ func (q *Queries) UpdateGrant(ctx context.Context, arg UpdateGrantParams) error 
 }
 
 const updateGrantPrincipal = `-- name: UpdateGrantPrincipal :exec
-UPDATE grants SET principal_kind = ?, principal_value = ? WHERE id = ?
+UPDATE grants SET principal_kind = ?1, principal_value = ?2 WHERE id = ?3
 `
 
 type UpdateGrantPrincipalParams struct {

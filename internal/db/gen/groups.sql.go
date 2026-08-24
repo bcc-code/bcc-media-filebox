@@ -11,7 +11,7 @@ import (
 )
 
 const addGroupMember = `-- name: AddGroupMember :exec
-INSERT INTO group_members (group_id, email) VALUES (?, ?)
+INSERT INTO group_members (group_id, email) VALUES (?1, ?2)
 `
 
 type AddGroupMemberParams struct {
@@ -25,7 +25,7 @@ func (q *Queries) AddGroupMember(ctx context.Context, arg AddGroupMemberParams) 
 }
 
 const clearGroupMembers = `-- name: ClearGroupMembers :exec
-DELETE FROM group_members WHERE group_id = ?
+DELETE FROM group_members WHERE group_id = ?1
 `
 
 func (q *Queries) ClearGroupMembers(ctx context.Context, groupID int64) error {
@@ -34,7 +34,7 @@ func (q *Queries) ClearGroupMembers(ctx context.Context, groupID int64) error {
 }
 
 const createGroup = `-- name: CreateGroup :one
-INSERT INTO groups (name, kind, description) VALUES (?, 'custom', ?) RETURNING id, name, kind, description, created_at
+INSERT INTO groups (name, kind, description) VALUES (?1, 'custom', ?2) RETURNING id, name, kind, description, created_at
 `
 
 type CreateGroupParams struct {
@@ -56,7 +56,7 @@ func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group
 }
 
 const deleteGroup = `-- name: DeleteGroup :exec
-DELETE FROM groups WHERE id = ? AND kind = 'custom'
+DELETE FROM groups WHERE id = ?1 AND kind = 'custom'
 `
 
 func (q *Queries) DeleteGroup(ctx context.Context, id int64) error {
@@ -65,7 +65,7 @@ func (q *Queries) DeleteGroup(ctx context.Context, id int64) error {
 }
 
 const getGroup = `-- name: GetGroup :one
-SELECT id, name, kind, description, created_at FROM groups WHERE id = ?
+SELECT id, name, kind, description, created_at FROM groups WHERE id = ?1
 `
 
 func (q *Queries) GetGroup(ctx context.Context, id int64) (Group, error) {
@@ -82,7 +82,7 @@ func (q *Queries) GetGroup(ctx context.Context, id int64) (Group, error) {
 }
 
 const getGroupByName = `-- name: GetGroupByName :one
-SELECT id, name, kind, description, created_at FROM groups WHERE name = ?
+SELECT id, name, kind, description, created_at FROM groups WHERE name = ?1
 `
 
 func (q *Queries) GetGroupByName(ctx context.Context, name string) (Group, error) {
@@ -99,7 +99,7 @@ func (q *Queries) GetGroupByName(ctx context.Context, name string) (Group, error
 }
 
 const listGroupMembers = `-- name: ListGroupMembers :many
-SELECT email FROM group_members WHERE group_id = ? ORDER BY email
+SELECT email FROM group_members WHERE group_id = ?1 ORDER BY email
 `
 
 func (q *Queries) ListGroupMembers(ctx context.Context, groupID int64) ([]string, error) {
@@ -223,7 +223,7 @@ func (q *Queries) ListGroups(ctx context.Context) ([]ListGroupsRow, error) {
 }
 
 const updateGroup = `-- name: UpdateGroup :one
-UPDATE groups SET name = ?, description = ? WHERE id = ? AND kind = 'custom' RETURNING id, name, kind, description, created_at
+UPDATE groups SET name = ?1, description = ?2 WHERE id = ?3 AND kind = 'custom' RETURNING id, name, kind, description, created_at
 `
 
 type UpdateGroupParams struct {

@@ -17,7 +17,7 @@ SET status = 'completed',
     offset = size,
     duration_ms = CAST((julianday(CURRENT_TIMESTAMP) - julianday(created_at)) * 86400000 AS INTEGER),
     completed_at = CURRENT_TIMESTAMP
-WHERE id = ?
+WHERE id = ?1
 `
 
 func (q *Queries) CompleteUpload(ctx context.Context, id string) error {
@@ -30,7 +30,7 @@ INSERT INTO uploads (
     id, user_id, filename, size, content_type, is_partial, final_upload_id,
     sha256, target_name, form_data, storage_status
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'pending')
 `
 
 type CreatePendingUploadParams struct {
@@ -66,7 +66,7 @@ func (q *Queries) CreatePendingUpload(ctx context.Context, arg CreatePendingUplo
 
 const createUpload = `-- name: CreateUpload :exec
 INSERT INTO uploads (id, user_id, filename, size, content_type, is_partial, final_upload_id, sha256, target_name, form_data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 `
 
 type CreateUploadParams struct {
@@ -99,7 +99,7 @@ func (q *Queries) CreateUpload(ctx context.Context, arg CreateUploadParams) erro
 }
 
 const deletePartialUploads = `-- name: DeletePartialUploads :exec
-DELETE FROM uploads WHERE final_upload_id = ?
+DELETE FROM uploads WHERE final_upload_id = ?1
 `
 
 func (q *Queries) DeletePartialUploads(ctx context.Context, finalUploadID sql.NullString) error {
@@ -108,7 +108,7 @@ func (q *Queries) DeletePartialUploads(ctx context.Context, finalUploadID sql.Nu
 }
 
 const deleteUpload = `-- name: DeleteUpload :exec
-DELETE FROM uploads WHERE id = ?
+DELETE FROM uploads WHERE id = ?1
 `
 
 func (q *Queries) DeleteUpload(ctx context.Context, id string) error {
@@ -117,7 +117,7 @@ func (q *Queries) DeleteUpload(ctx context.Context, id string) error {
 }
 
 const failUpload = `-- name: FailUpload :exec
-UPDATE uploads SET status = 'failed', storage_status = 'failed' WHERE id = ?
+UPDATE uploads SET status = 'failed', storage_status = 'failed' WHERE id = ?1
 `
 
 func (q *Queries) FailUpload(ctx context.Context, id string) error {
@@ -127,8 +127,8 @@ func (q *Queries) FailUpload(ctx context.Context, id string) error {
 
 const finalizeUploadStorage = `-- name: FinalizeUploadStorage :one
 UPDATE uploads
-SET filename = ?, storage_status = 'ready'
-WHERE id = ? AND status = 'completed' AND storage_status = 'pending'
+SET filename = ?1, storage_status = 'ready'
+WHERE id = ?2 AND status = 'completed' AND storage_status = 'pending'
 RETURNING id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data, storage_status
 `
 
@@ -164,7 +164,7 @@ func (q *Queries) FinalizeUploadStorage(ctx context.Context, arg FinalizeUploadS
 }
 
 const getUpload = `-- name: GetUpload :one
-SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data, storage_status FROM uploads WHERE id = ?
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data, storage_status FROM uploads WHERE id = ?1
 `
 
 func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
@@ -289,7 +289,7 @@ func (q *Queries) ListPendingStorageUploads(ctx context.Context) ([]Upload, erro
 }
 
 const listUploads = `-- name: ListUploads :many
-SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data, storage_status FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = ? ORDER BY created_at DESC
+SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data, storage_status FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = ?1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, error) {
@@ -333,7 +333,7 @@ func (q *Queries) ListUploads(ctx context.Context, userID string) ([]Upload, err
 }
 
 const markUploadStorageReady = `-- name: MarkUploadStorageReady :exec
-UPDATE uploads SET storage_status = 'ready' WHERE id = ?
+UPDATE uploads SET storage_status = 'ready' WHERE id = ?1
 `
 
 func (q *Queries) MarkUploadStorageReady(ctx context.Context, id string) error {
@@ -345,13 +345,13 @@ const projectEpisodes = `-- name: ProjectEpisodes :many
 SELECT DISTINCT CAST(json_extract(form_data, '$.episode') AS TEXT) AS value
 FROM uploads
 WHERE status = 'completed' AND form_data IS NOT NULL
-  AND CAST(json_extract(form_data, '$.project') AS TEXT) = ?
+  AND CAST(json_extract(form_data, '$.project') AS TEXT) = ?1
   AND COALESCE(CAST(json_extract(form_data, '$.episode') AS TEXT), '') <> ''
 ORDER BY value
 `
 
-func (q *Queries) ProjectEpisodes(ctx context.Context, formData sql.NullString) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, projectEpisodes, formData)
+func (q *Queries) ProjectEpisodes(ctx context.Context, project sql.NullString) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, projectEpisodes, project)
 	if err != nil {
 		return nil, err
 	}
@@ -377,13 +377,13 @@ const projectSeasons = `-- name: ProjectSeasons :many
 SELECT DISTINCT CAST(json_extract(form_data, '$.season') AS TEXT) AS value
 FROM uploads
 WHERE status = 'completed' AND form_data IS NOT NULL
-  AND CAST(json_extract(form_data, '$.project') AS TEXT) = ?
+  AND CAST(json_extract(form_data, '$.project') AS TEXT) = ?1
   AND COALESCE(CAST(json_extract(form_data, '$.season') AS TEXT), '') <> ''
 ORDER BY value
 `
 
-func (q *Queries) ProjectSeasons(ctx context.Context, formData sql.NullString) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, projectSeasons, formData)
+func (q *Queries) ProjectSeasons(ctx context.Context, project sql.NullString) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, projectSeasons, project)
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +406,7 @@ func (q *Queries) ProjectSeasons(ctx context.Context, formData sql.NullString) (
 }
 
 const updateDurationMs = `-- name: UpdateDurationMs :exec
-UPDATE uploads SET duration_ms = ? WHERE id = ?
+UPDATE uploads SET duration_ms = ?1 WHERE id = ?2
 `
 
 type UpdateDurationMsParams struct {
@@ -420,7 +420,7 @@ func (q *Queries) UpdateDurationMs(ctx context.Context, arg UpdateDurationMsPara
 }
 
 const updateUploadFilename = `-- name: UpdateUploadFilename :exec
-UPDATE uploads SET filename = ? WHERE id = ?
+UPDATE uploads SET filename = ?1 WHERE id = ?2
 `
 
 type UpdateUploadFilenameParams struct {
@@ -434,7 +434,7 @@ func (q *Queries) UpdateUploadFilename(ctx context.Context, arg UpdateUploadFile
 }
 
 const updateUploadOffset = `-- name: UpdateUploadOffset :exec
-UPDATE uploads SET offset = ? WHERE id = ?
+UPDATE uploads SET offset = ?1 WHERE id = ?2
 `
 
 type UpdateUploadOffsetParams struct {

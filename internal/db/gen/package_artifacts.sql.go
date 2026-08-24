@@ -17,7 +17,7 @@ INSERT INTO package_artifacts (
     id, package_id, kind, filename, size, source_size, position, status,
     progress_bytes, object_key
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 RETURNING id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at
 `
 
@@ -70,7 +70,7 @@ func (q *Queries) CreatePackageArtifact(ctx context.Context, arg CreatePackageAr
 
 const createPackageArtifactMember = `-- name: CreatePackageArtifactMember :one
 INSERT INTO package_artifact_members (artifact_id, share_id, position, archive_filename)
-VALUES (?, ?, ?, ?)
+VALUES (?1, ?2, ?3, ?4)
 RETURNING artifact_id, share_id, position, archive_filename
 `
 
@@ -100,8 +100,8 @@ func (q *Queries) CreatePackageArtifactMember(ctx context.Context, arg CreatePac
 
 const failPackageArtifact = `-- name: FailPackageArtifact :one
 UPDATE package_artifacts
-SET status = 'failed', error = ?, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status IN ('pending', 'building')
+SET status = 'failed', error = ?1, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?2 AND status IN ('pending', 'building')
 RETURNING id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at
 `
 
@@ -135,8 +135,8 @@ func (q *Queries) FailPackageArtifact(ctx context.Context, arg FailPackageArtifa
 
 const failPackagePreparation = `-- name: FailPackagePreparation :one
 UPDATE packages
-SET preparation_status = 'failed', preparation_error = ?
-WHERE id = ? AND preparation_status = 'processing'
+SET preparation_status = 'failed', preparation_error = ?1
+WHERE id = ?2 AND preparation_status = 'processing'
 RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
@@ -175,7 +175,7 @@ UPDATE packages
 SET preparation_status = 'ready',
     preparation_bytes_done = preparation_bytes_total,
     preparation_error = NULL
-WHERE id = ? AND preparation_status = 'processing'
+WHERE id = ?1 AND preparation_status = 'processing'
 RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
@@ -205,7 +205,7 @@ func (q *Queries) FinalizePackagePreparation(ctx context.Context, id string) (Pa
 }
 
 const getPackageArtifact = `-- name: GetPackageArtifact :one
-SELECT id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at FROM package_artifacts WHERE id = ?
+SELECT id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at FROM package_artifacts WHERE id = ?1
 `
 
 func (q *Queries) GetPackageArtifact(ctx context.Context, id string) (PackageArtifact, error) {
@@ -237,7 +237,7 @@ SELECT
     CAST(COALESCE(MAX(access_count), 0) AS INTEGER) AS max_access_count,
     CAST(COALESCE(MIN(access_count), 0) AS INTEGER) AS min_access_count
 FROM package_artifacts
-WHERE package_id = ?
+WHERE package_id = ?1
 `
 
 type GetPackageArtifactAccessCountsRow struct {
@@ -314,7 +314,7 @@ const getPackageArtifactByShareID = `-- name: GetPackageArtifactByShareID :one
 SELECT a.id, a.package_id, a.kind, a.filename, a.size, a.source_size, a.position, a.status, a.progress_bytes, a.access_count, a.attempts, a.object_key, a.error, a.created_at, a.updated_at
 FROM package_artifacts a
 JOIN package_artifact_members m ON m.artifact_id = a.id
-WHERE m.share_id = ?
+WHERE m.share_id = ?1
 `
 
 // Legacy share links must resolve through their recipient-visible artifact so
@@ -363,7 +363,7 @@ SELECT
 FROM package_artifact_members m
 JOIN shares s ON s.id = m.share_id
 JOIN uploads u ON u.id = s.upload_id
-WHERE m.artifact_id = ? AND m.share_id = ?
+WHERE m.artifact_id = ?1 AND m.share_id = ?2
 `
 
 type GetPackageArtifactMemberWithUploadParams struct {
@@ -418,7 +418,7 @@ const incrementArtifactMemberShareAccessCounts = `-- name: IncrementArtifactMemb
 UPDATE shares
 SET access_count = access_count + 1
 WHERE id IN (
-    SELECT share_id FROM package_artifact_members WHERE artifact_id = ?
+    SELECT share_id FROM package_artifact_members WHERE artifact_id = ?1
 )
 `
 
@@ -433,7 +433,7 @@ func (q *Queries) IncrementArtifactMemberShareAccessCounts(ctx context.Context, 
 const incrementPackageArtifactAccessCount = `-- name: IncrementPackageArtifactAccessCount :one
 UPDATE package_artifacts
 SET access_count = access_count + 1, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'ready'
+WHERE id = ?1 AND status = 'ready'
 RETURNING id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at
 `
 
@@ -463,17 +463,17 @@ func (q *Queries) IncrementPackageArtifactAccessCount(ctx context.Context, id st
 const incrementPackageArtifactAccessCountIfUnderLimit = `-- name: IncrementPackageArtifactAccessCountIfUnderLimit :one
 UPDATE package_artifacts
 SET access_count = access_count + 1, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'ready' AND access_count < ?
+WHERE id = ?1 AND status = 'ready' AND access_count < ?2
 RETURNING id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at
 `
 
 type IncrementPackageArtifactAccessCountIfUnderLimitParams struct {
-	ID          string
-	AccessCount int64
+	ID             string
+	MaxAccessCount int64
 }
 
 func (q *Queries) IncrementPackageArtifactAccessCountIfUnderLimit(ctx context.Context, arg IncrementPackageArtifactAccessCountIfUnderLimitParams) (PackageArtifact, error) {
-	row := q.db.QueryRowContext(ctx, incrementPackageArtifactAccessCountIfUnderLimit, arg.ID, arg.AccessCount)
+	row := q.db.QueryRowContext(ctx, incrementPackageArtifactAccessCountIfUnderLimit, arg.ID, arg.MaxAccessCount)
 	var i PackageArtifact
 	err := row.Scan(
 		&i.ID,
@@ -516,7 +516,7 @@ SELECT
 FROM package_artifact_members m
 JOIN shares s ON s.id = m.share_id
 JOIN uploads u ON u.id = s.upload_id
-WHERE m.artifact_id = ?
+WHERE m.artifact_id = ?1
 ORDER BY m.position, m.share_id
 `
 
@@ -581,7 +581,7 @@ func (q *Queries) ListPackageArtifactMembersWithUploads(ctx context.Context, art
 
 const listPackageArtifacts = `-- name: ListPackageArtifacts :many
 SELECT id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at FROM package_artifacts
-WHERE package_id = ?
+WHERE package_id = ?1
 ORDER BY position, id
 `
 
@@ -681,7 +681,7 @@ func (q *Queries) ListPackageArtifactsByPackageIDs(ctx context.Context, packageI
 
 const listPendingPackageArtifacts = `-- name: ListPendingPackageArtifacts :many
 SELECT id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at FROM package_artifacts
-WHERE package_id = ? AND status = 'pending'
+WHERE package_id = ?1 AND status = 'pending'
 ORDER BY position, id
 `
 
@@ -829,7 +829,7 @@ const markPackageArtifactBuilding = `-- name: MarkPackageArtifactBuilding :one
 UPDATE package_artifacts
 SET status = 'building', progress_bytes = 0, attempts = attempts + 1,
     error = NULL, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'pending'
+WHERE id = ?1 AND status = 'pending'
 RETURNING id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at
 `
 
@@ -858,9 +858,9 @@ func (q *Queries) MarkPackageArtifactBuilding(ctx context.Context, id string) (P
 
 const markPackageArtifactReady = `-- name: MarkPackageArtifactReady :one
 UPDATE package_artifacts
-SET status = 'ready', size = ?, object_key = ?,
+SET status = 'ready', size = ?1, object_key = ?2,
     progress_bytes = source_size, error = NULL, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'building'
+WHERE id = ?3 AND status = 'building'
 RETURNING id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at
 `
 
@@ -897,7 +897,7 @@ const requeueBuildingPackageArtifact = `-- name: RequeueBuildingPackageArtifact 
 UPDATE package_artifacts
 SET status = 'pending', progress_bytes = 0,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'building'
+WHERE id = ?1 AND status = 'building'
 `
 
 func (q *Queries) RequeueBuildingPackageArtifact(ctx context.Context, id string) (int64, error) {
@@ -975,7 +975,7 @@ const retryPackageArtifact = `-- name: RetryPackageArtifact :one
 UPDATE package_artifacts
 SET status = 'pending', progress_bytes = 0, error = NULL,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'failed'
+WHERE id = ?1 AND status = 'failed'
 RETURNING id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at
 `
 
@@ -1005,10 +1005,10 @@ func (q *Queries) RetryPackageArtifact(ctx context.Context, id string) (PackageA
 const setPackagePreparationProcessing = `-- name: SetPackagePreparationProcessing :one
 UPDATE packages
 SET preparation_status = 'processing',
-    preparation_bytes_total = ?,
+    preparation_bytes_total = ?1,
     preparation_bytes_done = 0,
     preparation_error = NULL
-WHERE id = ?
+WHERE id = ?2
 RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
@@ -1044,8 +1044,8 @@ func (q *Queries) SetPackagePreparationProcessing(ctx context.Context, arg SetPa
 
 const updatePackageArtifactProgress = `-- name: UpdatePackageArtifactProgress :one
 UPDATE package_artifacts
-SET progress_bytes = ?, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'building'
+SET progress_bytes = ?1, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?2 AND status = 'building'
 RETURNING id, package_id, kind, filename, size, source_size, position, status, progress_bytes, access_count, attempts, object_key, error, created_at, updated_at
 `
 
@@ -1079,8 +1079,8 @@ func (q *Queries) UpdatePackageArtifactProgress(ctx context.Context, arg UpdateP
 
 const updatePackagePreparationProgress = `-- name: UpdatePackagePreparationProgress :one
 UPDATE packages
-SET preparation_bytes_done = ?
-WHERE id = ? AND preparation_status = 'processing'
+SET preparation_bytes_done = ?1
+WHERE id = ?2 AND preparation_status = 'processing'
 RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 

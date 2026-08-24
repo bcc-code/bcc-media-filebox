@@ -11,7 +11,7 @@ import (
 
 const createShare = `-- name: CreateShare :one
 INSERT INTO shares (id, package_id, upload_id)
-VALUES (?, ?, ?)
+VALUES (?1, ?2, ?3)
 RETURNING id, package_id, upload_id, access_count, created_at
 `
 
@@ -35,7 +35,7 @@ func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share
 }
 
 const getShareByID = `-- name: GetShareByID :one
-SELECT id, package_id, upload_id, access_count, created_at FROM shares WHERE id = ?
+SELECT id, package_id, upload_id, access_count, created_at FROM shares WHERE id = ?1
 `
 
 func (q *Queries) GetShareByID(ctx context.Context, id string) (Share, error) {
@@ -54,7 +54,7 @@ func (q *Queries) GetShareByID(ctx context.Context, id string) (Share, error) {
 const incrementShareAccessCount = `-- name: IncrementShareAccessCount :one
 UPDATE shares
 SET access_count = access_count + 1
-WHERE id = ?
+WHERE id = ?1
 RETURNING id, package_id, upload_id, access_count, created_at
 `
 
@@ -74,17 +74,17 @@ func (q *Queries) IncrementShareAccessCount(ctx context.Context, id string) (Sha
 const incrementShareAccessCountIfUnderLimit = `-- name: IncrementShareAccessCountIfUnderLimit :one
 UPDATE shares
 SET access_count = access_count + 1
-WHERE id = ? AND access_count < ?
+WHERE id = ?1 AND access_count < ?2
 RETURNING id, package_id, upload_id, access_count, created_at
 `
 
 type IncrementShareAccessCountIfUnderLimitParams struct {
-	ID          string
-	AccessCount int64
+	ID             string
+	MaxAccessCount int64
 }
 
 func (q *Queries) IncrementShareAccessCountIfUnderLimit(ctx context.Context, arg IncrementShareAccessCountIfUnderLimitParams) (Share, error) {
-	row := q.db.QueryRowContext(ctx, incrementShareAccessCountIfUnderLimit, arg.ID, arg.AccessCount)
+	row := q.db.QueryRowContext(ctx, incrementShareAccessCountIfUnderLimit, arg.ID, arg.MaxAccessCount)
 	var i Share
 	err := row.Scan(
 		&i.ID,

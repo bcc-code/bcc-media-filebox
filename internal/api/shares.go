@@ -124,8 +124,8 @@ func (h *Handlers) GetShare(w http.ResponseWriter, r *http.Request) {
 	// "Download all" fires every file at once, so races are routine.
 	if pkg.MaxDownloads.Valid {
 		_, err := h.queries.IncrementShareAccessCountIfUnderLimit(r.Context(), db.IncrementShareAccessCountIfUnderLimitParams{
-			ID:          shareID,
-			AccessCount: pkg.MaxDownloads.Int64,
+			ID:             shareID,
+			MaxAccessCount: pkg.MaxDownloads.Int64,
 		})
 		if errors.Is(err, sql.ErrNoRows) {
 			writeJSONError(w, http.StatusGone, "file download limit reached")

@@ -12,7 +12,7 @@ import (
 
 const createPackageVerification = `-- name: CreatePackageVerification :one
 INSERT INTO package_verifications (id, package_id, expires_at)
-VALUES (?, ?, ?)
+VALUES (?1, ?2, ?3)
 RETURNING id, package_id, expires_at, created_at
 `
 
@@ -36,7 +36,7 @@ func (q *Queries) CreatePackageVerification(ctx context.Context, arg CreatePacka
 
 const getValidPackageVerification = `-- name: GetValidPackageVerification :one
 SELECT id, package_id, expires_at, created_at FROM package_verifications
-WHERE id = ? AND package_id = ? AND expires_at > CURRENT_TIMESTAMP
+WHERE id = ?1 AND package_id = ?2 AND expires_at > CURRENT_TIMESTAMP
 `
 
 type GetValidPackageVerificationParams struct {

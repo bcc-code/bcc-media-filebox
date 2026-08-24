@@ -111,8 +111,8 @@ func (h *Handlers) servePackageArtifact(w http.ResponseWriter, r *http.Request, 
 	defer tx.Rollback()
 	if pkg.MaxDownloads.Valid {
 		_, err = q.IncrementPackageArtifactAccessCountIfUnderLimit(r.Context(), db.IncrementPackageArtifactAccessCountIfUnderLimitParams{
-			ID:          artifact.ID,
-			AccessCount: pkg.MaxDownloads.Int64,
+			ID:             artifact.ID,
+			MaxAccessCount: pkg.MaxDownloads.Int64,
 		})
 		if errors.Is(err, sql.ErrNoRows) {
 			writeJSONError(w, http.StatusGone, "download limit reached")

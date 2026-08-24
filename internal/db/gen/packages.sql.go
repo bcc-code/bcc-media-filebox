@@ -13,7 +13,7 @@ import (
 )
 
 const countPackagesByUser = `-- name: CountPackagesByUser :one
-SELECT COUNT(*) FROM packages WHERE created_by_user_id = ?
+SELECT COUNT(*) FROM packages WHERE created_by_user_id = ?1
 `
 
 func (q *Queries) CountPackagesByUser(ctx context.Context, createdByUserID int64) (int64, error) {
@@ -45,7 +45,7 @@ func (q *Queries) CountRecentPackageAccessRequests(ctx context.Context, arg Coun
 
 const createPackage = `-- name: CreatePackage :one
 INSERT INTO packages (id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, notify_on_download, notify_mute_token)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
@@ -100,7 +100,7 @@ func (q *Queries) CreatePackage(ctx context.Context, arg CreatePackageParams) (P
 
 const createPackageAccessRequest = `-- name: CreatePackageAccessRequest :one
 INSERT INTO package_access_requests (id, package_id, email, message, reason)
-VALUES (?, ?, ?, ?, ?)
+VALUES (?1, ?2, ?3, ?4, ?5)
 RETURNING id, package_id, email, message, reason, status, created_at, resolved_at
 `
 
@@ -136,7 +136,7 @@ func (q *Queries) CreatePackageAccessRequest(ctx context.Context, arg CreatePack
 
 const createPackageRecipient = `-- name: CreatePackageRecipient :one
 INSERT INTO package_recipients (package_id, email)
-VALUES (?, ?)
+VALUES (?1, ?2)
 RETURNING id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error
 `
 
@@ -166,7 +166,7 @@ func (q *Queries) CreatePackageRecipient(ctx context.Context, arg CreatePackageR
 const dismissPackageAccessRequest = `-- name: DismissPackageAccessRequest :exec
 UPDATE package_access_requests
 SET status = 'dismissed', resolved_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'pending'
+WHERE id = ?1 AND status = 'pending'
 `
 
 func (q *Queries) DismissPackageAccessRequest(ctx context.Context, id string) error {
@@ -176,10 +176,10 @@ func (q *Queries) DismissPackageAccessRequest(ctx context.Context, id string) er
 
 const extendPackage = `-- name: ExtendPackage :one
 UPDATE packages
-SET expires_at    = ?,
-    max_downloads = ?,
+SET expires_at    = ?1,
+    max_downloads = ?2,
     status        = 'active'
-WHERE id = ?
+WHERE id = ?3
 RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
@@ -218,7 +218,7 @@ func (q *Queries) ExtendPackage(ctx context.Context, arg ExtendPackageParams) (P
 
 const getLatestPackageAccessRequestByEmail = `-- name: GetLatestPackageAccessRequestByEmail :one
 SELECT id, package_id, email, message, reason, status, created_at, resolved_at FROM package_access_requests
-WHERE package_id = ? AND email = ?
+WHERE package_id = ?1 AND email = ?2
 ORDER BY created_at DESC
 LIMIT 1
 `
@@ -297,7 +297,7 @@ func (q *Queries) GetPackageAccessCountsByPackageIDs(ctx context.Context, packag
 }
 
 const getPackageAccessRequest = `-- name: GetPackageAccessRequest :one
-SELECT id, package_id, email, message, reason, status, created_at, resolved_at FROM package_access_requests WHERE id = ?
+SELECT id, package_id, email, message, reason, status, created_at, resolved_at FROM package_access_requests WHERE id = ?1
 `
 
 func (q *Queries) GetPackageAccessRequest(ctx context.Context, id string) (PackageAccessRequest, error) {
@@ -317,7 +317,7 @@ func (q *Queries) GetPackageAccessRequest(ctx context.Context, id string) (Packa
 }
 
 const getPackageByID = `-- name: GetPackageByID :one
-SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error FROM packages WHERE id = ?
+SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error FROM packages WHERE id = ?1
 `
 
 func (q *Queries) GetPackageByID(ctx context.Context, id string) (Package, error) {
@@ -346,7 +346,7 @@ func (q *Queries) GetPackageByID(ctx context.Context, id string) (Package, error
 }
 
 const getPackageMaxAccessCount = `-- name: GetPackageMaxAccessCount :one
-SELECT CAST(COALESCE(MAX(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?
+SELECT CAST(COALESCE(MAX(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?1
 `
 
 // Legacy/fallback aggregate. New package artifacts keep member share counters
@@ -360,7 +360,7 @@ func (q *Queries) GetPackageMaxAccessCount(ctx context.Context, packageID string
 }
 
 const getPackageMinAccessCount = `-- name: GetPackageMinAccessCount :one
-SELECT CAST(COALESCE(MIN(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?
+SELECT CAST(COALESCE(MIN(access_count), 0) AS INTEGER) FROM shares WHERE package_id = ?1
 `
 
 // Counterpart to GetPackageMaxAccessCount: once even the least-downloaded share
@@ -373,7 +373,7 @@ func (q *Queries) GetPackageMinAccessCount(ctx context.Context, packageID string
 }
 
 const getPackageRecipientByEmail = `-- name: GetPackageRecipientByEmail :one
-SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error FROM package_recipients WHERE package_id = ? AND email = ?
+SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error FROM package_recipients WHERE package_id = ?1 AND email = ?2
 `
 
 type GetPackageRecipientByEmailParams struct {
@@ -400,7 +400,7 @@ func (q *Queries) GetPackageRecipientByEmail(ctx context.Context, arg GetPackage
 }
 
 const getPackageRecipientByMagicLinkToken = `-- name: GetPackageRecipientByMagicLinkToken :one
-SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error FROM package_recipients WHERE magic_link_token = ?
+SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error FROM package_recipients WHERE magic_link_token = ?1
 `
 
 func (q *Queries) GetPackageRecipientByMagicLinkToken(ctx context.Context, magicLinkToken sql.NullString) (PackageRecipient, error) {
@@ -424,7 +424,7 @@ func (q *Queries) GetPackageRecipientByMagicLinkToken(ctx context.Context, magic
 const grantPendingPackageAccessRequests = `-- name: GrantPendingPackageAccessRequests :many
 UPDATE package_access_requests
 SET status = 'granted', resolved_at = CURRENT_TIMESTAMP
-WHERE package_id = ? AND status = 'pending'
+WHERE package_id = ?1 AND status = 'pending'
 RETURNING id, package_id, email, message, reason, status, created_at, resolved_at
 `
 
@@ -465,7 +465,7 @@ func (q *Queries) GrantPendingPackageAccessRequests(ctx context.Context, package
 const incrementPackageDownloadCount = `-- name: IncrementPackageDownloadCount :one
 UPDATE packages
 SET download_count = download_count + 1
-WHERE id = ?
+WHERE id = ?1
 RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
@@ -495,7 +495,7 @@ func (q *Queries) IncrementPackageDownloadCount(ctx context.Context, id string) 
 }
 
 const listPackageRecipientsByPackageID = `-- name: ListPackageRecipientsByPackageID :many
-SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error FROM package_recipients WHERE package_id = ? ORDER BY id ASC
+SELECT id, package_id, email, otp_code_hash, otp_expires_at, magic_link_token, verified_at, created_at, sent_at, send_error FROM package_recipients WHERE package_id = ?1 ORDER BY id ASC
 `
 
 func (q *Queries) ListPackageRecipientsByPackageID(ctx context.Context, packageID string) ([]PackageRecipient, error) {
@@ -584,19 +584,19 @@ func (q *Queries) ListPackageRecipientsByPackageIDs(ctx context.Context, package
 
 const listPackagesByUser = `-- name: ListPackagesByUser :many
 SELECT id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error FROM packages
-WHERE created_by_user_id = ?
+WHERE created_by_user_id = ?1
 ORDER BY created_at DESC
-LIMIT ? OFFSET ?
+LIMIT ?3 OFFSET ?2
 `
 
 type ListPackagesByUserParams struct {
 	CreatedByUserID int64
-	Limit           int64
 	Offset          int64
+	Limit           int64
 }
 
 func (q *Queries) ListPackagesByUser(ctx context.Context, arg ListPackagesByUserParams) ([]Package, error) {
-	rows, err := q.db.QueryContext(ctx, listPackagesByUser, arg.CreatedByUserID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listPackagesByUser, arg.CreatedByUserID, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -638,7 +638,7 @@ func (q *Queries) ListPackagesByUser(ctx context.Context, arg ListPackagesByUser
 
 const listPendingPackageAccessRequests = `-- name: ListPendingPackageAccessRequests :many
 SELECT id, package_id, email, message, reason, status, created_at, resolved_at FROM package_access_requests
-WHERE package_id = ? AND status = 'pending'
+WHERE package_id = ?1 AND status = 'pending'
 ORDER BY created_at DESC
 `
 
@@ -726,7 +726,7 @@ const listSharesByPackageID = `-- name: ListSharesByPackageID :many
 SELECT s.id AS share_id, s.upload_id, u.filename, u.size, s.access_count
 FROM shares s
 JOIN uploads u ON u.id = s.upload_id
-WHERE s.package_id = ?
+WHERE s.package_id = ?1
 ORDER BY s.created_at ASC
 `
 
@@ -827,8 +827,8 @@ func (q *Queries) ListSharesByPackageIDs(ctx context.Context, packageIds []strin
 
 const markPackageRecipientSendFailed = `-- name: MarkPackageRecipientSendFailed :exec
 UPDATE package_recipients
-SET sent_at = NULL, send_error = ?
-WHERE id = ?
+SET sent_at = NULL, send_error = ?1
+WHERE id = ?2
 `
 
 type MarkPackageRecipientSendFailedParams struct {
@@ -844,7 +844,7 @@ func (q *Queries) MarkPackageRecipientSendFailed(ctx context.Context, arg MarkPa
 const markPackageRecipientSent = `-- name: MarkPackageRecipientSent :exec
 UPDATE package_recipients
 SET sent_at = CURRENT_TIMESTAMP, send_error = NULL
-WHERE id = ?
+WHERE id = ?1
 `
 
 func (q *Queries) MarkPackageRecipientSent(ctx context.Context, id int64) error {
@@ -855,7 +855,7 @@ func (q *Queries) MarkPackageRecipientSent(ctx context.Context, id int64) error 
 const markPackageRecipientVerified = `-- name: MarkPackageRecipientVerified :exec
 UPDATE package_recipients
 SET verified_at = CURRENT_TIMESTAMP
-WHERE id = ?
+WHERE id = ?1
 `
 
 func (q *Queries) MarkPackageRecipientVerified(ctx context.Context, id int64) error {
@@ -865,7 +865,7 @@ func (q *Queries) MarkPackageRecipientVerified(ctx context.Context, id int64) er
 
 const mutePackageNotificationsByToken = `-- name: MutePackageNotificationsByToken :one
 UPDATE packages SET notify_on_download = 0
-WHERE notify_mute_token = ? AND notify_mute_token IS NOT NULL
+WHERE notify_mute_token = ?1 AND notify_mute_token IS NOT NULL
 RETURNING id, created_by_user_id, name, message, verification_method, password_hash, expires_at, max_downloads, download_count, notify_on_download, status, created_at, notify_mute_token, preparation_status, preparation_bytes_total, preparation_bytes_done, preparation_error
 `
 
@@ -898,7 +898,7 @@ func (q *Queries) MutePackageNotificationsByToken(ctx context.Context, notifyMut
 }
 
 const revokePackage = `-- name: RevokePackage :exec
-UPDATE packages SET status = 'revoked' WHERE id = ?
+UPDATE packages SET status = 'revoked' WHERE id = ?1
 `
 
 func (q *Queries) RevokePackage(ctx context.Context, id string) error {
@@ -907,7 +907,7 @@ func (q *Queries) RevokePackage(ctx context.Context, id string) error {
 }
 
 const setPackageNotifyOnDownload = `-- name: SetPackageNotifyOnDownload :exec
-UPDATE packages SET notify_on_download = ? WHERE id = ?
+UPDATE packages SET notify_on_download = ?1 WHERE id = ?2
 `
 
 type SetPackageNotifyOnDownloadParams struct {
@@ -922,8 +922,8 @@ func (q *Queries) SetPackageNotifyOnDownload(ctx context.Context, arg SetPackage
 
 const setPackageRecipientMagicLinkToken = `-- name: SetPackageRecipientMagicLinkToken :exec
 UPDATE package_recipients
-SET magic_link_token = ?
-WHERE id = ?
+SET magic_link_token = ?1
+WHERE id = ?2
 `
 
 type SetPackageRecipientMagicLinkTokenParams struct {
@@ -938,8 +938,8 @@ func (q *Queries) SetPackageRecipientMagicLinkToken(ctx context.Context, arg Set
 
 const updatePackageRecipientOTP = `-- name: UpdatePackageRecipientOTP :exec
 UPDATE package_recipients
-SET otp_code_hash = ?, otp_expires_at = ?
-WHERE id = ?
+SET otp_code_hash = ?1, otp_expires_at = ?2
+WHERE id = ?3
 `
 
 type UpdatePackageRecipientOTPParams struct {

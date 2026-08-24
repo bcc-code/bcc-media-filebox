@@ -103,8 +103,8 @@ func TestIncrementShareAccessCountIfUnderLimitIsAtomic(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			_, err := queries.IncrementShareAccessCountIfUnderLimit(ctx, db.IncrementShareAccessCountIfUnderLimitParams{
-				ID:          "share1",
-				AccessCount: limit,
+				ID:             "share1",
+				MaxAccessCount: limit,
 			})
 			mu.Lock()
 			defer mu.Unlock()
@@ -169,7 +169,7 @@ func TestIncrementShareAccessCountIfUnderLimitRejectsAtLimit(t *testing.T) {
 		t.Fatalf("create share: %v", err)
 	}
 
-	params := db.IncrementShareAccessCountIfUnderLimitParams{ID: "share1", AccessCount: 1}
+	params := db.IncrementShareAccessCountIfUnderLimitParams{ID: "share1", MaxAccessCount: 1}
 
 	got, err := queries.IncrementShareAccessCountIfUnderLimit(ctx, params)
 	if err != nil {

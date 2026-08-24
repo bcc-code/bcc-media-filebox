@@ -13,7 +13,7 @@ import (
 
 const createSession = `-- name: CreateSession :exec
 INSERT INTO sessions (id, user_id, expires_at)
-VALUES (?, ?, ?)
+VALUES (?1, ?2, ?3)
 `
 
 type CreateSessionParams struct {
@@ -37,7 +37,7 @@ func (q *Queries) DeleteExpiredSessions(ctx context.Context) error {
 }
 
 const deleteSession = `-- name: DeleteSession :exec
-DELETE FROM sessions WHERE id = ?
+DELETE FROM sessions WHERE id = ?1
 `
 
 func (q *Queries) DeleteSession(ctx context.Context, id string) error {
@@ -46,7 +46,7 @@ func (q *Queries) DeleteSession(ctx context.Context, id string) error {
 }
 
 const extendSession = `-- name: ExtendSession :exec
-UPDATE sessions SET expires_at = ? WHERE id = ?
+UPDATE sessions SET expires_at = ?1 WHERE id = ?2
 `
 
 type ExtendSessionParams struct {
@@ -71,7 +71,7 @@ SELECT
     u.role
 FROM sessions s
 JOIN users u ON u.id = s.user_id
-WHERE s.id = ? AND s.expires_at > CURRENT_TIMESTAMP
+WHERE s.id = ?1 AND s.expires_at > CURRENT_TIMESTAMP
 `
 
 type GetSessionWithUserRow struct {

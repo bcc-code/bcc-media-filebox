@@ -10,7 +10,7 @@ import (
 )
 
 const createArrangement = `-- name: CreateArrangement :one
-INSERT INTO arrangements (name, code) VALUES (?, ?) RETURNING id, name, code, created_at
+INSERT INTO arrangements (name, code) VALUES (?1, ?2) RETURNING id, name, code, created_at
 `
 
 type CreateArrangementParams struct {
@@ -31,7 +31,7 @@ func (q *Queries) CreateArrangement(ctx context.Context, arg CreateArrangementPa
 }
 
 const createSubEvent = `-- name: CreateSubEvent :one
-INSERT INTO sub_events (arrangement_id, name, code) VALUES (?, ?, ?) RETURNING id, arrangement_id, name, code, created_at
+INSERT INTO sub_events (arrangement_id, name, code) VALUES (?1, ?2, ?3) RETURNING id, arrangement_id, name, code, created_at
 `
 
 type CreateSubEventParams struct {
@@ -54,7 +54,7 @@ func (q *Queries) CreateSubEvent(ctx context.Context, arg CreateSubEventParams) 
 }
 
 const deleteArrangement = `-- name: DeleteArrangement :exec
-DELETE FROM arrangements WHERE id = ?
+DELETE FROM arrangements WHERE id = ?1
 `
 
 func (q *Queries) DeleteArrangement(ctx context.Context, id int64) error {
@@ -63,7 +63,7 @@ func (q *Queries) DeleteArrangement(ctx context.Context, id int64) error {
 }
 
 const deleteSubEvent = `-- name: DeleteSubEvent :exec
-DELETE FROM sub_events WHERE id = ?
+DELETE FROM sub_events WHERE id = ?1
 `
 
 func (q *Queries) DeleteSubEvent(ctx context.Context, id int64) error {
@@ -72,7 +72,7 @@ func (q *Queries) DeleteSubEvent(ctx context.Context, id int64) error {
 }
 
 const deleteSubEventsByArrangement = `-- name: DeleteSubEventsByArrangement :exec
-DELETE FROM sub_events WHERE arrangement_id = ?
+DELETE FROM sub_events WHERE arrangement_id = ?1
 `
 
 func (q *Queries) DeleteSubEventsByArrangement(ctx context.Context, arrangementID int64) error {
@@ -81,7 +81,7 @@ func (q *Queries) DeleteSubEventsByArrangement(ctx context.Context, arrangementI
 }
 
 const getArrangement = `-- name: GetArrangement :one
-SELECT id, name, code, created_at FROM arrangements WHERE id = ?
+SELECT id, name, code, created_at FROM arrangements WHERE id = ?1
 `
 
 func (q *Queries) GetArrangement(ctx context.Context, id int64) (Arrangement, error) {
@@ -97,7 +97,7 @@ func (q *Queries) GetArrangement(ctx context.Context, id int64) (Arrangement, er
 }
 
 const getArrangementByCode = `-- name: GetArrangementByCode :one
-SELECT id, name, code, created_at FROM arrangements WHERE code = ?
+SELECT id, name, code, created_at FROM arrangements WHERE code = ?1
 `
 
 func (q *Queries) GetArrangementByCode(ctx context.Context, code string) (Arrangement, error) {
@@ -113,7 +113,7 @@ func (q *Queries) GetArrangementByCode(ctx context.Context, code string) (Arrang
 }
 
 const getSubEvent = `-- name: GetSubEvent :one
-SELECT id, arrangement_id, name, code, created_at FROM sub_events WHERE id = ?
+SELECT id, arrangement_id, name, code, created_at FROM sub_events WHERE id = ?1
 `
 
 func (q *Queries) GetSubEvent(ctx context.Context, id int64) (SubEvent, error) {
@@ -195,7 +195,7 @@ func (q *Queries) ListSubEvents(ctx context.Context) ([]SubEvent, error) {
 }
 
 const listSubEventsByArrangement = `-- name: ListSubEventsByArrangement :many
-SELECT id, arrangement_id, name, code, created_at FROM sub_events WHERE arrangement_id = ? ORDER BY name
+SELECT id, arrangement_id, name, code, created_at FROM sub_events WHERE arrangement_id = ?1 ORDER BY name
 `
 
 func (q *Queries) ListSubEventsByArrangement(ctx context.Context, arrangementID int64) ([]SubEvent, error) {
@@ -230,7 +230,7 @@ func (q *Queries) ListSubEventsByArrangement(ctx context.Context, arrangementID 
 const listSubEventsByArrangementCode = `-- name: ListSubEventsByArrangementCode :many
 SELECT se.id, se.arrangement_id, se.name, se.code, se.created_at FROM sub_events se
 JOIN arrangements a ON a.id = se.arrangement_id
-WHERE a.code = ?
+WHERE a.code = ?1
 ORDER BY se.name
 `
 
@@ -264,7 +264,7 @@ func (q *Queries) ListSubEventsByArrangementCode(ctx context.Context, code strin
 }
 
 const updateArrangement = `-- name: UpdateArrangement :one
-UPDATE arrangements SET name = ?, code = ? WHERE id = ? RETURNING id, name, code, created_at
+UPDATE arrangements SET name = ?1, code = ?2 WHERE id = ?3 RETURNING id, name, code, created_at
 `
 
 type UpdateArrangementParams struct {
@@ -286,7 +286,7 @@ func (q *Queries) UpdateArrangement(ctx context.Context, arg UpdateArrangementPa
 }
 
 const updateSubEvent = `-- name: UpdateSubEvent :one
-UPDATE sub_events SET name = ?, code = ? WHERE id = ? RETURNING id, arrangement_id, name, code, created_at
+UPDATE sub_events SET name = ?1, code = ?2 WHERE id = ?3 RETURNING id, arrangement_id, name, code, created_at
 `
 
 type UpdateSubEventParams struct {

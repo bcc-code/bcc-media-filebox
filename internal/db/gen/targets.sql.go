@@ -23,7 +23,7 @@ func (q *Queries) CountTargets(ctx context.Context) (int64, error) {
 
 const createTarget = `-- name: CreateTarget :one
 INSERT INTO targets (name, path, form_key, webhook_url, position)
-VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM targets))
+VALUES (?1, ?2, ?3, ?4, (SELECT COALESCE(MAX(position), 0) + 1 FROM targets))
 RETURNING id, name, path, created_at, position, form_key, webhook_url
 `
 
@@ -55,7 +55,7 @@ func (q *Queries) CreateTarget(ctx context.Context, arg CreateTargetParams) (Tar
 }
 
 const deleteTarget = `-- name: DeleteTarget :exec
-DELETE FROM targets WHERE id = ?
+DELETE FROM targets WHERE id = ?1
 `
 
 func (q *Queries) DeleteTarget(ctx context.Context, id int64) error {
@@ -64,7 +64,7 @@ func (q *Queries) DeleteTarget(ctx context.Context, id int64) error {
 }
 
 const getTarget = `-- name: GetTarget :one
-SELECT id, name, path, created_at, position, form_key, webhook_url FROM targets WHERE id = ?
+SELECT id, name, path, created_at, position, form_key, webhook_url FROM targets WHERE id = ?1
 `
 
 func (q *Queries) GetTarget(ctx context.Context, id int64) (Target, error) {
@@ -83,7 +83,7 @@ func (q *Queries) GetTarget(ctx context.Context, id int64) (Target, error) {
 }
 
 const getTargetByName = `-- name: GetTargetByName :one
-SELECT id, name, path, created_at, position, form_key, webhook_url FROM targets WHERE name = ?
+SELECT id, name, path, created_at, position, form_key, webhook_url FROM targets WHERE name = ?1
 `
 
 func (q *Queries) GetTargetByName(ctx context.Context, name string) (Target, error) {
@@ -137,7 +137,7 @@ func (q *Queries) ListTargets(ctx context.Context) ([]Target, error) {
 }
 
 const updateTarget = `-- name: UpdateTarget :one
-UPDATE targets SET name = ?, path = ?, form_key = ?, webhook_url = ? WHERE id = ? RETURNING id, name, path, created_at, position, form_key, webhook_url
+UPDATE targets SET name = ?1, path = ?2, form_key = ?3, webhook_url = ?4 WHERE id = ?5 RETURNING id, name, path, created_at, position, form_key, webhook_url
 `
 
 type UpdateTargetParams struct {
@@ -170,7 +170,7 @@ func (q *Queries) UpdateTarget(ctx context.Context, arg UpdateTargetParams) (Tar
 }
 
 const updateTargetPosition = `-- name: UpdateTargetPosition :exec
-UPDATE targets SET position = ? WHERE id = ?
+UPDATE targets SET position = ?1 WHERE id = ?2
 `
 
 type UpdateTargetPositionParams struct {

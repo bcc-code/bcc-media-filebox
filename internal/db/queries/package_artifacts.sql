@@ -3,16 +3,16 @@ INSERT INTO package_artifacts (
     id, package_id, kind, filename, size, source_size, position, status,
     progress_bytes, object_key
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (@id, @package_id, @kind, @filename, @size, @source_size, @position, @status, @progress_bytes, @object_key)
 RETURNING *;
 
 -- name: CreatePackageArtifactMember :one
 INSERT INTO package_artifact_members (artifact_id, share_id, position, archive_filename)
-VALUES (?, ?, ?, ?)
+VALUES (@artifact_id, @share_id, @position, @archive_filename)
 RETURNING *;
 
 -- name: GetPackageArtifact :one
-SELECT * FROM package_artifacts WHERE id = ?;
+SELECT * FROM package_artifacts WHERE id = @id;
 
 -- name: GetPackageArtifactByShareID :one
 -- Legacy share links must resolve through their recipient-visible artifact so
@@ -20,11 +20,11 @@ SELECT * FROM package_artifacts WHERE id = ?;
 SELECT a.*
 FROM package_artifacts a
 JOIN package_artifact_members m ON m.artifact_id = a.id
-WHERE m.share_id = ?;
+WHERE m.share_id = @share_id;
 
 -- name: ListPackageArtifacts :many
 SELECT * FROM package_artifacts
-WHERE package_id = ?
+WHERE package_id = @package_id
 ORDER BY position, id;
 
 -- name: ListPackageArtifactsByPackageIDs :many
@@ -34,7 +34,7 @@ ORDER BY package_id, position, id;
 
 -- name: ListPendingPackageArtifacts :many
 SELECT * FROM package_artifacts
-WHERE package_id = ? AND status = 'pending'
+WHERE package_id = @package_id AND status = 'pending'
 ORDER BY position, id;
 
 -- name: GetPackageArtifactMemberWithUpload :one
@@ -58,7 +58,7 @@ SELECT
 FROM package_artifact_members m
 JOIN shares s ON s.id = m.share_id
 JOIN uploads u ON u.id = s.upload_id
-WHERE m.artifact_id = ? AND m.share_id = ?;
+WHERE m.artifact_id = @artifact_id AND m.share_id = @share_id;
 
 -- name: ListPackageArtifactMembersWithUploads :many
 SELECT
@@ -81,22 +81,22 @@ SELECT
 FROM package_artifact_members m
 JOIN shares s ON s.id = m.share_id
 JOIN uploads u ON u.id = s.upload_id
-WHERE m.artifact_id = ?
+WHERE m.artifact_id = @artifact_id
 ORDER BY m.position, m.share_id;
 
 -- name: SetPackagePreparationProcessing :one
 UPDATE packages
 SET preparation_status = 'processing',
-    preparation_bytes_total = ?,
+    preparation_bytes_total = @preparation_bytes_total,
     preparation_bytes_done = 0,
     preparation_error = NULL
-WHERE id = ?
+WHERE id = @id
 RETURNING *;
 
 -- name: UpdatePackagePreparationProgress :one
 UPDATE packages
-SET preparation_bytes_done = ?
-WHERE id = ? AND preparation_status = 'processing'
+SET preparation_bytes_done = @preparation_bytes_done
+WHERE id = @id AND preparation_status = 'processing'
 RETURNING *;
 
 -- name: FinalizePackagePreparation :one
@@ -104,13 +104,13 @@ UPDATE packages
 SET preparation_status = 'ready',
     preparation_bytes_done = preparation_bytes_total,
     preparation_error = NULL
-WHERE id = ? AND preparation_status = 'processing'
+WHERE id = @id AND preparation_status = 'processing'
 RETURNING *;
 
 -- name: FailPackagePreparation :one
 UPDATE packages
-SET preparation_status = 'failed', preparation_error = ?
-WHERE id = ? AND preparation_status = 'processing'
+SET preparation_status = 'failed', preparation_error = @preparation_error
+WHERE id = @id AND preparation_status = 'processing'
 RETURNING *;
 
 -- name: ListProcessingPackages :many
@@ -140,39 +140,39 @@ WHERE status = 'building';
 UPDATE package_artifacts
 SET status = 'pending', progress_bytes = 0,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'building';
+WHERE id = @id AND status = 'building';
 
 -- name: MarkPackageArtifactBuilding :one
 UPDATE package_artifacts
 SET status = 'building', progress_bytes = 0, attempts = attempts + 1,
     error = NULL, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'pending'
+WHERE id = @id AND status = 'pending'
 RETURNING *;
 
 -- name: UpdatePackageArtifactProgress :one
 UPDATE package_artifacts
-SET progress_bytes = ?, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'building'
+SET progress_bytes = @progress_bytes, updated_at = CURRENT_TIMESTAMP
+WHERE id = @id AND status = 'building'
 RETURNING *;
 
 -- name: MarkPackageArtifactReady :one
 UPDATE package_artifacts
-SET status = 'ready', size = ?, object_key = ?,
+SET status = 'ready', size = @size, object_key = @object_key,
     progress_bytes = source_size, error = NULL, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'building'
+WHERE id = @id AND status = 'building'
 RETURNING *;
 
 -- name: RetryPackageArtifact :one
 UPDATE package_artifacts
 SET status = 'pending', progress_bytes = 0, error = NULL,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'failed'
+WHERE id = @id AND status = 'failed'
 RETURNING *;
 
 -- name: FailPackageArtifact :one
 UPDATE package_artifacts
-SET status = 'failed', error = ?, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status IN ('pending', 'building')
+SET status = 'failed', error = @error, updated_at = CURRENT_TIMESTAMP
+WHERE id = @id AND status IN ('pending', 'building')
 RETURNING *;
 
 -- name: RequeuePackageArtifactAfterFailure :one
@@ -181,35 +181,35 @@ RETURNING *;
 -- terminal package failure.
 UPDATE package_artifacts
 SET status = CASE
-        WHEN attempts < sqlc.arg(max_attempts) THEN 'pending'
+        WHEN attempts < @max_attempts THEN 'pending'
         ELSE 'failed'
     END,
     progress_bytes = 0,
     error = CASE
-        WHEN attempts < sqlc.arg(max_attempts) THEN NULL
-        ELSE sqlc.arg(error)
+        WHEN attempts < @max_attempts THEN NULL
+        ELSE @error
     END,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = sqlc.arg(id) AND status = 'building'
+WHERE id = @id AND status = 'building'
 RETURNING *;
 
 -- name: IncrementPackageArtifactAccessCount :one
 UPDATE package_artifacts
 SET access_count = access_count + 1, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'ready'
+WHERE id = @id AND status = 'ready'
 RETURNING *;
 
 -- name: IncrementPackageArtifactAccessCountIfUnderLimit :one
 UPDATE package_artifacts
 SET access_count = access_count + 1, updated_at = CURRENT_TIMESTAMP
-WHERE id = ? AND status = 'ready' AND access_count < ?
+WHERE id = @id AND status = 'ready' AND access_count < @max_access_count
 RETURNING *;
 
 -- name: IncrementArtifactMemberShareAccessCounts :execrows
 UPDATE shares
 SET access_count = access_count + 1
 WHERE id IN (
-    SELECT share_id FROM package_artifact_members WHERE artifact_id = ?
+    SELECT share_id FROM package_artifact_members WHERE artifact_id = @artifact_id
 );
 
 -- name: GetPackageArtifactAccessCounts :one
@@ -218,7 +218,7 @@ SELECT
     CAST(COALESCE(MAX(access_count), 0) AS INTEGER) AS max_access_count,
     CAST(COALESCE(MIN(access_count), 0) AS INTEGER) AS min_access_count
 FROM package_artifacts
-WHERE package_id = ?;
+WHERE package_id = @package_id;
 
 -- name: GetPackageArtifactAccessCountsByPackageIDs :many
 SELECT
