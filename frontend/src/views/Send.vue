@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLogo from '../components/AppLogo.vue'
 import SendUserMenu from '../components/send/SendUserMenu.vue'
@@ -7,6 +7,7 @@ import PackageComposeForm from '../components/send/PackageComposeForm.vue'
 import SentPackagesList from '../components/send/SentPackagesList.vue'
 import RecipientPreviewTab from '../components/send/RecipientPreviewTab.vue'
 import { usePackages } from '../composables/usePackages'
+import { useAuth } from '../composables/useAuth'
 import '../assets/send.css'
 
 type View = 'compose' | 'sent' | 'preview'
@@ -17,6 +18,10 @@ const route = useRoute()
 const initialView: View = route.query.tab === 'sent' || route.query.tab === 'preview' ? (route.query.tab as View) : 'compose'
 const view = ref<View>(initialView)
 const { total, fetchPackages } = usePackages()
+// Send is unavailable to guest sessions — the backend rejects both the
+// package-creation call and Send-flow uploads; this just explains why.
+const { state: authState } = useAuth()
+const isGuest = computed(() => authState.provider === 'guest')
 const previewPackageId = ref<string | undefined>(
   typeof route.query.package === 'string' ? route.query.package : undefined,
 )
@@ -52,6 +57,15 @@ function onPreview(packageId: string) {
       </div>
 
       <h1 class="page-title">Send files</h1>
+
+      <template v-if="isGuest">
+        <p class="page-sub">Send is not available for guest accounts. Sign in with your organisation account to send packages.</p>
+        <p class="page-note">
+          <router-link to="/">Back to Upload</router-link>
+        </p>
+      </template>
+
+      <template v-else>
       <p class="page-sub">Bundle files into a single package and send a secure download link to anyone by email.</p>
       <p class="page-note">
         Files are permanently deleted from storage 90 days after upload — packages can no longer be renewed after
@@ -74,6 +88,7 @@ function onPreview(packageId: string) {
         @focus-consumed="previewPackageId = undefined"
       />
       <RecipientPreviewTab v-else :selected-package-id="previewPackageId" />
+      </template>
     </div>
   </div>
 </template>

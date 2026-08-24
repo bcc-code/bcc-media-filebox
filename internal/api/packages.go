@@ -61,6 +61,13 @@ func (h *Handlers) CreatePackage(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusForbidden, "authentication required")
 		return
 	}
+	// Send is reserved for fully authenticated identities — a guest session is
+	// just a self-asserted name and email, which is not enough to put outbound
+	// share links (and email) under someone's name.
+	if caller.IsGuest() {
+		writeJSONError(w, http.StatusForbidden, "guest accounts cannot send packages")
+		return
+	}
 
 	var req CreatePackageRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

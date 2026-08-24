@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -149,9 +150,7 @@ func (s *Server) preUploadCreate(hook tushandler.HookEvent) (tushandler.HTTPResp
 	}
 
 	newMeta := make(tushandler.MetaData, len(hook.Upload.MetaData)+1)
-	for k, v := range hook.Upload.MetaData {
-		newMeta[k] = v
-	}
+	maps.Copy(newMeta, hook.Upload.MetaData)
 
 	canonical, err := s.resolveUploadUserID(hook)
 	if err != nil {
@@ -163,6 +162,12 @@ func (s *Server) preUploadCreate(hook tushandler.HookEvent) (tushandler.HTTPResp
 	// submits empty when the user has no grants, which would divert ordinary
 	// uploads into the object store instead of the RawMaterial fallback.
 	if newMeta["target"] == sendFlowTarget {
+		// Send is reserved for fully authenticated identities; CreatePackage
+		// enforces the same rule, this just stops guests from staging bytes
+		// into the Send storage area at all.
+		if s.callerFromHook(hook).IsGuest() {
+			return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{}, tushandler.NewError("ERR_GUEST_FORBIDDEN", "guest accounts cannot use Send", http.StatusForbidden)
+		}
 		if s.store != nil {
 			newMeta["target"] = objectstore.TargetName
 		} else if resolved, ok := s.resolveDefaultTarget(hook.Context); ok {
@@ -187,14 +192,23 @@ func (s *Server) resolveDefaultTarget(ctx context.Context) (string, bool) {
 	return all[0].Name, true
 }
 
+// callerFromHook resolves the session caller for a raw tus request, or nil
+// when there is no session store or no valid session cookie.
+func (s *Server) callerFromHook(hook tushandler.HookEvent) *auth.Caller {
+	if s.sessions == nil {
+		return nil
+	}
+	sid := cookieValue(hook.HTTPRequest.Header, auth.SessionCookieName)
+	if sid == "" {
+		return nil
+	}
+	caller, _ := s.sessions.LookupByID(hook.Context, sid)
+	return caller
+}
+
 func (s *Server) resolveUploadUserID(hook tushandler.HookEvent) (string, error) {
-	if s.sessions != nil {
-		sid := cookieValue(hook.HTTPRequest.Header, auth.SessionCookieName)
-		if sid != "" {
-			if caller, _ := s.sessions.LookupByID(hook.Context, sid); caller != nil {
-				return caller.CanonicalUserID(), nil
-			}
-		}
+	if caller := s.callerFromHook(hook); caller != nil {
+		return caller.CanonicalUserID(), nil
 	}
 	// Guest path: accept either a raw ULID (legacy clients) or an already-
 	// prefixed "guest:<token>" (current client) — but never a provider-style

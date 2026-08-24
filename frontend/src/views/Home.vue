@@ -10,8 +10,12 @@ import AuthMenu from '../components/AuthMenu.vue'
 import TargetSelector from '../components/TargetSelector.vue'
 import type { TargetInfo } from '../types'
 import { getForm, isFormValid, type Option } from '../forms'
+import { useAuth } from '../composables/useAuth'
 
 const { uploads, addFiles, pauseUpload, resumeUpload, retryUpload, cancelUpload } = useTusUpload()
+// Send is unavailable to guest sessions (enforced server-side too).
+const { state: authState } = useAuth()
+const canSend = computed(() => authState.provider !== 'guest')
 const uploadList = ref<InstanceType<typeof UploadList> | null>(null)
 const targets = ref<TargetInfo[]>([])
 const target = ref('')
@@ -178,6 +182,7 @@ watch(
             class="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           >Upload</router-link>
           <router-link
+            v-if="canSend"
             to="/send"
             class="px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800/60"
           >Send</router-link>

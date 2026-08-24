@@ -13,6 +13,13 @@ type Caller struct {
 	Role     string
 }
 
+// IsGuest reports whether the request lacks a full identity: no session at
+// all (nil receiver) or a self-service guest session (provider "guest").
+// Nil-safe so callers can gate on it without a separate nil check.
+func (c *Caller) IsGuest() bool {
+	return c == nil || c.Provider == "guest"
+}
+
 // CanonicalUserID is the value written to uploads.user_id for this caller.
 // Format: "<provider>:<subject>" — namespaced to avoid collision with guest
 // IDs ("guest:<ulid>") and legacy raw-ULID rows.
