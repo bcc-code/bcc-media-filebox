@@ -39,6 +39,12 @@ All configuration is via environment variables.
 | `SESSION_KEY`    | —                | 32+ byte secret used for session storage. Required only when at least one OAuth provider is configured.       |
 | `BOOTSTRAP_ADMIN_EMAIL` | —         | Optional. On startup, if the `users` table is empty, seeds an admin grant for this email (all targets, admin flag). Ignored once any user has signed in. See [Bootstrapping the first admin](#bootstrapping-the-first-admin). |
 | `OIDC_BCC_*` / `OIDC_AZURE_*` | — | See [Authentication](#authentication). All `OIDC_*` variables are optional; OAuth is disabled when none are set. |
+| `MAIL_SMTP_HOST` | _(empty)_        | SMTP relay host. Unset disables email delivery entirely — outgoing messages (e.g. Send recipient notifications) are logged and dropped. |
+| `MAIL_SMTP_PORT` | `587`            | SMTP relay port.                                                                                              |
+| `MAIL_SMTP_TLS`  | `starttls`       | TLS mode for the relay connection: `starttls`, `implicit`, or `none`.                                         |
+| `MAIL_SMTP_USER` / `MAIL_SMTP_PASS` | — | Optional SMTP auth credentials. Setting `MAIL_SMTP_USER` without `MAIL_SMTP_PASS` fails at startup.       |
+| `MAIL_FROM_ADDRESS` | —             | From header and SMTP envelope sender. Required when `MAIL_SMTP_HOST` is set.                                  |
+| `MAIL_FROM_NAME` | `FileBox`        | Display name used in the From header.                                                                          |
 
 At least one `TARGET_N_NAME` / `TARGET_N_DIR` pair must be configured. Numbering is contiguous starting at `1`; the loader stops at the first fully empty pair.
 
@@ -50,6 +56,20 @@ TARGET_1_DIR=/srv/uploads/raw
 TARGET_2_NAME=Processed
 TARGET_2_DIR=/srv/uploads/processed
 ```
+
+Mail example using [Resend](https://resend.com/) as the SMTP relay, as `Environment=` lines for the systemd unit (`MAIL_SMTP_USER` is literally `resend`; the password is your API key):
+
+```ini
+Environment=MAIL_SMTP_HOST=smtp.resend.com
+Environment=MAIL_SMTP_PORT=587
+Environment=MAIL_SMTP_TLS=starttls
+Environment=MAIL_SMTP_USER=resend
+Environment=MAIL_SMTP_PASS=re_xxxxxxxxxxxxxxxx
+Environment=MAIL_FROM_ADDRESS=filebox@example.com
+Environment=MAIL_FROM_NAME=FileBox
+```
+
+`MAIL_FROM_ADDRESS` must be on a domain you have verified in Resend. Mail configuration is validated at startup, not at first send, so a misconfigured relay fails the deploy immediately.
 
 ### S3 storage for Send
 
