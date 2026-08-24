@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -14,6 +15,8 @@ import (
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
 	"filebox/internal/forms"
+	"filebox/internal/mail"
+	"filebox/internal/objectstore"
 	"filebox/internal/tus"
 
 	"github.com/tus/tusd/v2/pkg/filelocker"
@@ -21,24 +24,37 @@ import (
 	tushandler "github.com/tus/tusd/v2/pkg/handler"
 )
 
+// sendFlowTarget is what the Send UI submits instead of a real target name,
+// meaning "wherever Send files belong". Mirrors SEND_TARGET in
+// PackageComposeForm.vue.
+const sendFlowTarget = "send"
+
 type Server struct {
 	mux      *http.ServeMux
 	queries  *db.Queries
 	manager  *auth.Manager
 	sessions *auth.SessionStore
 	baseURL  string
+	// Origin for recipient links: usually baseURL, but separate in dev.
+	mailBaseURL string
+	store       *objectstore.Client
+	mailer      mail.Sender
 }
 
 // New constructs the HTTP server. The manager and sessions arguments may be
 // nil — in that case all auth routes return guest responses and uploads are
-// tagged with "guest:<ulid>" user_ids.
-func New(queries *db.Queries, uploadDir string, baseURL string, frontendFS fs.FS, manager *auth.Manager, sessions *auth.SessionStore) (*Server, error) {
+// tagged with "guest:<ulid>" user_ids. A nil store means S3 is unconfigured and
+// uploads finalize locally; a nil mailer disables delivery rather than panicking.
+func New(queries *db.Queries, uploadDir string, baseURL string, mailBaseURL string, frontendFS fs.FS, manager *auth.Manager, sessions *auth.SessionStore, store *objectstore.Client, mailer mail.Sender) (*Server, error) {
 	s := &Server{
-		mux:      http.NewServeMux(),
-		queries:  queries,
-		manager:  manager,
-		sessions: sessions,
-		baseURL:  baseURL,
+		mux:         http.NewServeMux(),
+		queries:     queries,
+		manager:     manager,
+		sessions:    sessions,
+		baseURL:     baseURL,
+		mailBaseURL: mailBaseURL,
+		store:       store,
+		mailer:      mailer,
 	}
 
 	if err := s.setupTus(uploadDir, baseURL); err != nil {
@@ -82,8 +98,16 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 		return err
 	}
 
-	ep := tus.NewEventProcessor(s.queries, uploadDir, tempDir)
-	go ep.Run(h.UnroutedHandler)
+	ep := tus.NewEventProcessor(s.queries, uploadDir, tempDir, s.store)
+	go func() {
+		if err := ep.RecoverPending(context.Background()); err != nil {
+			log.Printf("upload storage recovery finished with errors: %v", err)
+		}
+		// Start consuming new upload events only after recovery. Both paths move
+		// the same temporary objects, so serialising startup prevents a live
+		// finalizer and recovery from promoting one row concurrently.
+		ep.Run(h.UnroutedHandler)
+	}()
 
 	s.mux.Handle("/files/", http.StripPrefix("/files/", h))
 	return nil
@@ -135,7 +159,32 @@ func (s *Server) preUploadCreate(hook tushandler.HookEvent) (tushandler.HTTPResp
 	}
 	newMeta["userid"] = canonical
 
+	// Only Send's symbolic target may route to S3. Empty must not: Home also
+	// submits empty when the user has no grants, which would divert ordinary
+	// uploads into the object store instead of the RawMaterial fallback.
+	if newMeta["target"] == sendFlowTarget {
+		if s.store != nil {
+			newMeta["target"] = objectstore.TargetName
+		} else if resolved, ok := s.resolveDefaultTarget(hook.Context); ok {
+			// No S3 configured; resolveDefaultTarget prefers a target named "send".
+			newMeta["target"] = resolved
+		}
+	}
+
 	return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{MetaData: newMeta}, nil
+}
+
+func (s *Server) resolveDefaultTarget(ctx context.Context) (string, bool) {
+	all, err := s.queries.ListTargets(ctx)
+	if err != nil || len(all) == 0 {
+		return "", false
+	}
+	for _, t := range all {
+		if strings.EqualFold(t.Name, "send") {
+			return t.Name, true
+		}
+	}
+	return all[0].Name, true
 }
 
 func (s *Server) resolveUploadUserID(hook tushandler.HookEvent) (string, error) {
@@ -164,13 +213,26 @@ func (s *Server) resolveUploadUserID(hook tushandler.HookEvent) (string, error) 
 }
 
 func (s *Server) setupAPI(uploadDir string) {
-	h := api.NewHandlers(s.queries)
+	h := api.NewHandlers(s.queries, uploadDir, s.store, s.mailer, s.mailBaseURL)
 	s.mux.HandleFunc("GET /api/targets", h.ListTargets)
 	s.mux.HandleFunc("GET /api/projects", h.ListProjects)
 	s.mux.HandleFunc("GET /api/projects/{code}/suggestions", h.ProjectSuggestions)
 	s.mux.HandleFunc("GET /api/arrangements", h.ListArrangements)
 	s.mux.HandleFunc("GET /api/arrangements/{code}/sub-events", h.ListSubEvents)
 	s.mux.HandleFunc("GET /api/uploads", h.ListUploads)
+	s.mux.HandleFunc("GET /api/shares/{id}", h.GetShare)
+	s.mux.HandleFunc("GET /api/artifacts/{id}", h.GetPackageArtifact)
+	s.mux.HandleFunc("GET /api/packages", h.ListPackagesByUser)
+	s.mux.HandleFunc("POST /api/packages", h.CreatePackage)
+	s.mux.HandleFunc("DELETE /api/packages/{id}", h.RevokePackage)
+	s.mux.HandleFunc("GET /api/packages/{id}/preview", h.GetPackagePreview)
+	s.mux.HandleFunc("POST /api/packages/{id}/verify", h.VerifyPackage)
+	s.mux.HandleFunc("POST /api/packages/{id}/access-request", h.RequestPackageAccess)
+	s.mux.HandleFunc("POST /api/packages/{id}/extend", h.ExtendPackage)
+	s.mux.HandleFunc("DELETE /api/packages/{id}/access-requests/{requestId}", h.DismissPackageAccessRequest)
+	s.mux.HandleFunc("PATCH /api/packages/{id}/notify", h.SetPackageNotify)
+	s.mux.HandleFunc("POST /api/notifications/mute/{token}", h.MutePackageNotifications)
+	h.StartPackagePreparationWorker(context.Background())
 
 	admin := api.NewAdminHandlers(s.queries, uploadDir)
 	admin.Register(s.mux)

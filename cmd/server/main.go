@@ -14,6 +14,8 @@ import (
 	"filebox/internal/config"
 	dbpkg "filebox/internal/db"
 	db "filebox/internal/db/gen"
+	"filebox/internal/mail"
+	"filebox/internal/objectstore"
 	"filebox/internal/server"
 
 	"github.com/joho/godotenv"
@@ -48,7 +50,7 @@ func main() {
 		log.Fatalf("failed to create upload directory: %v", err)
 	}
 
-	database, err := sql.Open("sqlite", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	database, err := sql.Open("sqlite", dbpkg.SQLiteDSN(dbPath))
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
@@ -90,6 +92,37 @@ func main() {
 		log.Println("OAuth disabled (no OIDC_* env vars set) — running in guest-only mode")
 	}
 
+	// Send uploads go to S3 when a bucket is configured, else to a local target.
+	objectStore, err := objectstore.NewFromEnv(context.Background())
+	if err != nil {
+		log.Fatalf("failed to initialise S3 object store: %v", err)
+	}
+	if objectStore != nil {
+		log.Printf("S3 enabled for Send uploads (bucket: %s)", objectStore.Bucket())
+	} else {
+		log.Println("S3 disabled (no S3_BUCKET set) — Send uploads use local targets")
+	}
+
+	// Unconfigured mail is valid (NoopSender just logs), but a configured relay
+	// without BASE_URL would mail links that go nowhere — so that's fatal.
+	mailer, err := mail.NewFromEnv()
+	if err != nil {
+		log.Fatalf("failed to initialise mail: %v", err)
+	}
+	// Recipient links default to BASE_URL, but differ in dev: BASE_URL is this
+	// server's origin, while a recipient opens the Vite dev server. Dev builds
+	// fall back to Vite so local testing needs no configuration.
+	mailBaseURL := envOr("MAIL_LINK_BASE_URL", baseURL)
+	if mailBaseURL == "" {
+		mailBaseURL = devLinkOrigin // set only in dev builds
+	}
+	if mail.IsEnabled(mailer) && mailBaseURL == "" {
+		log.Fatalf("mail is configured but neither MAIL_LINK_BASE_URL nor BASE_URL is set — recipient links would point at the wrong host (dev builds fall back to the Vite dev server; production must set one explicitly)")
+	}
+	if mail.IsEnabled(mailer) {
+		log.Printf("mail: recipient links point at %s", mailBaseURL)
+	}
+
 	var frontendFS fs.FS
 	if ef := embeddedFrontend(); ef != nil {
 		if sub, err := fs.Sub(ef, "frontend_dist"); err == nil {
@@ -97,7 +130,7 @@ func main() {
 		}
 	}
 
-	srv, err := server.New(queries, uploadDir, baseURL, frontendFS, authManager, sessionStore)
+	srv, err := server.New(queries, uploadDir, baseURL, mailBaseURL, frontendFS, authManager, sessionStore, objectStore, mailer)
 	if err != nil {
 		log.Fatalf("failed to create server: %v", err)
 	}

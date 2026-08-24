@@ -1,4 +1,4 @@
-.PHONY: all build build-linux generate dev frontend frontend-dev clean
+.PHONY: all build build-linux generate dev frontend frontend-dev mailpit clean
 
 all: generate frontend build
 
@@ -28,6 +28,11 @@ frontend:
 
 frontend-dev:
 	cd frontend && pnpm run dev
+
+# Local SMTP catch-all for development: SMTP on :1025, web UI on :8025.
+# Nothing it receives ever leaves the machine.
+mailpit:
+	docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit:v1.30.7
 
 # Clean build artifacts
 clean:

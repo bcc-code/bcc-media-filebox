@@ -46,7 +46,8 @@ export function initAuth(): Promise<void> {
 }
 
 function signIn(providerId: string) {
-  window.location.href = `/auth/login/${encodeURIComponent(providerId)}`
+  const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
+  window.location.href = `/auth/login/${encodeURIComponent(providerId)}?returnTo=${returnTo}`
 }
 
 async function continueAsGuest(name: string, email: string): Promise<string | null> {

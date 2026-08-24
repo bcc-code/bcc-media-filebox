@@ -3,19 +3,76 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
+	"sync"
 
 	"filebox/internal/auth"
 	db "filebox/internal/db/gen"
+	"filebox/internal/mail"
+	"filebox/internal/objectstore"
 )
 
 type Handlers struct {
-	queries *db.Queries
+	queries   *db.Queries
+	uploadDir string
+	store     *objectstore.Client
+	mailer    mail.Sender
+	// Public origin for recipient links (MAIL_LINK_BASE_URL), which need not be
+	// the server's own base URL.
+	mailBaseURL            string
+	downloads              *downloadNotifier
+	packagePreparationWake chan struct{}
+	packageWorkerOnce      sync.Once
 }
 
-func NewHandlers(queries *db.Queries) *Handlers {
-	return &Handlers{queries: queries}
+// NewHandlers builds the public API handlers. A nil store means S3 is
+// unconfigured and downloads come from local target dirs; a nil or NoopSender
+// mailer means delivery is off.
+func NewHandlers(queries *db.Queries, uploadDir string, store *objectstore.Client, mailer mail.Sender, mailBaseURL string) *Handlers {
+	h := &Handlers{
+		queries: queries, uploadDir: uploadDir, store: store, mailer: mailer, mailBaseURL: mailBaseURL,
+		packagePreparationWake: make(chan struct{}, 1),
+	}
+	h.downloads = newDownloadNotifier(h.notifyDownloads)
+	return h
+}
+
+const (
+	errPackageNotFound       = "Package not found"
+	errAccessRequestNotFound = "Request not found"
+)
+
+// Body caps for the unauthenticated endpoints, both well over any legal body.
+const (
+	maxAccessRequestBody = 8 << 10
+	maxVerifyPackageBody = 4 << 10
+)
+
+// decodePublicJSON decodes r's body into dst under a size cap, writing the error
+// response itself. Field limits bound what gets stored; this bounds what an
+// anonymous caller can make the server parse.
+func decodePublicJSON(w http.ResponseWriter, r *http.Request, limit int64, dst any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		if _, tooLarge := errors.AsType[*http.MaxBytesError](err); tooLarge {
+			writeJSONError(w, http.StatusRequestEntityTooLarge, "Request is too large")
+			return false
+		}
+		writeJSONError(w, http.StatusBadRequest, "Invalid request")
+		return false
+	}
+	return true
+}
+
+// boolToInt64 adapts a Go bool to SQLite's INTEGER booleans, which sqlc surfaces
+// as int64 rather than bool.
+func boolToInt64(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 type UploadResponse struct {

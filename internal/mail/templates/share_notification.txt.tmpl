@@ -1,0 +1,23 @@
+{{- /* Plain-text twin of the HTML mail: same order, same wording. */ -}}
+FileBox
+{{.Headline}}
+{{- if .PackageName}}
+{{.PackageName}}
+{{- end}}
+{{if .Message}}
+{{.Message}}
+{{end}}
+{{- if .Files}}
+{{range .Files}}  {{.Name}}  ({{.SizeLabel}})
+{{end}}  {{.FileLabel}}{{with .TotalLabel}} · {{.}}{{end}}
+{{end}}
+Download {{.FileLabel}}{{with .TotalLabel}} · {{.}}{{end}}:
+{{.ShareURL}}
+
+Expires {{.ExpiresOn}}{{if .MaxDownloads}} · {{.MaxDownloads}} downloads allowed{{end}}.
+After that the files are no longer available{{if not .Renewed}} and you will need to
+ask for a new link{{end}}.
+
+--
+Sent by FileBox{{if .SenderEmail}} on behalf of {{.SenderEmail}}{{end}}.
+Reply to this email to reach {{if .SenderName}}{{.SenderName}}{{else}}the sender{{end}} directly.

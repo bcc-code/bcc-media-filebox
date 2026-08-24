@@ -1,0 +1,29 @@
+{{- /* Plain-text twin of the HTML mail: same order, same wording. */ -}}
+FileBox
+{{.FileLabel}} {{.DownloadedVerb}} downloaded from your package
+{{- if .PackageName}}
+{{.PackageName}}
+{{- end}}
+{{range .Files}}  {{.Name}}  ({{.SizeLabel}}){{with .CountLabel}}  {{.}}{{end}}
+{{end}}{{- if .Truncated}}  … and {{.Truncated}} more downloads
+{{end}}  {{.DownloadLabel}}{{with .TotalLabel}} · {{.}}{{end}}
+
+  When        {{.WhenLabel}}
+  Expires     {{.ExpiresOn}}
+{{- with .LimitLabel}}
+  Downloads   {{.}}
+{{- end}}
+{{if .Exhausted}}
+Every file has now reached its download limit, so the link no longer works.
+Extend the package if the recipients still need it:
+{{else}}
+Manage the package:
+{{end}}{{.ManageURL}}
+
+--
+Sent by FileBox because you asked to be notified when this package is
+downloaded.
+{{- with .MuteURL}}
+Stop these notifications:
+{{.}}
+{{- end}}

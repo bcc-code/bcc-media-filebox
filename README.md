@@ -10,6 +10,7 @@ A Go service that speaks the [TUS resumable upload protocol](https://tus.io/) in
 - Client-supplied SHA-256 verified after upload completes
 - Per-user upload history tracked in SQLite (duration, bandwidth, offset, status)
 - Multiple named upload targets, each bound to a filesystem directory
+- Background ZIP64 preparation for large Send packages, with live progress and restart recovery
 - Strict filename validation to prevent directory-traversal attacks
 - Optional OAuth (OpenID Connect) sign-in with BCC Login and/or Microsoft Entra ID; falls back to guest mode when unconfigured
 - Goose migrations embedded in the binary, applied automatically on startup
@@ -31,6 +32,10 @@ All configuration is via environment variables.
 | `BASE_URL`       | _(empty)_        | Absolute base URL used to build TUS upload URLs and OAuth callback URLs when behind a reverse proxy (e.g. `https://upload.example.com`). |
 | `TARGET_N_NAME`  | —                | Name of upload target `N` (starting at 1). Referenced by the client via the TUS `target` metadata field.      |
 | `TARGET_N_DIR`   | —                | Filesystem directory for target `N`. Must exist and be a directory. Completed uploads are moved here.         |
+| `S3_BUCKET`      | _(empty)_        | When set, Send uploads are stored in this S3 bucket and recipients download via presigned URLs. Unset disables S3; Send then writes to a local target. See [S3 storage for Send](#s3-storage-for-send). |
+| `S3_KEY_PREFIX`  | `send/`          | Key prefix for objects written to `S3_BUCKET`. A trailing `/` is added if missing.                             |
+| `AWS_REGION`     | —                | Region of `S3_BUCKET`. Required when `S3_BUCKET` is set.                                                      |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | — | Credentials for the app's IAM user. Optional when running on AWS with an attached instance/task role. |
 | `SESSION_KEY`    | —                | 32+ byte secret used for session storage. Required only when at least one OAuth provider is configured.       |
 | `BOOTSTRAP_ADMIN_EMAIL` | —         | Optional. On startup, if the `users` table is empty, seeds an admin grant for this email (all targets, admin flag). Ignored once any user has signed in. See [Bootstrapping the first admin](#bootstrapping-the-first-admin). |
 | `OIDC_BCC_*` / `OIDC_AZURE_*` | — | See [Authentication](#authentication). All `OIDC_*` variables are optional; OAuth is disabled when none are set. |
@@ -45,6 +50,35 @@ TARGET_1_DIR=/srv/uploads/raw
 TARGET_2_NAME=Processed
 TARGET_2_DIR=/srv/uploads/processed
 ```
+
+### S3 storage for Send
+
+Files shared through **Send** can be stored in S3 rather than on the server's own disk, so that neither the upload's final resting place nor the recipients' download traffic touches local infrastructure. Set `S3_BUCKET` (plus `AWS_REGION` and credentials) to enable it; leave `S3_BUCKET` unset and Send behaves as before, writing into a local target directory.
+
+How it works when enabled:
+
+- Uploads still arrive over TUS and are assembled in `UPLOAD_DIR/.tmp`, so resumability is unchanged. Once complete, the SHA-256 is verified **before** the transfer, and the file is then streamed to S3 (multipart for large files) and removed from the temp directory.
+- Send uploads are tagged with the reserved target name `s3` instead of a configured target. This name is never a row in the `targets` table, so it can't be created, renamed, or deleted from the admin UI.
+- Object keys are `<S3_KEY_PREFIX><uploadID>/<filename>`. Namespacing by upload ID means same-named files never collide, and the key is derivable from the `uploads` row — so S3-backed shares need no extra columns.
+- Generated ZIPs use `<S3_KEY_PREFIX>packages/<packageID>/artifacts/<artifactID>.zip`. They are streamed with 16 MiB multipart parts, so a 100 GiB non-seekable archive stays below S3's 10,000-part limit without requiring 100 GiB of local staging space.
+- `GET /api/artifacts/{id}` performs all package checks (preparation, revocation, expiry, per-artifact download limit, and verification), records the access, and then responds `302` to a presigned S3 URL valid for 5 minutes. Old `/api/shares/{id}` links delegate to this policy path. The bucket itself stays entirely private.
+
+### Send archive policy
+
+All thresholds are binary GiB (`1 GiB = 2^30 bytes`), and the 100 GiB limit applies to the finished ZIP including its headers:
+
+- 10 files or fewer stay as individual downloads.
+- More than 10 files whose combined source size is at most 100 GiB are prepared as one ZIP. If ZIP envelope bytes would cross the strict limit, the planner safely splits or leaves an otherwise-unpackable source direct.
+- Above 100 GiB total, each source smaller than 10 GiB is packed into ordered ZIP parts no larger than 100 GiB, while sources of 10 GiB or more stay as individual downloads.
+
+Archives use ZIP64 with Store (no compression), which avoids spending CPU recompressing media and supports files over 4 GiB. Duplicate and legacy filenames are made safe and unique inside each archive. Original source objects are retained; package previews continue to list them, while only the planned ZIP/direct artifacts are downloadable. Preparation runs in the background, is restart-safe, and reports byte and percentage progress in both the sender and recipient views. Recipient email is delayed until the complete artifact set is ready. `maxDownloads` is enforced independently per downloadable artifact, so one ZIP download consumes one ZIP allowance.
+
+Completed files selected in the Send form are remembered by server upload ID. Reloading the page restores that exact draft selection without uploading the bytes again. Removing a restored row only removes it from the draft; it does not delete the stored source.
+
+Without S3, generated archives are published atomically under `UPLOAD_DIR/.archives/<packageID>/`.
+
+See [Package archive validation](docs/package-archive-validation.md) for the recorded local end-to-end scenarios, including real 90 GiB and split 96/24 GiB archive downloads and integrity checks.
+
 
 ## HTTP API
 
@@ -137,6 +171,8 @@ When OAuth is enabled, signing in is still optional: guests upload exactly as be
 OAuth sign-in establishes identity but **does not yet gate access**. Any visitor — guest or authenticated — can list targets and upload. Per-target ACLs (e.g. restricting a target to a particular email domain or OIDC group) are plumbed through the `Caller` type for a follow-up change. Until those rules land, treat the public surface as you would the original anonymous build.
 
 ## Deployment
+
+FileBox's SQLite database and background preparation queue assume one active server process per database. Do not overlap instances during a rolling deployment or point multiple replicas at the same DB/storage paths; stop the old process before starting the replacement.
 
 Two reference files ship in the repo:
 
