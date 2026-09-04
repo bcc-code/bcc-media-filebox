@@ -46,7 +46,7 @@ FROM uploads
 WHERE user_id = @user_id;
 
 -- name: UserRecentUploads :many
-SELECT id, filename, size, target_name, completed_at, created_at
+SELECT id, filename, size, target_name, completed_at, created_at, storage_status
 FROM uploads
 WHERE user_id = @user_id AND status = 'completed' AND is_partial = 0
 ORDER BY completed_at DESC

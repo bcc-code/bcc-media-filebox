@@ -359,7 +359,7 @@ func (ep *EventProcessor) handleComplete(event handler.HookEvent) {
 // home, then does the bookkeeping common to every destination.
 func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time.Time) {
 	if len(info.PartialUploads) > 0 {
-		if err := ep.assembleConcat(info); err != nil {
+		if err := ep.assembleWithRetry(info); err != nil {
 			log.Printf("assembling concatenated upload %s: %v", info.ID, err)
 			return
 		}
@@ -384,6 +384,33 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 		}
 	}
 	ep.cleanupFinalization(info, completedAt)
+}
+
+// errAssemblyFailed marks structural inconsistencies that no retry can fix; the
+// upload row has already been marked failed when it is returned.
+var errAssemblyFailed = errors.New("assembly failed")
+
+// assemblyRetryDelays paces retries of assembleConcat after plain I/O errors
+// (typically a full disk). The last delay repeats indefinitely: the row stays
+// pending and visible as "assembling" in the UI, and RecoverPending picks it up
+// again if the process restarts in the meantime.
+var assemblyRetryDelays = []time.Duration{
+	10 * time.Second, 30 * time.Second, time.Minute, 5 * time.Minute, 10 * time.Minute,
+}
+
+// assembleWithRetry runs assembleConcat until it succeeds or fails structurally.
+// Before this, an I/O error left the upload silently pending until the next
+// process restart.
+func (ep *EventProcessor) assembleWithRetry(info handler.FileInfo) error {
+	for attempt := 0; ; attempt++ {
+		err := ep.assembleConcat(info)
+		if err == nil || errors.Is(err, errAssemblyFailed) {
+			return err
+		}
+		delay := assemblyRetryDelays[min(attempt, len(assemblyRetryDelays)-1)]
+		log.Printf("assembling concatenated upload %s (attempt %d): %v — retrying in %s", info.ID, attempt+1, err, delay)
+		time.Sleep(delay)
+	}
 }
 
 // assembleConcat builds the final file of a concatenated upload from its
@@ -500,7 +527,7 @@ func (ep *EventProcessor) failAssembly(uploadID, reason string) error {
 	if err := ep.queries.FailUpload(context.Background(), uploadID); err != nil {
 		return fmt.Errorf("%s; mark failed: %w", reason, err)
 	}
-	return errors.New(reason)
+	return fmt.Errorf("%w: %s", errAssemblyFailed, reason)
 }
 
 // cleanupFinalization removes tusd's temporary bookkeeping after either normal

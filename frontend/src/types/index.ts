@@ -31,6 +31,8 @@ export interface UploadRecord {
   offset: number
   contentType: string | null
   status: string
+  // pending: still being assembled/moved into storage; ready; failed
+  storageStatus: 'pending' | 'ready' | 'failed'
   durationMs: number | null
   avgBandwidth: number | null
   sha256: string | null

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import type { UploadRecord } from '../types'
 import { getUserId } from '../composables/useUserId'
 import UiButton from './ui/UiButton.vue'
@@ -7,6 +7,11 @@ import UiBadge from './ui/UiBadge.vue'
 
 const records = ref<UploadRecord[]>([])
 const loading = ref(false)
+
+// While any upload is still being assembled or moved into storage, keep
+// refreshing so the badge flips to "completed" without a manual reload.
+const PENDING_POLL_MS = 5_000
+let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 async function fetchUploads() {
   loading.value = true
@@ -19,6 +24,43 @@ async function fetchUploads() {
     // silently fail
   } finally {
     loading.value = false
+  }
+  schedulePoll()
+}
+
+function schedulePoll() {
+  if (pollTimer) clearTimeout(pollTimer)
+  pollTimer = null
+  if (records.value.some((r) => r.storageStatus === 'pending')) {
+    pollTimer = setTimeout(fetchUploads, PENDING_POLL_MS)
+  }
+}
+
+function badge(record: UploadRecord): {
+  text: string
+  variant: 'ok' | 'warn' | 'danger'
+  title: string
+} {
+  switch (record.storageStatus) {
+    case 'pending':
+      return {
+        text: 'assembling',
+        variant: 'warn',
+        title:
+          'All bytes have arrived; the file is being assembled and moved into its target.',
+      }
+    case 'failed':
+      return {
+        text: 'failed',
+        variant: 'danger',
+        title: 'The file could not be moved into storage.',
+      }
+    default:
+      return {
+        text: 'completed',
+        variant: 'ok',
+        title: 'The file is in its target location.',
+      }
   }
 }
 
@@ -41,6 +83,9 @@ function formatDate(iso: string): string {
 }
 
 onMounted(fetchUploads)
+onUnmounted(() => {
+  if (pollTimer) clearTimeout(pollTimer)
+})
 
 defineExpose({ refresh: fetchUploads })
 </script>
@@ -77,7 +122,12 @@ defineExpose({ refresh: fetchUploads })
             >
           </div>
         </div>
-        <UiBadge variant="ok" dot>completed</UiBadge>
+        <UiBadge
+          :variant="badge(record).variant"
+          :title="badge(record).title"
+          dot
+          >{{ badge(record).text }}</UiBadge
+        >
       </div>
     </div>
   </div>

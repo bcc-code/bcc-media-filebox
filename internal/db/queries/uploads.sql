@@ -71,10 +71,14 @@ UPDATE uploads SET filename = @filename WHERE id = @id;
 -- name: ListUploads :many
 SELECT * FROM uploads WHERE is_partial = 0 AND status = 'completed' AND user_id = @user_id ORDER BY created_at DESC;
 
--- name: ListCompletedFormUploads :many
-SELECT id, filename, size, target_name, user_id, completed_at, created_at
+-- name: ListRecentUploads :many
+-- All completed transfers across users, including those whose storage
+-- promotion is still pending or has failed, so admins can see stuck uploads.
+SELECT id, filename, size, target_name, user_id, completed_at, created_at,
+       storage_status,
+       CAST(form_data IS NOT NULL AS INTEGER) AS has_form
 FROM uploads
-WHERE is_partial = 0 AND status = 'completed' AND form_data IS NOT NULL
+WHERE is_partial = 0 AND status = 'completed'
 ORDER BY completed_at DESC
 LIMIT 100;
 

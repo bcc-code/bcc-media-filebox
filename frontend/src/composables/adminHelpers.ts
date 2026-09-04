@@ -85,3 +85,20 @@ export function avatarBg(seed: string): string {
   const [a, b] = palette[Math.abs(hash) % palette.length]
   return `linear-gradient(135deg, ${a}, ${b})`
 }
+
+// Human label + UiBadge variant for an upload's storage_status. "pending" means the
+// bytes have arrived but the file is still being assembled or moved into its
+// target, so it is not yet visible on disk or to webhooks.
+export function storageLabel(status: string): {
+  text: string
+  variant: 'ok' | 'warn' | 'danger'
+} {
+  switch (status) {
+    case 'pending':
+      return { text: 'assembling', variant: 'warn' }
+    case 'failed':
+      return { text: 'failed', variant: 'danger' }
+    default:
+      return { text: 'ready', variant: 'ok' }
+  }
+}

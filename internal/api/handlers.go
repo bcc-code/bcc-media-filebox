@@ -76,27 +76,32 @@ func boolToInt64(b bool) int64 {
 }
 
 type UploadResponse struct {
-	ID           string   `json:"id"`
-	Filename     string   `json:"filename"`
-	Size         int64    `json:"size"`
-	Offset       int64    `json:"offset"`
-	ContentType  *string  `json:"contentType"`
-	Status       string   `json:"status"`
-	DurationMs   *int64   `json:"durationMs"`
-	AvgBandwidth *float64 `json:"avgBandwidth"`
-	SHA256       *string  `json:"sha256"`
-	CreatedAt    string   `json:"createdAt"`
-	CompletedAt  *string  `json:"completedAt"`
+	ID          string  `json:"id"`
+	Filename    string  `json:"filename"`
+	Size        int64   `json:"size"`
+	Offset      int64   `json:"offset"`
+	ContentType *string `json:"contentType"`
+	Status      string  `json:"status"`
+	// StorageStatus tells whether a completed transfer is actually available
+	// yet: "pending" while the file is assembled/moved, "ready" when it is in
+	// its final location, "failed" if that promotion failed.
+	StorageStatus string   `json:"storageStatus"`
+	DurationMs    *int64   `json:"durationMs"`
+	AvgBandwidth  *float64 `json:"avgBandwidth"`
+	SHA256        *string  `json:"sha256"`
+	CreatedAt     string   `json:"createdAt"`
+	CompletedAt   *string  `json:"completedAt"`
 }
 
 func toResponse(u db.Upload) UploadResponse {
 	r := UploadResponse{
-		ID:        u.ID,
-		Filename:  u.Filename,
-		Size:      u.Size,
-		Offset:    u.Offset,
-		Status:    u.Status,
-		CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:            u.ID,
+		Filename:      u.Filename,
+		Size:          u.Size,
+		Offset:        u.Offset,
+		Status:        u.Status,
+		StorageStatus: u.StorageStatus,
+		CreatedAt:     u.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	if u.ContentType.Valid {
 		r.ContentType = &u.ContentType.String

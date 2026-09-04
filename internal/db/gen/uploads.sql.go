@@ -191,55 +191,6 @@ func (q *Queries) GetUpload(ctx context.Context, id string) (Upload, error) {
 	return i, err
 }
 
-const listCompletedFormUploads = `-- name: ListCompletedFormUploads :many
-SELECT id, filename, size, target_name, user_id, completed_at, created_at
-FROM uploads
-WHERE is_partial = 0 AND status = 'completed' AND form_data IS NOT NULL
-ORDER BY completed_at DESC
-LIMIT 100
-`
-
-type ListCompletedFormUploadsRow struct {
-	ID          string
-	Filename    string
-	Size        int64
-	TargetName  sql.NullString
-	UserID      string
-	CompletedAt sql.NullTime
-	CreatedAt   time.Time
-}
-
-func (q *Queries) ListCompletedFormUploads(ctx context.Context) ([]ListCompletedFormUploadsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listCompletedFormUploads)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListCompletedFormUploadsRow
-	for rows.Next() {
-		var i ListCompletedFormUploadsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Filename,
-			&i.Size,
-			&i.TargetName,
-			&i.UserID,
-			&i.CompletedAt,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listPendingStorageUploads = `-- name: ListPendingStorageUploads :many
 SELECT id, filename, size, "offset", content_type, status, is_partial, final_upload_id, created_at, completed_at, user_id, duration_ms, sha256, target_name, form_data, storage_status FROM uploads
 WHERE is_partial = 0 AND status = 'completed' AND storage_status = 'pending'
@@ -274,6 +225,63 @@ func (q *Queries) ListPendingStorageUploads(ctx context.Context) ([]Upload, erro
 			&i.TargetName,
 			&i.FormData,
 			&i.StorageStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentUploads = `-- name: ListRecentUploads :many
+SELECT id, filename, size, target_name, user_id, completed_at, created_at,
+       storage_status,
+       CAST(form_data IS NOT NULL AS INTEGER) AS has_form
+FROM uploads
+WHERE is_partial = 0 AND status = 'completed'
+ORDER BY completed_at DESC
+LIMIT 100
+`
+
+type ListRecentUploadsRow struct {
+	ID            string
+	Filename      string
+	Size          int64
+	TargetName    sql.NullString
+	UserID        string
+	CompletedAt   sql.NullTime
+	CreatedAt     time.Time
+	StorageStatus string
+	HasForm       int64
+}
+
+// All completed transfers across users, including those whose storage
+// promotion is still pending or has failed, so admins can see stuck uploads.
+func (q *Queries) ListRecentUploads(ctx context.Context) ([]ListRecentUploadsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentUploads)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRecentUploadsRow
+	for rows.Next() {
+		var i ListRecentUploadsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Filename,
+			&i.Size,
+			&i.TargetName,
+			&i.UserID,
+			&i.CompletedAt,
+			&i.CreatedAt,
+			&i.StorageStatus,
+			&i.HasForm,
 		); err != nil {
 			return nil, err
 		}

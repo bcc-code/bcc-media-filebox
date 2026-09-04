@@ -75,6 +75,7 @@ export interface RecentUpload {
   size: number
   targetName: string
   when: string
+  storageStatus: 'pending' | 'ready' | 'failed'
 }
 
 export interface AdminUpload {
@@ -84,6 +85,7 @@ export interface AdminUpload {
   targetName: string
   uploaderEmail: string
   when: string
+  storageStatus: 'pending' | 'ready' | 'failed'
   webhookConfigured: boolean
 }
 

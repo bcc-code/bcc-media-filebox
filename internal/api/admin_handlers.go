@@ -288,21 +288,24 @@ func (h *AdminHandlers) DeleteTarget(w http.ResponseWriter, r *http.Request) {
 // ---------- Uploads / Webhooks ----------
 
 type adminUploadDTO struct {
-	ID                string `json:"id"`
-	Filename          string `json:"filename"`
-	Size              int64  `json:"size"`
-	TargetName        string `json:"targetName"`
-	UploaderEmail     string `json:"uploaderEmail"`
-	When              string `json:"when"`
+	ID            string `json:"id"`
+	Filename      string `json:"filename"`
+	Size          int64  `json:"size"`
+	TargetName    string `json:"targetName"`
+	UploaderEmail string `json:"uploaderEmail"`
+	When          string `json:"when"`
+	// pending: bytes arrived but assembly / move to storage is still running;
+	// ready: file is in its final location; failed: promotion failed.
+	StorageStatus     string `json:"storageStatus"`
 	WebhookConfigured bool   `json:"webhookConfigured"`
 }
 
-// ListUploads returns recent completed form uploads (those that produced a JSON
-// sidecar) across all users, annotated with the uploader email and whether the
-// upload's target has a webhook URL configured — i.e. whether re-triggering is
-// possible.
+// ListUploads returns recent completed uploads across all users, including
+// those still being assembled or moved into storage, annotated with the
+// uploader email and whether a webhook can be re-triggered (the upload produced
+// a JSON sidecar and its target has a webhook URL configured).
 func (h *AdminHandlers) ListUploads(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.queries.ListCompletedFormUploads(r.Context())
+	rows, err := h.queries.ListRecentUploads(r.Context())
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -342,7 +345,8 @@ func (h *AdminHandlers) ListUploads(w http.ResponseWriter, r *http.Request) {
 			TargetName:        ru.TargetName.String,
 			UploaderEmail:     emailByUser[ru.UserID],
 			When:              when.Format(time.RFC3339),
-			WebhookConfigured: webhookByTarget[ru.TargetName.String],
+			StorageStatus:     ru.StorageStatus,
+			WebhookConfigured: ru.HasForm != 0 && ru.StorageStatus == "ready" && webhookByTarget[ru.TargetName.String],
 		}
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -884,11 +888,12 @@ type userDetailDTO struct {
 }
 
 type recentUploadDTO struct {
-	ID         string `json:"id"`
-	Filename   string `json:"filename"`
-	Size       int64  `json:"size"`
-	TargetName string `json:"targetName"`
-	When       string `json:"when"`
+	ID            string `json:"id"`
+	Filename      string `json:"filename"`
+	Size          int64  `json:"size"`
+	TargetName    string `json:"targetName"`
+	When          string `json:"when"`
+	StorageStatus string `json:"storageStatus"`
 }
 
 func (h *AdminHandlers) GetUser(w http.ResponseWriter, r *http.Request) {
@@ -919,11 +924,12 @@ func (h *AdminHandlers) GetUser(w http.ResponseWriter, r *http.Request) {
 			when = ru.CompletedAt.Time
 		}
 		recent[i] = recentUploadDTO{
-			ID:         ru.ID,
-			Filename:   ru.Filename,
-			Size:       ru.Size,
-			TargetName: ru.TargetName.String,
-			When:       when.Format(time.RFC3339),
+			ID:            ru.ID,
+			Filename:      ru.Filename,
+			Size:          ru.Size,
+			TargetName:    ru.TargetName.String,
+			When:          when.Format(time.RFC3339),
+			StorageStatus: ru.StorageStatus,
 		}
 	}
 

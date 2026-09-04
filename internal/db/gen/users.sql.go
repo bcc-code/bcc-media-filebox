@@ -224,7 +224,7 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 }
 
 const userRecentUploads = `-- name: UserRecentUploads :many
-SELECT id, filename, size, target_name, completed_at, created_at
+SELECT id, filename, size, target_name, completed_at, created_at, storage_status
 FROM uploads
 WHERE user_id = ?1 AND status = 'completed' AND is_partial = 0
 ORDER BY completed_at DESC
@@ -232,12 +232,13 @@ LIMIT 10
 `
 
 type UserRecentUploadsRow struct {
-	ID          string
-	Filename    string
-	Size        int64
-	TargetName  sql.NullString
-	CompletedAt sql.NullTime
-	CreatedAt   time.Time
+	ID            string
+	Filename      string
+	Size          int64
+	TargetName    sql.NullString
+	CompletedAt   sql.NullTime
+	CreatedAt     time.Time
+	StorageStatus string
 }
 
 func (q *Queries) UserRecentUploads(ctx context.Context, userID string) ([]UserRecentUploadsRow, error) {
@@ -256,6 +257,7 @@ func (q *Queries) UserRecentUploads(ctx context.Context, userID string) ([]UserR
 			&i.TargetName,
 			&i.CompletedAt,
 			&i.CreatedAt,
+			&i.StorageStatus,
 		); err != nil {
 			return nil, err
 		}

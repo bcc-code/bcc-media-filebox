@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAdmin } from '../../composables/useAdmin'
-import { formatBytes, relTime } from '../../composables/adminHelpers'
+import {
+  formatBytes,
+  relTime,
+  storageLabel,
+} from '../../composables/adminHelpers'
 import UiTooltip from '../ui/UiTooltip.vue'
 import UiButton from '../ui/UiButton.vue'
+import UiBadge from '../ui/UiBadge.vue'
 
 const { adminUploads, loadAdminUploads, retriggerWebhook } = useAdmin()
 
@@ -32,9 +37,11 @@ async function onRetrigger(id: string) {
       <div>
         <h1>Uploads</h1>
         <div class="sub">
-          Recent completed form uploads. Re-trigger fires the destination
-          target's webhook again with the same sidecar payload as the original
-          upload.
+          Recent completed uploads across all users. "Assembling" means the
+          bytes have arrived but the file is still being put together and moved
+          into its target, so it is not on disk yet. Re-trigger fires the
+          destination target's webhook again with the same sidecar payload as
+          the original upload.
         </div>
       </div>
       <UiButton variant="ghost" @click="loadAdminUploads()">
@@ -55,7 +62,7 @@ async function onRetrigger(id: string) {
     </div>
 
     <div v-if="adminUploads.length === 0" class="empty">
-      No form uploads yet.
+      No uploads yet.
     </div>
 
     <div v-else class="card">
@@ -67,6 +74,7 @@ async function onRetrigger(id: string) {
             <th>Uploader</th>
             <th style="text-align: right">Size</th>
             <th>When</th>
+            <th>Status</th>
             <th></th>
           </tr>
         </thead>
@@ -93,12 +101,19 @@ async function onRetrigger(id: string) {
                 relTime(u.when)
               }}</span>
             </td>
+            <td>
+              <UiBadge :variant="storageLabel(u.storageStatus).variant">{{
+                storageLabel(u.storageStatus).text
+              }}</UiBadge>
+            </td>
             <td class="actions">
               <UiTooltip
                 :label="
                   u.webhookConfigured
                     ? 'Re-send the webhook for this upload'
-                    : 'No webhook configured on this target'
+                    : u.storageStatus !== 'ready'
+                      ? 'Available once the upload is in storage'
+                      : 'No webhook or sidecar for this upload'
                 "
               >
                 <UiButton

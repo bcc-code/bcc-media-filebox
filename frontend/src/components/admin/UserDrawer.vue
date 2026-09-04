@@ -8,6 +8,7 @@ import {
   providerLabel,
   providerColor,
   avatarBg,
+  storageLabel,
 } from '../../composables/adminHelpers'
 import UiButton from '../ui/UiButton.vue'
 import UiDrawer from '../ui/UiDrawer.vue'
@@ -149,6 +150,7 @@ const failureRate = computed(() => {
                 <th>Target</th>
                 <th style="text-align: right">Size</th>
                 <th>When</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -170,6 +172,11 @@ const failureRate = computed(() => {
                   <span style="font-size: 13px; color: var(--color-ink-2)">{{
                     relTime(r.when)
                   }}</span>
+                </td>
+                <td>
+                  <UiBadge :variant="storageLabel(r.storageStatus).variant">{{
+                    storageLabel(r.storageStatus).text
+                  }}</UiBadge>
                 </td>
               </tr>
             </tbody>
