@@ -21,10 +21,11 @@ type Handlers struct {
 	sessions *SessionStore
 	queries  *db.Queries
 	baseURL  string
+	commit   string
 }
 
-func NewHandlers(manager *Manager, sessions *SessionStore, queries *db.Queries, baseURL string) *Handlers {
-	return &Handlers{manager: manager, sessions: sessions, queries: queries, baseURL: baseURL}
+func NewHandlers(manager *Manager, sessions *SessionStore, queries *db.Queries, baseURL string, commit string) *Handlers {
+	return &Handlers{manager: manager, sessions: sessions, queries: queries, baseURL: baseURL, commit: commit}
 }
 
 // Register wires the auth routes onto a mux. The /api/me route is always
@@ -322,13 +323,15 @@ type meResponse struct {
 	Email         string `json:"email,omitempty"`
 	Name          string `json:"name,omitempty"`
 	Role          string `json:"role,omitempty"`
+	// Build revision, always present so the UI can show it before login.
+	Commit string `json:"commit"`
 }
 
 func (h *Handlers) Me(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	caller := CallerFrom(r.Context())
 	if caller == nil {
-		_ = json.NewEncoder(w).Encode(meResponse{Authenticated: false})
+		_ = json.NewEncoder(w).Encode(meResponse{Authenticated: false, Commit: h.commit})
 		return
 	}
 	_ = json.NewEncoder(w).Encode(meResponse{
@@ -338,5 +341,6 @@ func (h *Handlers) Me(w http.ResponseWriter, r *http.Request) {
 		Email:         caller.Email,
 		Name:          caller.Name,
 		Role:          caller.Role,
+		Commit:        h.commit,
 	})
 }

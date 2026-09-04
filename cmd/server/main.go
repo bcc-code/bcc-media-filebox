@@ -23,6 +23,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// commit is the git revision this binary was built from, injected via
+// -ldflags "-X main.commit=..." (see Makefile). Dev builds report "dev".
+var commit = "dev"
+
 func main() {
 	// Load .env if present (development convenience). Production deploys use
 	// real env vars, so a missing file is fine; anything else is fatal so
@@ -132,13 +136,13 @@ func main() {
 		}
 	}
 
-	srv, err := server.New(queries, uploadDir, baseURL, mailBaseURL, frontendFS, authManager, sessionStore, objectStore, mailer)
+	srv, err := server.New(queries, uploadDir, baseURL, mailBaseURL, frontendFS, authManager, sessionStore, objectStore, mailer, commit)
 	if err != nil {
 		log.Fatalf("failed to create server: %v", err)
 	}
 
 	addr := fmt.Sprintf(":%s", port)
-	log.Printf("Starting server on %s", addr)
+	log.Printf("Starting server on %s (commit %s)", addr, commit)
 	log.Printf("Upload directory: %s", uploadDir)
 	if err := http.ListenAndServe(addr, srv.Handler()); err != nil {
 		log.Fatalf("server error: %v", err)

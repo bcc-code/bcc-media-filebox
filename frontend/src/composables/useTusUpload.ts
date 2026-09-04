@@ -6,6 +6,14 @@ import { getUserId } from './useUserId'
 let idCounter = 0
 let detectedParallelUploads: number | null = null
 
+// Upload speed (and therefore ETA) is averaged over this window.
+const SPEED_WINDOW_MS = 30_000
+// No progress for this long means the transfer was paused or stalled; the
+// window is restarted so the dead time doesn't sink the average.
+const STALL_RESET_MS = 5_000
+// Don't publish a rate from a window shorter than this — too noisy.
+const MIN_SPEED_SPAN_MS = 1_000
+
 function sanitizeFilename(name: string): { name: string; error: string | null } {
   if (name === '' || name === '.' || name === '..') {
     return { name: '', error: 'Invalid filename' }
@@ -86,8 +94,10 @@ export function useTusUpload() {
     const file = item.file
     if (!file) return
 
-    let lastBytes = 0
-    let lastTime = Date.now()
+    // Speed is a rolling average over the last SPEED_WINDOW_MS. Parallel
+    // 50 MB chunks make raw progress deltas lumpy, so a single-sample rate
+    // swings by an order of magnitude between events.
+    let samples: { t: number; bytes: number }[] = []
     const parallel = await detectParallelUploads()
 
     const upload = new tus.Upload(file, {
@@ -105,11 +115,16 @@ export function useTusUpload() {
       },
       onProgress(bytesUploaded: number, bytesTotal: number) {
         const now = Date.now()
-        const elapsed = (now - lastTime) / 1000
-        if (elapsed > 0.5) {
-          item.speed = (bytesUploaded - lastBytes) / elapsed
-          lastBytes = bytesUploaded
-          lastTime = now
+        const last = samples[samples.length - 1]
+        // A gap (pause/resume, stall, retry) would drag the average down for
+        // the next 30 s, so start a fresh window instead.
+        if (last && now - last.t > STALL_RESET_MS) samples = []
+        samples.push({ t: now, bytes: bytesUploaded })
+        while (samples.length > 1 && samples[1].t <= now - SPEED_WINDOW_MS) samples.shift()
+        const first = samples[0]
+        const spanMs = now - first.t
+        if (spanMs >= MIN_SPEED_SPAN_MS) {
+          item.speed = ((bytesUploaded - first.bytes) * 1000) / spanMs
         }
         item.bytesUploaded = bytesUploaded
         item.bytesTotal = bytesTotal

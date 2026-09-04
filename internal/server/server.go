@@ -40,13 +40,15 @@ type Server struct {
 	mailBaseURL string
 	store       *objectstore.Client
 	mailer      mail.Sender
+	// Build revision reported to the frontend via /api/me.
+	commit string
 }
 
 // New constructs the HTTP server. The manager and sessions arguments may be
 // nil — in that case all auth routes return guest responses and uploads are
 // tagged with "guest:<ulid>" user_ids. A nil store means S3 is unconfigured and
 // uploads finalize locally; a nil mailer disables delivery rather than panicking.
-func New(queries *db.Queries, uploadDir string, baseURL string, mailBaseURL string, frontendFS fs.FS, manager *auth.Manager, sessions *auth.SessionStore, store *objectstore.Client, mailer mail.Sender) (*Server, error) {
+func New(queries *db.Queries, uploadDir string, baseURL string, mailBaseURL string, frontendFS fs.FS, manager *auth.Manager, sessions *auth.SessionStore, store *objectstore.Client, mailer mail.Sender, commit string) (*Server, error) {
 	s := &Server{
 		mux:         http.NewServeMux(),
 		queries:     queries,
@@ -56,6 +58,7 @@ func New(queries *db.Queries, uploadDir string, baseURL string, mailBaseURL stri
 		mailBaseURL: mailBaseURL,
 		store:       store,
 		mailer:      mailer,
+		commit:      commit,
 	}
 
 	if err := s.setupTus(uploadDir, baseURL); err != nil {
@@ -256,7 +259,7 @@ func (s *Server) setupAPI(uploadDir string) {
 }
 
 func (s *Server) setupAuth() {
-	h := auth.NewHandlers(s.manager, s.sessions, s.queries, s.baseURL)
+	h := auth.NewHandlers(s.manager, s.sessions, s.queries, s.baseURL, s.commit)
 	h.Register(s.mux)
 }
 

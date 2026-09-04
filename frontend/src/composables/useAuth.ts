@@ -7,6 +7,8 @@ export interface AuthState {
   email: string
   name: string
   role: string
+  // Git revision of the running build, from /api/me.
+  commit: string
 }
 
 const state = reactive<AuthState>({
@@ -16,6 +18,7 @@ const state = reactive<AuthState>({
   email: '',
   name: '',
   role: '',
+  commit: '',
 })
 
 // mustChoose is the gate: anyone without a backend session — including
@@ -35,6 +38,7 @@ async function fetchMe() {
     state.email = data.email ?? ''
     state.name = data.name ?? ''
     state.role = data.role ?? ''
+    state.commit = data.commit ?? ''
   } catch {
     // network failure — fall through as unauthenticated
   }

@@ -1,18 +1,22 @@
 .PHONY: all build build-linux generate dev frontend frontend-dev mailpit clean
 
+# Git commit baked into release binaries (shown in the UI and /api/me).
+COMMIT ?= $(shell git describe --always --dirty --abbrev=8 2>/dev/null || echo unknown)
+LDFLAGS = -X main.commit=$(COMMIT)
+
 all: generate frontend build
 
 # Go backend (production - with embedded frontend)
 build: frontend
 	rm -rf cmd/server/frontend_dist
 	cp -r frontend/dist cmd/server/frontend_dist
-	go build -o filebox ./cmd/server
+	go build -ldflags "$(LDFLAGS)" -o filebox ./cmd/server
 
 # Go backend (production - linux amd64)
 build-linux: frontend
 	rm -rf cmd/server/frontend_dist
 	cp -r frontend/dist cmd/server/frontend_dist
-	GOOS=linux GOARCH=amd64 go build -o filebox-linux-amd64 ./cmd/server
+	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o filebox-linux-amd64 ./cmd/server
 
 # Go backend (development - no embedded frontend)
 dev:
