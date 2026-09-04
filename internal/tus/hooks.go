@@ -358,6 +358,12 @@ func (ep *EventProcessor) handleComplete(event handler.HookEvent) {
 // finalizeUpload moves a completed upload out of the temp area into its final
 // home, then does the bookkeeping common to every destination.
 func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time.Time) {
+	if len(info.PartialUploads) > 0 {
+		if err := ep.assembleConcat(info); err != nil {
+			log.Printf("assembling concatenated upload %s: %v", info.ID, err)
+			return
+		}
+	}
 	var storedFilename string
 	stored := false
 	if ep.store != nil && info.MetaData["target"] == objectstore.TargetName {
@@ -378,6 +384,123 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 		}
 	}
 	ep.cleanupFinalization(info, completedAt)
+}
+
+// assembleConcat builds the final file of a concatenated upload from its
+// partials, which DeferredConcater left untouched. Partials are appended in
+// order and each is removed right after it has been appended, so peak temporary
+// disk usage is the file size plus one partial rather than twice the file size.
+//
+// The operation is idempotent and resumable: a partial that is missing from disk
+// is treated as already appended, and a partial that still exists is appended
+// after truncating the final file back to its expected start offset. That makes
+// a restart mid-assembly safe — RecoverPending replays finalizeUpload and the
+// assembly continues where it stopped.
+//
+// Structural inconsistencies (a partial is gone but the final file is shorter
+// than it should be) mark the upload failed. Plain I/O errors leave the upload
+// pending so the next restart retries it.
+func (ep *EventProcessor) assembleConcat(info handler.FileInfo) error {
+	finalPath := filepath.Join(ep.tempDir, info.ID)
+
+	sizes := make([]int64, len(info.PartialUploads))
+	for i, partialID := range info.PartialUploads {
+		size, err := ep.partialSize(partialID)
+		if err != nil {
+			return fmt.Errorf("size of partial %s: %w", partialID, err)
+		}
+		sizes[i] = size
+	}
+
+	var off int64
+	for i, partialID := range info.PartialUploads {
+		partialPath := filepath.Join(ep.tempDir, partialID)
+		stat, err := os.Stat(partialPath)
+		switch {
+		case err == nil:
+			if stat.Size() != sizes[i] {
+				return ep.failAssembly(info.ID, fmt.Sprintf("partial %s has %d bytes, expected %d", partialID, stat.Size(), sizes[i]))
+			}
+			if err := appendPartial(finalPath, off, partialPath); err != nil {
+				return err
+			}
+			if err := os.Remove(partialPath); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("remove appended partial %s: %w", partialID, err)
+			}
+		case os.IsNotExist(err):
+			finalStat, statErr := os.Stat(finalPath)
+			if statErr != nil {
+				return fmt.Errorf("inspect final file: %w", statErr)
+			}
+			if finalStat.Size() < off+sizes[i] {
+				return ep.failAssembly(info.ID, fmt.Sprintf("partial %s is missing and final file holds only %d of %d bytes", partialID, finalStat.Size(), off+sizes[i]))
+			}
+		default:
+			return fmt.Errorf("inspect partial %s: %w", partialID, err)
+		}
+		off += sizes[i]
+	}
+
+	finalStat, err := os.Stat(finalPath)
+	if err != nil {
+		return fmt.Errorf("inspect final file: %w", err)
+	}
+	if finalStat.Size() != info.Size {
+		return ep.failAssembly(info.ID, fmt.Sprintf("assembled %d bytes, expected %d", finalStat.Size(), info.Size))
+	}
+	return nil
+}
+
+// partialSize reads a partial's declared size from tusd's sidecar, falling back
+// to the database row, which survives until cleanupFinalization.
+func (ep *EventProcessor) partialSize(partialID string) (int64, error) {
+	data, err := os.ReadFile(filepath.Join(ep.tempDir, partialID+".info"))
+	if err == nil {
+		var info handler.FileInfo
+		if json.Unmarshal(data, &info) == nil && info.Size > 0 {
+			return info.Size, nil
+		}
+	}
+	row, err := ep.queries.GetUpload(context.Background(), partialID)
+	if err != nil {
+		return 0, err
+	}
+	return row.Size, nil
+}
+
+// appendPartial truncates dst to off, appends src, and fsyncs so that a later
+// os.Remove of src can never outrun the appended bytes.
+func appendPartial(dst string, off int64, src string) error {
+	if err := os.Truncate(dst, off); err != nil {
+		return fmt.Errorf("truncate final file to %d: %w", off, err)
+	}
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("open final file: %w", err)
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		out.Close()
+		return fmt.Errorf("open partial: %w", err)
+	}
+	_, copyErr := io.Copy(out, in)
+	in.Close()
+	if copyErr != nil {
+		out.Close()
+		return fmt.Errorf("append partial: %w", copyErr)
+	}
+	if err := out.Sync(); err != nil {
+		out.Close()
+		return fmt.Errorf("sync final file: %w", err)
+	}
+	return out.Close()
+}
+
+func (ep *EventProcessor) failAssembly(uploadID, reason string) error {
+	if err := ep.queries.FailUpload(context.Background(), uploadID); err != nil {
+		return fmt.Errorf("%s; mark failed: %w", reason, err)
+	}
+	return errors.New(reason)
 }
 
 // cleanupFinalization removes tusd's temporary bookkeeping after either normal

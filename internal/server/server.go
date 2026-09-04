@@ -79,6 +79,9 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 	composer := tushandler.NewStoreComposer()
 	store.UseIn(composer)
 	locker.UseIn(composer)
+	// Override the filestore's synchronous concatenation: the final POST must
+	// return immediately and assembly happens in the event processor.
+	composer.UseConcater(tus.DeferredConcater{})
 
 	tusConfig := tushandler.Config{
 		BasePath:                "/files/",

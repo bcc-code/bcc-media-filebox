@@ -126,6 +126,10 @@ The server consumes the following upload metadata fields:
 
 When behind a proxy, set `BASE_URL` so the server advertises absolute upload URLs.
 
+#### Parallel uploads and concatenation
+
+The frontend splits each file into several partial uploads (6 on HTTP/2, 3 on HTTP/1.1) and joins them with the TUS concatenation extension. The final `POST /files/` returns immediately; the server then assembles the file in the background by appending the partials in order and deleting each one as soon as it has been appended. `UPLOAD_DIR/.tmp` therefore needs free space for roughly the file size plus one partial (about 1/6 of the file on HTTP/2) while assembly runs, not twice the file size. If the process restarts mid-assembly, the upload is finished on the next start.
+
 ## Authentication
 
 FileBox supports optional OAuth sign-in via any number of OpenID Connect providers. Sign-in is **never required**: if no providers are configured, the service runs in guest-only mode and behaves like the original anonymous-ULID build.
