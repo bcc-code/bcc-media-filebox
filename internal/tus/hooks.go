@@ -29,6 +29,10 @@ type EventProcessor struct {
 	uploadDir string
 	tempDir   string
 	store     *objectstore.Client
+
+	// TempTTL overrides how long an untouched temporary upload survives the
+	// reaper. Zero means defaultTempTTL. See reap.go.
+	TempTTL time.Duration
 }
 
 // NewEventProcessor wires the upload event loop. A nil store means every upload

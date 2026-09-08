@@ -110,6 +110,9 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 		if err := ep.RecoverPending(context.Background()); err != nil {
 			log.Printf("upload storage recovery finished with errors: %v", err)
 		}
+		// The reaper starts after recovery for the same reason Run does: it
+		// must not delete a temporary file that recovery is still promoting.
+		ep.StartTempReaper(context.Background())
 		// Start consuming new upload events only after recovery. Both paths move
 		// the same temporary objects, so serialising startup prevents a live
 		// finalizer and recovery from promoting one row concurrently.
