@@ -155,6 +155,28 @@ func TestReapTempRemovesAbandonedInProgressUploadAndItsRow(t *testing.T) {
 	}
 }
 
+// Files whose row has already gone must still be reaped: ids are discovered by
+// scanning the directory, so this is the state a crash mid-removal leaves, and
+// it has to self-heal on the next sweep.
+func TestReapTempRemovesFilesWhoseRowIsAlreadyGone(t *testing.T) {
+	f := newReapFixture(t)
+	f.writeTemp(t, "halfreaped", 3*time.Hour)
+	f.writeTemp(t, "halfreaped.info", 3*time.Hour)
+	// No row at all — exactly what removeTempFiles leaves behind if the process
+	// dies after deleting the row.
+
+	removed, err := f.ep.ReapTemp(context.Background())
+	if err != nil {
+		t.Fatalf("reap: %v", err)
+	}
+	if removed != 1 {
+		t.Fatalf("removed = %d, want 1", removed)
+	}
+	if f.exists("halfreaped") || f.exists("halfreaped.info") {
+		t.Error("files left by an interrupted reap must be cleaned up")
+	}
+}
+
 // A preallocated group file is full length from its first write, so size must
 // never be read as evidence of completeness.
 func TestReapTempIgnoresFileSize(t *testing.T) {

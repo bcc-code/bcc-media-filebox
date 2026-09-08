@@ -180,9 +180,21 @@ func (ep *EventProcessor) shouldReap(ctx context.Context, id string) (bool, erro
 	return true, nil
 }
 
-// removeTempFiles deletes every file belonging to an id, and its row. It
+// removeTempFiles deletes an id's row and then every file belonging to it. It
 // reports whether anything was actually removed.
+//
+// The row goes first, which is the only crash-safe order. Ids are discovered by
+// scanning the directory, so a row whose files are already gone is invisible to
+// every later sweep and would leak forever; files whose row is gone are found
+// again on the next pass and cleaned up then. Dying midway therefore costs at
+// most one more sweep, in the direction that self-heals.
 func (ep *EventProcessor) removeTempFiles(id string) bool {
+	if err := ep.queries.DeleteUpload(context.Background(), id); err != nil {
+		log.Printf("temp reaper: delete row %s: %v", id, err)
+		// Leave the files: they are the only remaining handle on this id.
+		return false
+	}
+
 	removedAny := false
 	for _, suffix := range tempSuffixes {
 		path := filepath.Join(ep.tempDir, id+suffix)
@@ -194,13 +206,5 @@ func (ep *EventProcessor) removeTempFiles(id string) bool {
 		}
 		removedAny = true
 	}
-	if !removedAny {
-		return false
-	}
-	// The row goes last: while it exists, a crash between the two leaves an
-	// upload the reaper will simply pick up again.
-	if err := ep.queries.DeleteUpload(context.Background(), id); err != nil {
-		log.Printf("temp reaper: delete row %s: %v", id, err)
-	}
-	return true
+	return removedAny
 }
