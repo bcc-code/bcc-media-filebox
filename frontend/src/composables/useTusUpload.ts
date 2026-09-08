@@ -1,5 +1,6 @@
 import { reactive, ref } from 'vue'
 import * as tus from 'tus-js-client'
+import { ulid } from 'ulid'
 import type { UploadItem, UploadRecord } from '../types'
 import { getUserId } from './useUserId'
 
@@ -39,6 +40,110 @@ function sanitizeFilename(name: string): { name: string; error: string | null } 
     }
   }
   return { name: out, error: null }
+}
+
+// Part boundaries are aligned to this, which keeps the server's reflink option
+// open (FICLONERANGE needs every part but the last to be a block multiple).
+const BOUNDARY_ALIGN = 4096
+
+export type Boundary = { start: number; end: number }
+
+// boundariesFor splits a file so that the server can position each part's bytes
+// as they arrive, instead of concatenating the parts afterwards.
+//
+// Two properties matter, and both come from how tus-js-client works:
+//
+//   - The lengths must all differ. Every part is handed the same metadata
+//     object and the same headers (`metadataForPartialUploads` is one static
+//     value), so Upload-Length is the only per-part signal the server gets.
+//     The split is therefore equal-ish but deliberately uneven: each of the
+//     first N-1 parts gets one more alignment unit than the one before, which
+//     makes them strictly increasing, and the remainder — the last part — comes
+//     out smaller than all of them.
+//   - It must be a pure function of (size, partCount). On resume tus-js-client
+//     takes the part count from the stored part URLs and recomputes the split
+//     from this option, so a different answer would make a resumed part write
+//     at the wrong offset.
+//
+// Returns null when the file is too small to split this way, in which case the
+// caller must not use parallel mode.
+//
+// The Go reference implementation of this same rule is distinctBoundaries() in
+// internal/tus/positioned_test.go, which asserts the server accepts what this
+// produces. Change the two together.
+export function boundariesFor(size: number, partCount: number): Boundary[] | null {
+  if (partCount <= 1 || size <= 0 || !Number.isFinite(size)) return null
+
+  const base = Math.floor(Math.floor(size / partCount) / BOUNDARY_ALIGN) * BOUNDARY_ALIGN
+  if (base <= 0) return null
+
+  // The first N-1 parts consume (N-1)*base plus one, two, ... alignment units.
+  const shift = (BOUNDARY_ALIGN * partCount * (partCount - 1)) / 2
+  const last = size - ((partCount - 1) * base + shift)
+  // last < base + BOUNDARY_ALIGN is what proves the lengths are distinct: it
+  // keeps the remainder strictly below the smallest of the interior parts.
+  if (last <= 0 || last >= base + BOUNDARY_ALIGN) return null
+
+  const parts: Boundary[] = []
+  let start = 0
+  for (let i = 0; i < partCount - 1; i++) {
+    const end = start + base + (i + 1) * BOUNDARY_ALIGN
+    parts.push({ start, end })
+    start = end
+  }
+  parts.push({ start, end: size })
+  return parts
+}
+
+// Two things have to survive a page reload for a resumed upload to land in the
+// right places:
+//
+//   - the group id, which names the server-side file every part writes into and
+//     which the final upload is created under. A fresh id would abandon the
+//     partly-written file and start a second one.
+//   - the part count, because tus-js-client takes it from the stored part URLs
+//     on resume while the boundaries still come from our option. If the two
+//     disagree — the protocol detection can differ between sessions — it would
+//     resume a subset of the parts and concatenate the wrong file.
+type GroupRecord = { id: string; parts: number }
+
+const GROUP_KEY_PREFIX = 'filebox-upload-group:'
+
+function groupKey(file: File, target: string): string {
+  return `${GROUP_KEY_PREFIX}${file.name}/${file.size}/${file.lastModified}/${target}`
+}
+
+function loadGroup(file: File, target: string): GroupRecord | null {
+  try {
+    const raw = localStorage.getItem(groupKey(file, target))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<GroupRecord> | null
+    if (typeof parsed?.id === 'string' && parsed.id !== '' && typeof parsed?.parts === 'number' && parsed.parts > 1) {
+      return { id: parsed.id, parts: parsed.parts }
+    }
+  } catch {
+    // Blocked storage, or a record written by an older version. Either way,
+    // start fresh rather than resuming against a guess.
+  }
+  return null
+}
+
+function saveGroup(file: File, target: string, record: GroupRecord) {
+  try {
+    localStorage.setItem(groupKey(file, target), JSON.stringify(record))
+  } catch {
+    // Private mode or blocked storage. tus-js-client's own resume support uses
+    // localStorage too, so resume is already unavailable here; the upload still
+    // completes, it just cannot be picked up again.
+  }
+}
+
+function forgetGroup(file: File, target: string) {
+  try {
+    localStorage.removeItem(groupKey(file, target))
+  } catch {
+    // Nothing to clean up if we could never write it.
+  }
 }
 
 async function detectParallelUploads(): Promise<number> {
@@ -98,19 +203,51 @@ export function useTusUpload() {
     // 50 MB chunks make raw progress deltas lumpy, so a single-sample rate
     // swings by an order of magnitude between events.
     let samples: { t: number; bytes: number }[] = []
-    const parallel = await detectParallelUploads()
+
+    // A resumed upload keeps the part count it started with; only a fresh one
+    // asks how many connections the protocol affords.
+    const saved = loadGroup(file, target)
+    const parallel = saved?.parts ?? (await detectParallelUploads())
+
+    // With boundaries the server writes each part straight into its final
+    // position, so the upload is done the moment the last byte lands. Without
+    // them — a file too small to split unevenly — the server falls back to
+    // concatenating the parts afterwards, which is what it did before.
+    const boundaries = boundariesFor(file.size, parallel)
+    const group = boundaries ? (saved?.id ?? ulid()) : null
+    if (group) saveGroup(file, target, { id: group, parts: parallel })
+    const userid = getUserId()
 
     const upload = new tus.Upload(file, {
       endpoint: '/files/',
       chunkSize: 50 * 1024 * 1024,
       parallelUploads: parallel,
+      // null is the option's own default: no boundaries, so tus-js-client
+      // splits the file evenly and the server concatenates afterwards.
+      parallelUploadBoundaries: boundaries,
       retryDelays: [0, 1000, 3000, 5000, 10000],
       removeFingerprintOnSuccess: true,
+      // One static object shared by every part — that is all the option
+      // supports, and it is why the parts are told apart by length. userid has
+      // to be here: without it the server mints a fresh guest id per part and
+      // could never check that the whole group belongs to one user.
+      metadataForPartialUploads:
+        group && boundaries
+          ? {
+              userid,
+              group,
+              total: String(file.size),
+              boundaries: JSON.stringify(boundaries),
+            }
+          : {},
       metadata: {
         filename: item.displayName,
         filetype: file.type || 'application/octet-stream',
-        userid: getUserId(),
+        userid,
         target: target,
+        // The final upload is created under the group id, so the assembled
+        // file is already where finalization expects it.
+        ...(group ? { group, total: String(file.size) } : {}),
         ...(formData ? { formdata: JSON.stringify(formData) } : {}),
       },
       onProgress(bytesUploaded: number, bytesTotal: number) {
@@ -135,6 +272,8 @@ export function useTusUpload() {
         item.status = 'completed'
         item.progress = 100
         item.speed = 0
+        // The group record only exists to survive a reload mid-upload.
+        if (group) forgetGroup(file, target)
         // The URL's last path segment is the server-assigned upload ID. Parsed
         // via pathname, so a query string or hash can't leak into it.
         const segments = upload.url
