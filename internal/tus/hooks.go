@@ -362,7 +362,7 @@ func (ep *EventProcessor) handleComplete(event handler.HookEvent) {
 // finalizeUpload moves a completed upload out of the temp area into its final
 // home, then does the bookkeeping common to every destination.
 func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time.Time) {
-	if len(info.PartialUploads) > 0 {
+	if needsAssembly(info) {
 		if err := ep.assembleWithRetry(info); err != nil {
 			log.Printf("assembling concatenated upload %s: %v", info.ID, err)
 			return
@@ -388,6 +388,18 @@ func (ep *EventProcessor) finalizeUpload(info handler.FileInfo, completedAt time
 		}
 	}
 	ep.cleanupFinalization(info, completedAt)
+}
+
+// needsAssembly reports whether the final file still has to be built by
+// copying partials into it.
+//
+// A positioned upload does not: every part wrote straight into the group file,
+// which is already whole at tempDir/<info.ID> — exactly where assembleConcat
+// would have built it, and where storeToDisk and storeToS3 look for it. An
+// upload without group metadata (an older client mid-flight across a deploy,
+// or any single-stream upload) still takes the copy path.
+func needsAssembly(info handler.FileInfo) bool {
+	return len(info.PartialUploads) > 0 && info.MetaData[MetaGroup] == ""
 }
 
 // errAssemblyFailed marks structural inconsistencies that no retry can fix; the

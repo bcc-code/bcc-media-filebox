@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"filebox/internal/api"
@@ -42,6 +43,9 @@ type Server struct {
 	mailer      mail.Sender
 	// Build revision reported to the frontend via /api/me.
 	commit string
+	// groups binds a parallel upload's group id to the user who created its
+	// first part, so nobody can inject parts into someone else's upload.
+	groups *tus.GroupRegistry
 }
 
 // New constructs the HTTP server. The manager and sessions arguments may be
@@ -59,6 +63,7 @@ func New(queries *db.Queries, uploadDir string, baseURL string, mailBaseURL stri
 		store:       store,
 		mailer:      mailer,
 		commit:      commit,
+		groups:      tus.NewGroupRegistry(),
 	}
 
 	if err := s.setupTus(uploadDir, baseURL); err != nil {
@@ -76,7 +81,11 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		return fmt.Errorf("create temp upload dir: %w", err)
 	}
-	store := filestore.New(tempDir)
+	// The positioned store makes the parts of a parallel upload write straight
+	// into their final position in a preallocated group file, so the final POST
+	// has nothing left to assemble. Uploads without group metadata fall through
+	// to plain filestore behaviour.
+	store := tus.NewPositionedStore(filestore.New(tempDir))
 	locker := filelocker.New(tempDir)
 
 	composer := tushandler.NewStoreComposer()
@@ -185,7 +194,66 @@ func (s *Server) preUploadCreate(hook tushandler.HookEvent) (tushandler.HTTPResp
 		}
 	}
 
-	return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{MetaData: newMeta}, nil
+	// Parallel uploads: bind this creation request to a position inside the
+	// group file, or reject it. Must come last — it needs the canonical user id
+	// resolved above, and it is the only branch that may assign an upload ID.
+	changes, err := s.resolveUploadGroup(hook, newMeta, canonical)
+	if err != nil {
+		return tushandler.HTTPResponse{}, tushandler.FileInfoChanges{}, err
+	}
+	return tushandler.HTTPResponse{}, changes, nil
+}
+
+// resolveUploadGroup handles the group metadata a parallel-upload client sends,
+// turning it into the positioning contract PositionedStore reads back.
+//
+// An upload with no group metadata is left exactly as it was, so single-stream
+// uploads and clients predating this change keep taking the concatenate-later
+// path.
+func (s *Server) resolveUploadGroup(hook tushandler.HookEvent, newMeta tushandler.MetaData, userID string) (tushandler.FileInfoChanges, error) {
+	groupID := newMeta[tus.MetaGroup]
+	if groupID == "" {
+		return tushandler.FileInfoChanges{MetaData: newMeta}, nil
+	}
+
+	total, err := strconv.ParseInt(newMeta[tus.MetaTotal], 10, 64)
+	if err != nil || total <= 0 {
+		return tushandler.FileInfoChanges{}, tushandler.NewError("ERR_INVALID_GROUP", "total must be a positive integer", http.StatusBadRequest)
+	}
+
+	// First part to arrive owns the group for the rest of the upload. Checked
+	// before anything is created, so a second user cannot even preallocate.
+	if !s.groups.Claim(groupID, userID) {
+		return tushandler.FileInfoChanges{}, tushandler.NewError("ERR_GROUP_FORBIDDEN", "this upload group belongs to another user", http.StatusForbidden)
+	}
+
+	// The final POST carries no part offset: its bytes are the whole group
+	// file. Setting the ID to the group id is what puts the assembled file at
+	// tempDir/<upload id>, where finalizeUpload and RecoverPending look for it.
+	if hook.Upload.IsFinal {
+		if hook.Upload.Size != total {
+			return tushandler.FileInfoChanges{}, tushandler.NewError("ERR_INVALID_GROUP", "the parts do not add up to the declared total", http.StatusBadRequest)
+		}
+		return tushandler.FileInfoChanges{ID: groupID, MetaData: newMeta}, nil
+	}
+
+	boundaries, err := tus.ParseBoundaries(newMeta[tus.MetaBoundaries], total)
+	if err != nil {
+		return tushandler.FileInfoChanges{}, tushandler.NewError("ERR_INVALID_GROUP", err.Error(), http.StatusBadRequest)
+	}
+
+	// Upload-Length is the only thing that distinguishes one part from another:
+	// tus-js-client passes a single shared metadata object and header set to
+	// every part. The client therefore picks boundaries with distinct lengths,
+	// which ParseBoundaries has just enforced, and the match below is exact.
+	// A part that matches nothing is refused rather than placed by guesswork.
+	match, err := tus.MatchBoundary(boundaries, hook.Upload.Size)
+	if err != nil {
+		return tushandler.FileInfoChanges{}, tushandler.NewError("ERR_INVALID_GROUP", err.Error(), http.StatusBadRequest)
+	}
+
+	newMeta[tus.MetaPartOffset] = tus.FormatInt(match.Start)
+	return tushandler.FileInfoChanges{MetaData: newMeta}, nil
 }
 
 func (s *Server) resolveDefaultTarget(ctx context.Context) (string, bool) {
