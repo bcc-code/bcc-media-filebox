@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"filebox/internal/api"
 	"filebox/internal/auth"
@@ -115,6 +116,17 @@ func (s *Server) setupTus(uploadDir string, baseURL string) error {
 	}
 
 	ep := tus.NewEventProcessor(s.queries, uploadDir, tempDir, s.store)
+	// How long an abandoned temporary upload survives. Worth tuning per
+	// deployment: a preallocated group file pins the whole upload size from its
+	// first PATCH, so the right value depends on how much temp disk there is
+	// relative to what people upload.
+	if raw := os.Getenv("UPLOAD_TEMP_TTL"); raw != "" {
+		ttl, err := time.ParseDuration(raw)
+		if err != nil || ttl <= 0 {
+			return fmt.Errorf("UPLOAD_TEMP_TTL must be a positive Go duration (e.g. 48h), got %q", raw)
+		}
+		ep.TempTTL = ttl
+	}
 	go func() {
 		if err := ep.RecoverPending(context.Background()); err != nil {
 			log.Printf("upload storage recovery finished with errors: %v", err)

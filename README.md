@@ -28,6 +28,7 @@ All configuration is via environment variables.
 | ---------------- | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | `PORT`           | `8080`           | HTTP listen port.                                                                                             |
 | `UPLOAD_DIR`     | `uploads`        | Working directory for in-flight TUS uploads. A `.tmp/` subdirectory is created inside it.                     |
+| `UPLOAD_TEMP_TTL` | `168h`          | How long an untouched in-flight upload survives in `UPLOAD_DIR/.tmp` before it is deleted. Must be a positive Go duration. Lower it when temp disk is tight relative to upload sizes: a parallel upload reserves its full size up front, so one abandoned transfer pins that much until the TTL expires. Completed uploads awaiting promotion are never affected. |
 | `DB_PATH`        | `filebox.db`     | SQLite database file. Opened with WAL and a 5s busy timeout.                                                  |
 | `BASE_URL`       | _(empty)_        | Absolute base URL used to build TUS upload URLs and OAuth callback URLs when behind a reverse proxy (e.g. `https://upload.example.com`). |
 | `TARGET_N_NAME`  | —                | Name of upload target `N` (starting at 1). Referenced by the client via the TUS `target` metadata field.      |
@@ -128,7 +129,15 @@ When behind a proxy, set `BASE_URL` so the server advertises absolute upload URL
 
 #### Parallel uploads and concatenation
 
-The frontend splits each file into several partial uploads (6 on HTTP/2, 3 on HTTP/1.1) and joins them with the TUS concatenation extension. The final `POST /files/` returns immediately; the server then assembles the file in the background by appending the partials in order and deleting each one as soon as it has been appended. `UPLOAD_DIR/.tmp` therefore needs free space for roughly the file size plus one partial (about 1/6 of the file on HTTP/2) while assembly runs, not twice the file size. If the process restarts mid-assembly, the upload is finished on the next start.
+The frontend splits each file into several partial uploads (6 on HTTP/2, 3 on HTTP/1.1) and joins them with the TUS concatenation extension.
+
+Each part is written straight into its final position in one preallocated file, so when the last part finishes there is nothing left to assemble and the upload appears in its target immediately. `UPLOAD_DIR/.tmp` needs free space for the file size, and needs it from the first `PATCH` rather than gradually — which means a full disk is reported when the upload starts instead of after it has been accepted.
+
+The client picks the part boundaries and sends them as upload metadata. It deliberately makes every part a slightly different length, because `tus-js-client` gives every part the same metadata and headers, leaving `Upload-Length` as the only way the server can tell one part from another. A part whose length matches no declared boundary is rejected at creation, so a mismatch can never write to the wrong offset. A group of parts belongs to the first user who creates one of them.
+
+Uploads that arrive without boundary metadata — a browser tab left open across a deploy, or a file too small to split into distinct parts — fall back to the previous behaviour: the final `POST /files/` returns immediately and the server assembles the file in the background by appending the partials in order, deleting each as soon as it has been appended. That path needs the file size plus one partial while assembly runs. If the process restarts mid-assembly, the upload is finished on the next start.
+
+Abandoned uploads are swept from `UPLOAD_DIR/.tmp` once an hour, and at startup — see `UPLOAD_TEMP_TTL`. Completed uploads awaiting promotion to their target are never swept, however old.
 
 ## Authentication
 
