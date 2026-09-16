@@ -13,6 +13,7 @@
   "dependencies": {
     "@zag-js/dialog": "^1.44.0",
     "@zag-js/menu": "^1.44.0",
+    "@zag-js/select": "^1.44.0",
     "@zag-js/toast": "^1.44.0",
     "@zag-js/vue": "^1.44.0",
     "tus-js-client": "^4.3.1",

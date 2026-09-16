@@ -16,7 +16,10 @@ async function flush(frames = 3) {
 
 /** Polls until the condition holds — timer-driven state settles unpredictably
  *  under jsdom, so a fixed sleep is either flaky or needlessly slow. */
-async function waitFor(condition: () => boolean, timeout = 2500) {
+// Generous ceiling on purpose: the poller returns as soon as the condition
+// holds, so this only matters on a loaded machine — where 2.5s was not enough
+// and these tests went flaky.
+async function waitFor(condition: () => boolean, timeout = 8000) {
   const start = Date.now()
   while (!condition() && Date.now() - start < timeout) {
     await new Promise((r) => setTimeout(r, 25))

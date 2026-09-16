@@ -2,6 +2,7 @@
 import UiDialog from '../ui/UiDialog.vue'
 import { reactive, watch, computed } from 'vue'
 import type { Grant, Target, Group } from '../../composables/useAdmin'
+import UiSelect, { type UiSelectEntry } from '../ui/UiSelect.vue'
 
 const props = defineProps<{
   grant: Grant | null
@@ -52,6 +53,28 @@ watch(
   },
   { immediate: true },
 )
+
+const groupOptions = computed<UiSelectEntry<string>[]>(() => {
+  const entries: UiSelectEntry<string>[] = [
+    {
+      label: 'Built-in directory groups',
+      options: props.builtinGroups.map((gr) => ({
+        value: gr.name,
+        label: gr.name,
+      })),
+    },
+  ]
+  if (props.customGroups.length) {
+    entries.push({
+      label: 'Custom groups',
+      options: props.customGroups.map((gr) => ({
+        value: gr.name,
+        label: gr.name,
+      })),
+    })
+  }
+  return entries
+})
 
 const isEdit = computed(() => !!props.grant)
 const valid = computed(() => draft.name.trim().length > 0)
@@ -145,19 +168,12 @@ function onSave() {
 
     <div v-else class="field">
       <label>Group</label>
-      <select v-model="draft.name">
-        <option disabled value="">Choose a group…</option>
-        <optgroup label="Built-in directory groups">
-          <option v-for="gr in builtinGroups" :key="gr.id" :value="gr.name">
-            {{ gr.name }}
-          </option>
-        </optgroup>
-        <optgroup label="Custom groups" v-if="customGroups.length">
-          <option v-for="gr in customGroups" :key="gr.id" :value="gr.name">
-            {{ gr.name }}
-          </option>
-        </optgroup>
-      </select>
+      <UiSelect
+        v-model="draft.name"
+        :options="groupOptions"
+        placeholder="Choose a group…"
+        aria-label="Group"
+      />
       <div class="hint" v-if="selectedGroup">
         {{ selectedGroup.description }}
       </div>

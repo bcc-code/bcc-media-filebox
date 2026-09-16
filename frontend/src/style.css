@@ -1,7 +1,7 @@
-@import "tailwindcss";
-@import "./assets/styles/font-sans.css";
-@import "./assets/styles/font-mono.css";
-@import "./assets/components.css";
+@import 'tailwindcss';
+@import './assets/styles/font-sans.css';
+@import './assets/styles/font-mono.css';
+@import './assets/components.css';
 
 /* ============================================================
    FileBox design tokens — the single source of truth.
@@ -19,54 +19,62 @@
 
 @theme {
   /* Surfaces — ascending elevation. `surface` is the page ground. */
-  --color-surface:    #0a1426;
-  --color-surface-2:  #0f1c33;
-  --color-surface-3:  #15243f;
-  --color-surface-4:  #1a2a48;
+  --color-surface: #0a1426;
+  --color-surface-2: #0f1c33;
+  --color-surface-3: #15243f;
+  --color-surface-4: #1a2a48;
 
   /* Hairlines. `line` for dividers, `line-2` for control borders. */
-  --color-line:       #1f2f4d;
-  --color-line-2:     #2a3d61;
+  --color-line: #1f2f4d;
+  --color-line-2: #2a3d61;
 
   /* Foreground — descending emphasis. `ink-3` is muted/meta text. */
-  --color-ink:        #e7ecf5;
-  --color-ink-2:      #aeb8cc;
-  --color-ink-3:      #6c7896;
+  --color-ink: #e7ecf5;
+  --color-ink-2: #aeb8cc;
+  --color-ink-3: #6c7896;
 
   /* Brand accent. `accent-ink` is the readable-on-accent foreground. */
-  --color-accent:     oklch(0.72 0.10 250);
-  --color-accent-2:   oklch(0.62 0.12 250);
-  --color-accent-hover: oklch(0.78 0.10 250);
+  --color-accent: oklch(0.72 0.1 250);
+  --color-accent-2: oklch(0.62 0.12 250);
+  --color-accent-hover: oklch(0.78 0.1 250);
   --color-accent-ink: #0a1426;
 
   /* Status */
-  --color-ok:         oklch(0.74 0.12 160);
-  --color-warn:       oklch(0.80 0.14 75);
-  --color-danger:     oklch(0.70 0.16 25);
-  --color-info:       oklch(0.70 0.13 240);
+  --color-ok: oklch(0.74 0.12 160);
+  --color-warn: oklch(0.8 0.14 75);
+  --color-danger: oklch(0.7 0.16 25);
+  --color-info: oklch(0.7 0.13 240);
 
   /* Decorative accent stop — the second stop of avatar gradients. */
   --color-accent-alt: oklch(0.62 0.12 280);
 
   /* Identity-provider tints (avatars, provider labels). */
   --color-provider-azure: #5da5ff;
-  --color-provider-bcc:   #9bbcff;
+  --color-provider-bcc: #9bbcff;
 
   /* BCC brand, from the public BCC component library (components.bcc.no):
      --color-bcc-800 / --color-bcc-700 / --color-bcc-100. */
-  --color-brand-bcc:       #014d49;
+  --color-brand-bcc: #014d49;
   --color-brand-bcc-hover: #0c625c;
-  --color-brand-bcc-ink:   #f0fcfa;
+  --color-brand-bcc-ink: #f0fcfa;
+
+  /* Layering. Menus and selects sit ABOVE dialogs so they still work when
+     opened from inside one; toasts stay above everything. */
+  --z-index-dialog-backdrop: 100;
+  --z-index-dialog: 101;
+  --z-index-dropdown: 120;
 
   /* Type. The `… fallback: …` families are metric-matched local faces from
      the font generator (size-adjust + ascent/descent overrides) that hold the
      line box steady while the webfont loads. They are declared in
      assets/styles/font-{sans,mono}.css; the system stack follows them so text
      outside the bundled subsets still lands on a real UI font. */
-  --font-sans: Inter, 'Inter fallback: Arial Bold', 'Inter fallback: Arial',
-               system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'JetBrains Mono fallback: Courier New',
-               ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans:
+    Inter, 'Inter fallback: Arial Bold', 'Inter fallback: Arial', system-ui,
+    -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:
+    'JetBrains Mono', 'JetBrains Mono fallback: Courier New', ui-monospace,
+    SFMono-Regular, Menlo, monospace;
 }
 
 /* The app is a dark surface end to end. Set it once on the document

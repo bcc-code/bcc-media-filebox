@@ -3,6 +3,7 @@ import UiDialog from '../ui/UiDialog.vue'
 import { reactive, watch, computed } from 'vue'
 import type { Target } from '../../composables/useAdmin'
 import { registry } from '../../forms'
+import UiSelect from '../ui/UiSelect.vue'
 
 const props = defineProps<{ target: Target | null }>()
 const emit = defineEmits<{
@@ -20,9 +21,11 @@ const emit = defineEmits<{
 
 const draft = reactive({ name: '', path: '', formKey: '', webhookUrl: '' })
 
-const formOptions = computed(() =>
-  Object.values(registry).map((f) => ({ key: f.key, label: f.label })),
-)
+const formOptions = computed(() => [
+  // '' is a real choice here, not a placeholder — it means "no form".
+  { value: '', label: 'None — free upload' },
+  ...Object.values(registry).map((f) => ({ value: f.key, label: f.label })),
+])
 
 watch(
   () => props.target,
@@ -78,12 +81,11 @@ function onSave() {
 
     <div class="field">
       <label>Upload form</label>
-      <select v-model="draft.formKey">
-        <option value="">None — free upload</option>
-        <option v-for="f in formOptions" :key="f.key" :value="f.key">
-          {{ f.label }}
-        </option>
-      </select>
+      <UiSelect
+        v-model="draft.formKey"
+        :options="formOptions"
+        aria-label="Upload form"
+      />
       <div class="hint">
         Forms collect structured details and derive the filename from them.
       </div>

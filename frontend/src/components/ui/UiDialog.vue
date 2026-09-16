@@ -125,7 +125,7 @@ const api = computed(() => dialog.connect(service, normalizeProps))
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-index-dialog-backdrop);
   background: color-mix(in oklch, var(--color-surface), transparent 30%);
   backdrop-filter: blur(6px);
   animation: dialog-backdrop-in 0.15s ease both;
@@ -134,7 +134,7 @@ const api = computed(() => dialog.connect(service, normalizeProps))
 .dialog-positioner {
   position: fixed;
   inset: 0;
-  z-index: 101;
+  z-index: var(--z-index-dialog);
   display: grid;
   place-items: center;
   /* Let a tall panel scroll the overlay rather than overflow the viewport. */
