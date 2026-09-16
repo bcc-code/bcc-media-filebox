@@ -937,6 +937,72 @@
   }
 }
 
+/* ============================================================
+   Tabs — one underline bar for both the Admin and Send surfaces.
+   Zag marks the active trigger with data-selected, which covers
+   pointer and keyboard selection alike.
+   ============================================================ */
+
+@layer components {
+  .tab-list {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--color-line);
+  }
+  /* Admin's bar spans the viewport under the topbar. */
+  .tab-list-inset {
+    padding: 0 28px;
+    background: var(--color-surface);
+  }
+  /* Send's sits inside the page wrap, above its panel. */
+  .tab-list-spaced {
+    margin-bottom: 26px;
+  }
+
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 14px;
+    margin-bottom: -1px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--color-ink-3);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+  .tab:hover {
+    color: var(--color-ink-2);
+  }
+  .tab[data-selected] {
+    color: var(--color-ink);
+    border-bottom-color: var(--color-accent);
+  }
+  .tab:focus-visible {
+    outline: none;
+    color: var(--color-ink);
+    background: var(--color-surface-2);
+  }
+
+  .tab .count {
+    padding: 1px 7px;
+    border: 1px solid var(--color-line-2);
+    border-radius: 999px;
+    background: var(--color-surface-3);
+    color: var(--color-ink-2);
+    font-size: 11px;
+  }
+  .tab[data-selected] .count {
+    border-color: transparent;
+    background: color-mix(in oklch, var(--color-accent), transparent 80%);
+    color: var(--color-accent);
+  }
+}
+
 /* Keyframes live outside @layer — layered keyframes are not addressable. */
 @keyframes fb-fade {
   from {

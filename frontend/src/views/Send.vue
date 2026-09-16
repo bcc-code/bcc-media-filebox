@@ -9,15 +9,25 @@ import RecipientPreviewTab from '../components/send/RecipientPreviewTab.vue'
 import { usePackages } from '../composables/usePackages'
 import { useAuth } from '../composables/useAuth'
 import '../assets/send.css'
+import UiTabs, { type UiTabEntry } from '../components/ui/UiTabs.vue'
 
 type View = 'compose' | 'sent' | 'preview'
 const route = useRoute()
 
 // ?tab=sent is what an access-request email links to (mail.ManageURL), landing
 // the author on the package they were asked about rather than the compose form.
-const initialView: View = route.query.tab === 'sent' || route.query.tab === 'preview' ? (route.query.tab as View) : 'compose'
+const initialView: View =
+  route.query.tab === 'sent' || route.query.tab === 'preview'
+    ? (route.query.tab as View)
+    : 'compose'
 const view = ref<View>(initialView)
 const { total, fetchPackages } = usePackages()
+
+const viewTabs = computed<UiTabEntry[]>(() => [
+  { value: 'compose', label: 'New package' },
+  { value: 'sent', label: 'Sent packages', count: total.value },
+  { value: 'preview', label: 'Recipient preview' },
+])
 // Send is unavailable to guest sessions — the backend rejects both the
 // package-creation call and Send-flow uploads; this just explains why.
 const { state: authState } = useAuth()
@@ -59,35 +69,40 @@ function onPreview(packageId: string) {
       <h1 class="page-title">Send files</h1>
 
       <template v-if="isGuest">
-        <p class="page-sub">Send is not available for guest accounts. Sign in with your organisation account to send packages.</p>
+        <p class="page-sub">
+          Send is not available for guest accounts. Sign in with your
+          organisation account to send packages.
+        </p>
         <p class="page-note">
           <router-link to="/">Back to Upload</router-link>
         </p>
       </template>
 
       <template v-else>
-      <p class="page-sub">Bundle files into a single package and send a secure download link to anyone by email.</p>
-      <p class="page-note">
-        Files are permanently deleted from storage 90 days after upload — packages can no longer be renewed after
-        that.
-      </p>
+        <p class="page-sub">
+          Bundle files into a single package and send a secure download link to
+          anyone by email.
+        </p>
+        <p class="page-note">
+          Files are permanently deleted from storage 90 days after upload —
+          packages can no longer be renewed after that.
+        </p>
 
-      <div class="view-tabs">
-        <button :class="{ active: view === 'compose' }" @click="view = 'compose'">New package</button>
-        <button :class="{ active: view === 'sent' }" @click="view = 'sent'">
-          Sent packages <span class="count">{{ total }}</span>
-        </button>
-        <button :class="{ active: view === 'preview' }" @click="view = 'preview'">Recipient preview</button>
-      </div>
-
-      <PackageComposeForm v-if="view === 'compose'" @sent="onSent" />
-      <SentPackagesList
-        v-else-if="view === 'sent'"
-        :focus-package-id="previewPackageId"
-        @preview="onPreview"
-        @focus-consumed="previewPackageId = undefined"
-      />
-      <RecipientPreviewTab v-else :selected-package-id="previewPackageId" />
+        <UiTabs v-model="view" :tabs="viewTabs" list-class="tab-list-spaced">
+          <template #compose>
+            <PackageComposeForm @sent="onSent" />
+          </template>
+          <template #sent>
+            <SentPackagesList
+              :focus-package-id="previewPackageId"
+              @preview="onPreview"
+              @focus-consumed="previewPackageId = undefined"
+            />
+          </template>
+          <template #preview>
+            <RecipientPreviewTab :selected-package-id="previewPackageId" />
+          </template>
+        </UiTabs>
       </template>
     </div>
   </div>

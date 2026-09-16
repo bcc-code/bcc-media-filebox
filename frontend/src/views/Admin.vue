@@ -28,6 +28,7 @@ import GroupModal from '../components/admin/GroupModal.vue'
 import GrantModal from '../components/admin/GrantModal.vue'
 import AppLogo from '../components/AppLogo.vue'
 import '../assets/admin.css'
+import UiTabs, { type UiTabEntry } from '../components/ui/UiTabs.vue'
 
 type Tab =
   | 'targets'
@@ -43,6 +44,28 @@ const { state } = useAuth()
 const admin = useAdmin()
 
 const tab = ref<Tab>('targets')
+
+const adminTabs = computed<UiTabEntry[]>(() => [
+  {
+    value: 'targets',
+    label: 'Upload targets',
+    count: admin.targets.value.length,
+  },
+  { value: 'projects', label: 'Projects', count: admin.projects.value.length },
+  {
+    value: 'arrangements',
+    label: 'Arrangements',
+    count: admin.arrangements.value.length,
+  },
+  {
+    value: 'uploads',
+    label: 'Uploads',
+    count: admin.adminUploads.value.length,
+  },
+  { value: 'users', label: 'Users', count: admin.users.value.length },
+  { value: 'groups', label: 'Groups', count: admin.groups.value.length },
+  { value: 'access', label: 'Access', count: admin.grants.value.length },
+])
 const editingTarget = ref<Target | null>(null)
 const targetModalOpen = ref(false)
 const editingProject = ref<Project | null>(null)
@@ -246,8 +269,13 @@ async function revokeUser(u: AdminUserDetail) {
       </div>
     </div>
 
-    <div class="tabs">
-      <button :class="{ active: tab === 'targets' }" @click="tab = 'targets'">
+    <UiTabs
+      v-model="tab"
+      :tabs="adminTabs"
+      list-class="tab-list-inset"
+      panel-class="page"
+    >
+      <template #icon-targets>
         <svg
           width="14"
           height="14"
@@ -262,10 +290,23 @@ async function revokeUser(u: AdminUserDetail) {
             d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
           />
         </svg>
-        Upload targets
-        <span class="count">{{ admin.targets.value.length }}</span>
-      </button>
-      <button :class="{ active: tab === 'projects' }" @click="tab = 'projects'">
+      </template>
+      <template #targets>
+        <TargetsTab
+          @new="openNewTarget"
+          @open="openEditTarget"
+          @edit="
+            (t) =>
+              admin.updateTarget(t.id, {
+                name: t.name,
+                path: t.path,
+                formKey: t.formKey,
+                webhookUrl: t.webhookUrl,
+              })
+          "
+        />
+      </template>
+      <template #icon-projects>
         <svg
           width="14"
           height="14"
@@ -280,12 +321,11 @@ async function revokeUser(u: AdminUserDetail) {
             d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
           />
         </svg>
-        Projects <span class="count">{{ admin.projects.value.length }}</span>
-      </button>
-      <button
-        :class="{ active: tab === 'arrangements' }"
-        @click="tab = 'arrangements'"
-      >
+      </template>
+      <template #projects>
+        <ProjectsTab @new="openNewProject" @edit="openEditProject" />
+      </template>
+      <template #icon-arrangements>
         <svg
           width="14"
           height="14"
@@ -299,10 +339,14 @@ async function revokeUser(u: AdminUserDetail) {
           <rect x="3" y="4" width="18" height="16" rx="2" />
           <path d="M3 9h18M9 9v11" />
         </svg>
-        Arrangements
-        <span class="count">{{ admin.arrangements.value.length }}</span>
-      </button>
-      <button :class="{ active: tab === 'uploads' }" @click="tab = 'uploads'">
+      </template>
+      <template #arrangements>
+        <ArrangementsTab
+          @new="openNewArrangement"
+          @edit="openEditArrangement"
+        />
+      </template>
+      <template #icon-uploads>
         <svg
           width="14"
           height="14"
@@ -316,9 +360,11 @@ async function revokeUser(u: AdminUserDetail) {
           <path d="M12 3v12M7 8l5-5 5 5" />
           <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
         </svg>
-        Uploads <span class="count">{{ admin.adminUploads.value.length }}</span>
-      </button>
-      <button :class="{ active: tab === 'users' }" @click="tab = 'users'">
+      </template>
+      <template #uploads>
+        <UploadsTab />
+      </template>
+      <template #icon-users>
         <svg
           width="14"
           height="14"
@@ -332,9 +378,11 @@ async function revokeUser(u: AdminUserDetail) {
           <circle cx="12" cy="8" r="3.2" />
           <path d="M5 20c1.5-3.6 4-5 7-5s5.5 1.4 7 5" />
         </svg>
-        Users <span class="count">{{ admin.users.value.length }}</span>
-      </button>
-      <button :class="{ active: tab === 'groups' }" @click="tab = 'groups'">
+      </template>
+      <template #users>
+        <UsersTab @open="openUser" />
+      </template>
+      <template #icon-groups>
         <svg
           width="14"
           height="14"
@@ -350,9 +398,11 @@ async function revokeUser(u: AdminUserDetail) {
           <path d="M3 19c1-3 3.5-4.5 6-4.5s5 1.5 6 4.5" />
           <path d="M15 19c.5-2 2-3 3.5-3s3 1 3.5 3" />
         </svg>
-        Groups <span class="count">{{ admin.groups.value.length }}</span>
-      </button>
-      <button :class="{ active: tab === 'access' }" @click="tab = 'access'">
+      </template>
+      <template #groups>
+        <GroupsTab @new="openNewGroup" @edit="openEditGroup" />
+      </template>
+      <template #icon-access>
         <svg
           width="14"
           height="14"
@@ -366,44 +416,11 @@ async function revokeUser(u: AdminUserDetail) {
           <path d="M12 2 4 5v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V5l-8-3z" />
           <path d="M9 12l2 2 4-4" />
         </svg>
-        Access <span class="count">{{ admin.grants.value.length }}</span>
-      </button>
-    </div>
-
-    <div class="page">
-      <TargetsTab
-        v-if="tab === 'targets'"
-        @new="openNewTarget"
-        @open="openEditTarget"
-        @edit="
-          (t) =>
-            admin.updateTarget(t.id, {
-              name: t.name,
-              path: t.path,
-              formKey: t.formKey,
-              webhookUrl: t.webhookUrl,
-            })
-        "
-      />
-      <ProjectsTab
-        v-else-if="tab === 'projects'"
-        @new="openNewProject"
-        @edit="openEditProject"
-      />
-      <ArrangementsTab
-        v-else-if="tab === 'arrangements'"
-        @new="openNewArrangement"
-        @edit="openEditArrangement"
-      />
-      <UploadsTab v-else-if="tab === 'uploads'" />
-      <UsersTab v-else-if="tab === 'users'" @open="openUser" />
-      <GroupsTab
-        v-else-if="tab === 'groups'"
-        @new="openNewGroup"
-        @edit="openEditGroup"
-      />
-      <AccessTab v-else @new="openNewGrant" @edit="openEditGrant" />
-    </div>
+      </template>
+      <template #access>
+        <AccessTab @new="openNewGrant" @edit="openEditGrant" />
+      </template>
+    </UiTabs>
 
     <TargetModal
       v-if="targetModalOpen"

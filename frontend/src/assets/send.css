@@ -21,50 +21,7 @@
 
 /* ============ Header ============ */
 
-/* ============ Page title + view tabs ============ */
-
-.send-root .view-tabs {
-  display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--color-line);
-  margin-bottom: 26px;
-}
-.send-root .view-tabs button {
-  background: transparent;
-  border: none;
-  color: var(--color-ink-3);
-  cursor: pointer;
-  padding: 12px 4px;
-  margin-right: 22px;
-  font-size: 14.5px;
-  font-weight: 500;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: color 0.15s;
-}
-.send-root .view-tabs button:hover {
-  color: var(--color-ink-2);
-}
-.send-root .view-tabs button.active {
-  color: var(--color-ink);
-  border-bottom-color: var(--color-accent);
-}
-.send-root .view-tabs button .count {
-  font-size: 11px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--color-surface-3);
-  color: var(--color-ink-2);
-  border: 1px solid var(--color-line-2);
-}
-.send-root .view-tabs button.active .count {
-  background: color-mix(in oklch, var(--color-accent), transparent 80%);
-  color: var(--color-accent);
-  border-color: transparent;
-}
+/* ============ Page title ============ */
 
 /* ============ Layout variant switcher ============ */
 
