@@ -1,0 +1,52 @@
+/* Vendored @font-face declarations for Inter — generated output, kept as
+   downloaded so it can be regenerated cleanly.
+
+   One edit was applied: the generator's `:root { --font-sans: … }` block was
+   removed. That token is declared in the `@theme` block in src/style.css, which
+   is the single source of truth for it; an unlayered `:root` here would
+   outrank @theme's output and leave the token with two definitions.
+   The family stack the generator emitted is reproduced there verbatim. */
+
+@font-face {
+  font-family: Inter;
+  src: url("/fonts/font-sans-400-normal-latin-ext.e0c0b179.woff2") format("woff2");
+  font-display: swap;
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: Inter;
+  src: url("/fonts/font-sans-700-normal-latin-ext.6772a56f.woff2") format("woff2");
+  font-display: swap;
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Inter fallback: Arial Bold";
+  src: local("Arial Bold");
+  font-display: swap;
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+  font-weight: 700;
+  font-style: normal;
+  size-adjust: 123.3978%;
+  ascent-override: 78.5063%;
+  descent-override: 19.5474%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Inter fallback: Arial";
+  src: local("Arial");
+  font-display: swap;
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+  font-weight: 400;
+  font-style: normal;
+  size-adjust: 132.8587%;
+  ascent-override: 72.9158%;
+  descent-override: 18.1554%;
+  line-gap-override: 0%;
+}

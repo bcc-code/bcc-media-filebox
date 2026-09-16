@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./assets/styles/font-sans.css";
+@import "./assets/styles/font-mono.css";
 @import "./assets/components.css";
 
 /* ============================================================
@@ -56,9 +58,15 @@
   --color-brand-bcc-hover: #0c625c;
   --color-brand-bcc-ink:   #f0fcfa;
 
-  /* Type */
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Type. The `… fallback: …` families are metric-matched local faces from
+     the font generator (size-adjust + ascent/descent overrides) that hold the
+     line box steady while the webfont loads. They are declared in
+     assets/styles/font-{sans,mono}.css; the system stack follows them so text
+     outside the bundled subsets still lands on a real UI font. */
+  --font-sans: Inter, 'Inter fallback: Arial Bold', 'Inter fallback: Arial',
+               system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'JetBrains Mono fallback: Courier New',
+               ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* The app is a dark surface end to end. Set it once on the document
