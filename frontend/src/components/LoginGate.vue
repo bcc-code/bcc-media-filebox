@@ -304,11 +304,11 @@ async function submitGuest() {
 /* BCC brand override — pulled from the public BCC component library
    (components.bcc.no): --color-bcc-800 / --color-bcc-700 / --color-bcc-100. */
 .provider-btn[data-provider='bcc'] {
-  background: #014d49;
-  border-color: #014d49;
+  background: var(--color-brand-bcc);
+  border-color: var(--color-brand-bcc);
   color: #ffffff;
 }
-.provider-btn[data-provider='bcc']:hover { background: #0c625c; border-color: #0c625c; }
+.provider-btn[data-provider='bcc']:hover { background: var(--color-brand-bcc-hover); border-color: var(--color-brand-bcc-hover); }
 .provider-btn[data-provider='bcc'] .icon {
   background: rgba(255, 255, 255, 0.10);
   border-color: rgba(255, 255, 255, 0.18);
@@ -316,7 +316,7 @@ async function submitGuest() {
 }
 .provider-btn[data-provider='bcc'] .label .s { color: color-mix(in oklch, #ffffff, transparent 35%); }
 .provider-btn[data-provider='bcc'] .chev { color: #ffffff; }
-.provider-btn[data-provider='bcc']:hover .chev { color: #f0fcfa; }
+.provider-btn[data-provider='bcc']:hover .chev { color: var(--color-brand-bcc-ink); }
 
 .divider-or {
   display: flex;
@@ -360,10 +360,10 @@ async function submitGuest() {
 .lg-field input::placeholder { color: var(--color-ink-3); }
 
 .lg-error {
-  color: #f08a8a;
+  color: oklch(0.80 0.12 25);
   font-size: 13px;
-  background: rgba(240, 138, 138, 0.08);
-  border: 1px solid rgba(240, 138, 138, 0.25);
+  background: color-mix(in oklch, var(--color-danger), transparent 92%);
+  border: 1px solid color-mix(in oklch, var(--color-danger), transparent 75%);
   padding: 8px 10px;
   border-radius: 6px;
 }

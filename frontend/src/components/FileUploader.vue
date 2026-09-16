@@ -63,38 +63,29 @@ function onFileSelected(e: Event) {
 
 <template>
   <div
+    class="dropzone"
+    :class="{ dragover: isDragging && !disabled, disabled }"
     @drop.prevent="onDrop"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @click="openFilePicker"
-    class="border-2 border-dashed rounded-xl p-12 text-center transition-colors"
-    :class="[
-      disabled
-        ? 'border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed'
-        : 'cursor-pointer',
-      !disabled && isDragging
-        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-        : !disabled
-          ? 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-          : '',
-    ]"
   >
     <input
       ref="fileInput"
       type="file"
       :multiple="allowMultiple"
-      class="hidden"
+      hidden
       @change="onFileSelected"
     />
-    <div class="text-gray-500 dark:text-gray-400">
-      <svg class="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+    <span class="ic">
+      <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
       </svg>
-      <p class="text-lg font-medium">
-        <span v-if="isDragging">Drop files here</span>
-        <span v-else>Drag & drop files here, or click to browse</span>
-      </p>
-      <p class="text-sm mt-1">Supports files up to 300 GB with resumable upload</p>
-    </div>
+    </span>
+    <p class="t">
+      <span v-if="isDragging && !disabled">Drop files here</span>
+      <span v-else>Drag &amp; drop files here, or click to browse</span>
+    </p>
+    <p class="s">Supports files up to 300 GB with resumable upload</p>
   </div>
 </template>

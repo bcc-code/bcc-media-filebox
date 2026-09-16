@@ -43,51 +43,53 @@ defineExpose({ refresh: fetchUploads })
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Completed Uploads</h2>
-      <button
-        @click="fetchUploads"
-        class="text-sm px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 cursor-pointer"
-      >
-        Refresh
-      </button>
+    <div class="list-head">
+      <h2 class="section-title">Completed uploads</h2>
+      <button class="btn btn-sm btn-ghost" @click="fetchUploads">Refresh</button>
     </div>
 
-    <div v-if="loading" class="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
+    <p v-if="loading" class="list-status">Loading…</p>
 
-    <div v-else-if="!records || records.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
+    <div v-else-if="!records || records.length === 0" class="empty">
       No completed uploads yet.
     </div>
 
-    <div v-else class="space-y-2">
-      <div
-        v-for="record in records"
-        :key="record.id"
-        class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
-      >
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-            {{ record.filename }}
-          </p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">
+    <div v-else class="file-list">
+      <div v-for="record in records" :key="record.id" class="file-item">
+        <div class="fbody">
+          <div class="fname">{{ record.filename }}</div>
+          <div class="fsize">
             {{ formatSize(record.size) }}
-            <span v-if="record.durationMs" class="ml-2">
-              &mdash; {{ formatDuration(record.durationMs) }}
-            </span>
-            <span v-if="record.avgBandwidth" class="ml-2">
-              &mdash; avg {{ formatSize(record.avgBandwidth) }}/s
-            </span>
-            <span v-if="record.completedAt" class="ml-2">
-              &mdash; {{ formatDate(record.completedAt) }}
-            </span>
-          </p>
+            <span v-if="record.durationMs">&mdash; {{ formatDuration(record.durationMs) }}</span>
+            <span v-if="record.avgBandwidth">&mdash; avg {{ formatSize(record.avgBandwidth) }}/s</span>
+            <span v-if="record.completedAt">&mdash; {{ formatDate(record.completedAt) }}</span>
+          </div>
         </div>
-        <span
-          class="text-xs font-medium px-2 py-0.5 rounded-full ml-4 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-        >
+        <span class="badge badge-ok">
+          <span class="badge-dot" />
           completed
         </span>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.list-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; margin-bottom: 14px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 14px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--color-ink-2);
+}
+
+.list-status { margin: 0; font-size: 13px; color: var(--color-ink-3); }
+
+/* The metadata line packs several optional spans; space them consistently
+   instead of relying on a margin on each one. */
+.file-item .fsize { display: flex; flex-wrap: wrap; gap: 6px; }
+</style>

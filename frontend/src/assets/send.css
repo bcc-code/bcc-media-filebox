@@ -5,60 +5,14 @@
 
 .send-root { min-height: 100vh; }
 .send-root *, .send-root *::before, .send-root *::after { box-sizing: border-box; }
-.send-root button, .send-root input, .send-root select, .send-root textarea { font-family: inherit; color: inherit; }
 .send-root a { color: var(--color-accent); text-decoration: none; }
 .send-root a:hover { color: var(--color-accent-hover); }
 
-@keyframes send-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-@keyframes send-pop  { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
 
 /* ============ Header ============ */
-.send-root .page-wrap { max-width: 920px; margin: 0 auto; padding: 36px 24px 90px; }
-.send-root .header { display: flex; align-items: center; gap: 22px; margin-bottom: 30px; position: relative; }
-.send-root .brand { display: inline-flex; align-items: center; gap: 12px; color: var(--color-ink); }
-.send-root .brand .mark { width: 30px; height: 30px; color: var(--color-ink); }
-.send-root .brand .name { font-size: 21px; font-weight: 600; letter-spacing: -0.3px; }
-.send-root .nav { display: flex; gap: 4px; }
-.send-root .nav a {
-  padding: 7px 14px; border-radius: 8px; font-size: 14px; font-weight: 500;
-  color: var(--color-ink-3); transition: color .15s, background .15s;
-}
-.send-root .nav a:hover { color: var(--color-ink-2); background: var(--color-surface-2); }
-.send-root .nav a.active { color: var(--color-ink); background: var(--color-surface-3); }
-.send-root .spacer { flex: 1; }
 
-.send-root .me-trigger {
-  display: inline-flex; align-items: center; gap: 10px;
-  padding: 4px 10px 4px 4px;
-  background: transparent; border: 1px solid transparent;
-  border-radius: 999px; cursor: pointer; font-size: 14px; color: var(--color-ink);
-  transition: background .15s ease, border-color .15s ease;
-}
-.send-root .me-trigger:hover { background: var(--color-surface-2); border-color: var(--color-line); }
-.send-root .me-trigger.open { background: var(--color-surface-2); border-color: var(--color-line-2); }
-.send-root .me-trigger .avatar {
-  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
-  font-size: 12px; font-weight: 600; color: #fff; background: oklch(0.62 0.16 250); flex-shrink: 0;
-}
-.send-root .me-menu {
-  position: absolute; right: 0; top: calc(100% + 8px);
-  width: 240px; padding: 6px; background: var(--color-surface-2); border: 1px solid var(--color-line-2);
-  border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,0.55); z-index: 20;
-}
-.send-root .me-menu .who { padding: 10px 12px 12px; border-bottom: 1px solid var(--color-line); margin-bottom: 4px; }
-.send-root .me-menu .who .n { font-size: 14px; font-weight: 500; color: var(--color-ink); }
-.send-root .me-menu .who .e { font-size: 13px; color: var(--color-ink-2); margin-top: 2px; }
-.send-root .me-menu .who .o { font-size: 10.5px; color: var(--color-ink-3); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.1em; }
-.send-root .me-menu a, .send-root .me-menu button {
-  display: block; width: 100%; text-align: left; padding: 8px 12px; border-radius: 6px;
-  background: transparent; border: none; color: var(--color-ink); font-size: 14px; cursor: pointer;
-}
-.send-root .me-menu a:hover, .send-root .me-menu button:hover { background: var(--color-surface-3); }
 
 /* ============ Page title + view tabs ============ */
-.send-root .page-title { margin: 0 0 4px; font-size: 26px; font-weight: 600; letter-spacing: -0.4px; }
-.send-root .page-sub { margin: 0 0 6px; font-size: 14.5px; color: var(--color-ink-2); line-height: 1.5; }
-.send-root .page-note { margin: 0 0 24px; font-size: 12px; color: var(--color-ink-3); line-height: 1.5; }
 
 .send-root .view-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--color-line); margin-bottom: 26px; }
 .send-root .view-tabs button {
@@ -77,16 +31,6 @@
 .send-root .view-tabs button.active .count { background: color-mix(in oklch, var(--color-accent), transparent 80%); color: var(--color-accent); border-color: transparent; }
 
 /* ============ Layout variant switcher ============ */
-.send-root .lay-row { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.send-root .lay-row .lab { font-size: 12.5px; color: var(--color-ink-3); }
-.send-root .variant-seg { display: inline-flex; gap: 0; background: var(--color-surface-2); border: 1px solid var(--color-line-2); border-radius: 8px; padding: 3px; }
-.send-root .variant-seg button {
-  background: transparent; border: none; color: var(--color-ink-3); cursor: pointer;
-  padding: 5px 12px; font-size: 12px; font-weight: 500; border-radius: 5px;
-  transition: color .12s, background .12s;
-}
-.send-root .variant-seg button:hover { color: var(--color-ink-2); }
-.send-root .variant-seg button.active { background: var(--color-surface-4); color: var(--color-ink); }
 
 /* ============ Compose layout ============ */
 .send-root .compose { display: grid; grid-template-columns: 1fr 340px; gap: 22px; align-items: start; }
@@ -106,16 +50,6 @@
 .send-root .block-label .opt { font-size: 10.5px; color: var(--color-ink-3); font-weight: 400; text-transform: uppercase; letter-spacing: 0.07em; margin-left: auto; }
 
 /* Dropzone */
-.send-root .dropzone {
-  border: 1.5px dashed var(--color-line-2); border-radius: 14px; padding: 40px 24px;
-  display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer;
-  transition: border-color .15s ease, background .15s ease;
-}
-.send-root .dropzone:hover { border-color: color-mix(in oklch, var(--color-accent), transparent 40%); background: color-mix(in oklch, var(--color-accent), transparent 96%); }
-.send-root .dropzone.dragover { border-color: var(--color-accent); background: color-mix(in oklch, var(--color-accent), transparent 90%); }
-.send-root .dropzone .ic { color: var(--color-ink-2); margin-bottom: 12px; }
-.send-root .dropzone .t { font-size: 16px; color: var(--color-ink); }
-.send-root .dropzone .s { font-size: 13px; color: var(--color-ink-3); margin-top: 6px; }
 
 /* A compact acknowledgement only appears when this exact Send draft was
    restored; the full upload history is never rendered in the compose form. */
@@ -126,17 +60,6 @@
 .send-root .draft-restore-actions { display: inline-flex; flex-shrink: 0; gap: 5px; }
 
 /* File list */
-.send-root .file-list { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
-.send-root .file-item {
-  display: flex; align-items: center; gap: 12px;
-  background: var(--color-surface-2); border: 1px solid var(--color-line); border-radius: 10px; padding: 10px 12px;
-}
-.send-root .file-item .fic { width: 32px; height: 32px; border-radius: 8px; background: var(--color-surface-3); border: 1px solid var(--color-line-2); color: var(--color-ink-2); display: grid; place-items: center; flex-shrink: 0; }
-.send-root .file-item .fbody { flex: 1; min-width: 0; }
-.send-root .file-item .fname { font-size: 13.5px; color: var(--color-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.send-root .file-item .fsize { font-size: 11.5px; color: var(--color-ink-3); margin-top: 2px; }
-.send-root .file-item .frm { background: transparent; border: none; color: var(--color-ink-3); cursor: pointer; padding: 4px; border-radius: 6px; display: grid; place-items: center; }
-.send-root .file-item .frm:hover { color: var(--color-danger); background: color-mix(in oklch, var(--color-danger), transparent 85%); }
 .send-root .files-total { font-size: 12px; color: var(--color-ink-3); margin-top: 10px; font-family: 'JetBrains Mono', monospace; }
 
 /* Inputs */
@@ -278,7 +201,6 @@
 .send-root .public-file .file-dl.inert { cursor: default; opacity: 0.55; }
 .send-root .public-file .file-dl.inert:hover { color: var(--color-ink-2); border-color: var(--color-line-2); background: var(--color-surface-3); }
 .send-root .public-total { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--color-ink-3); margin-top: 14px; padding-top: 4px; }
-.send-root .public-dl { margin-top: 22px; }
 .send-root .public-note { text-align: center; font-size: 12px; color: var(--color-ink-3); margin-top: 14px; line-height: 1.5; }
 
 /* Async package preparation and server-produced download artifacts. */

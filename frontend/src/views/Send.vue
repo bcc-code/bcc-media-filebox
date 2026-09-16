@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLogo from '../components/AppLogo.vue'
-import SendUserMenu from '../components/send/SendUserMenu.vue'
+import UserMenu from '../components/UserMenu.vue'
 import PackageComposeForm from '../components/send/PackageComposeForm.vue'
 import SentPackagesList from '../components/send/SentPackagesList.vue'
 import RecipientPreviewTab from '../components/send/RecipientPreviewTab.vue'
@@ -43,17 +43,17 @@ function onPreview(packageId: string) {
 <template>
   <div class="send-root">
     <div class="page-wrap">
-      <div class="header">
-        <router-link to="/" class="brand">
+      <div class="app-header">
+        <router-link to="/" class="app-brand">
           <AppLogo class="mark" />
           <span class="name">FileBox</span>
         </router-link>
-        <nav class="nav">
+        <nav class="app-nav">
           <router-link to="/">Upload</router-link>
           <router-link to="/send" class="active">Send</router-link>
         </nav>
         <span class="spacer"></span>
-        <SendUserMenu />
+        <UserMenu />
       </div>
 
       <h1 class="page-title">Send files</h1>

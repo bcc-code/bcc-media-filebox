@@ -15,7 +15,6 @@
   .fb-fade  { animation: fb-fade .25s ease both; }
   .fb-pop   { animation: fb-pop .15s ease both; }
   .fb-slide { animation: fb-slide .3s ease both; }
-  .fb-spin  { animation: fb-spin 1s linear infinite; }
 
   /* ---------- Type ---------- */
   .mono { font-family: var(--font-mono); }
@@ -213,7 +212,6 @@
     accent-color: var(--color-accent);
   }
   .field .hint { margin-top: 6px; font-size: 12px; color: var(--color-ink-3); }
-  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   /* ---------- Surfaces ---------- */
   .card {
@@ -245,8 +243,123 @@
   .toast.danger .dot { background: var(--color-danger); }
 }
 
+/* ============================================================
+   App chrome — the page header, brand, tab nav and user menu
+   shared by the Upload and Send surfaces. Promoted out of
+   send.css so both consume one definition.
+   ============================================================ */
+
+@layer components {
+  .page-wrap { max-width: 920px; margin: 0 auto; padding: 36px 24px 90px; }
+  .app-header { display: flex; align-items: center; gap: 22px; margin-bottom: 30px; position: relative; }
+  .app-brand { display: inline-flex; align-items: center; gap: 12px; color: var(--color-ink); }
+  .app-brand .mark { width: 30px; height: 30px; color: var(--color-ink); }
+  .app-brand .name { font-size: 21px; font-weight: 600; letter-spacing: -0.3px; }
+  .app-nav { display: flex; gap: 4px; }
+  .app-nav a {
+    padding: 7px 14px; border-radius: 8px; font-size: 14px; font-weight: 500;
+    color: var(--color-ink-3); transition: color .15s, background .15s;
+  }
+  .app-nav a:hover { color: var(--color-ink-2); background: var(--color-surface-2); }
+  .app-nav a.active { color: var(--color-ink); background: var(--color-surface-3); }
+  .spacer { flex: 1; }
+  .user-trigger {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 4px 10px 4px 4px;
+    background: transparent; border: 1px solid transparent;
+    border-radius: 999px; cursor: pointer; font-size: 14px; color: var(--color-ink);
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .user-trigger:hover { background: var(--color-surface-2); border-color: var(--color-line); }
+  .user-trigger.open { background: var(--color-surface-2); border-color: var(--color-line-2); }
+  .user-trigger .avatar {
+    width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 12px; font-weight: 600; color: #fff; background: var(--color-accent-2); flex-shrink: 0;
+  }
+  /* Guest sessions get a neutral avatar — no account, no accent. */
+  .user-trigger .avatar.guest { background: var(--color-surface-4); color: var(--color-ink-2); }
+
+  .user-menu {
+    position: absolute; right: 0; top: calc(100% + 8px);
+    width: 240px; padding: 6px; background: var(--color-surface-2); border: 1px solid var(--color-line-2);
+    border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,0.55); z-index: 20;
+  }
+  .user-menu .who { padding: 10px 12px 12px; border-bottom: 1px solid var(--color-line); margin-bottom: 4px; }
+  .user-menu .who .n { font-size: 14px; font-weight: 500; color: var(--color-ink); }
+  .user-menu .who .e { font-size: 13px; color: var(--color-ink-2); margin-top: 2px; }
+  .user-menu .who .o { font-size: 10.5px; color: var(--color-ink-3); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .user-menu a, .user-menu button {
+    display: block; width: 100%; text-align: left; padding: 8px 12px; border-radius: 6px;
+    background: transparent; border: none; color: var(--color-ink); font-size: 14px; cursor: pointer;
+  }
+  .user-menu a:hover, .user-menu button:hover { background: var(--color-surface-3); }
+  .user-menu .sep { height: 1px; background: var(--color-line); margin: 4px 0; }
+  .page-title { margin: 0 0 4px; font-size: 26px; font-weight: 600; letter-spacing: -0.4px; }
+  .page-sub { margin: 0 0 6px; font-size: 14.5px; color: var(--color-ink-2); line-height: 1.5; }
+  .page-note { margin: 0 0 24px; font-size: 12px; color: var(--color-ink-3); line-height: 1.5; }
+}
+
+/* ============================================================
+   File intake — the drop zone and the staged-file list, shared
+   by the Upload surface and Send's compose form.
+   ============================================================ */
+
+@layer components {
+  .dropzone {
+    border: 1.5px dashed var(--color-line-2); border-radius: 14px; padding: 40px 24px;
+    display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .dropzone:hover { border-color: color-mix(in oklch, var(--color-accent), transparent 40%); background: color-mix(in oklch, var(--color-accent), transparent 96%); }
+  .dropzone.dragover { border-color: var(--color-accent); background: color-mix(in oklch, var(--color-accent), transparent 90%); }
+  .dropzone .ic { color: var(--color-ink-2); margin-bottom: 12px; }
+  .dropzone .t { font-size: 16px; color: var(--color-ink); }
+  .dropzone .s { font-size: 13px; color: var(--color-ink-3); margin-top: 6px; }
+  .file-list { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+  .file-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--color-surface-2); border: 1px solid var(--color-line); border-radius: 10px; padding: 10px 12px;
+  }
+  .file-item .fic { width: 32px; height: 32px; border-radius: 8px; background: var(--color-surface-3); border: 1px solid var(--color-line-2); color: var(--color-ink-2); display: grid; place-items: center; flex-shrink: 0; }
+  .file-item .fbody { flex: 1; min-width: 0; }
+  .file-item .fname { font-size: 13.5px; color: var(--color-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-item .fsize { font-size: 11.5px; color: var(--color-ink-3); margin-top: 2px; }
+  .file-item .frm { background: transparent; border: none; color: var(--color-ink-3); cursor: pointer; padding: 4px; border-radius: 6px; display: grid; place-items: center; }
+  .file-item .frm:hover { color: var(--color-danger); background: color-mix(in oklch, var(--color-danger), transparent 85%); }
+
+  /* Disabled intake: the target's required fields aren't filled in yet. */
+  .dropzone:disabled, .dropzone.disabled {
+    opacity: 0.5; cursor: not-allowed;
+    border-color: var(--color-line);
+    background: transparent;
+  }
+  .dropzone:disabled:hover, .dropzone.disabled:hover {
+    border-color: var(--color-line); background: transparent;
+  }
+}
+
+/* ============================================================
+   Progress — a determinate track + fill, tinted by state.
+   ============================================================ */
+
+@layer components {
+  .progress {
+    height: 6px; border-radius: 999px; overflow: hidden;
+    background: var(--color-surface-3);
+    border: 1px solid var(--color-line);
+  }
+  .progress .fill {
+    height: 100%; border-radius: 999px;
+    background: var(--color-accent);
+    transition: width .3s ease, background .15s ease;
+  }
+  .progress .fill.warn    { background: var(--color-warn); }
+  .progress .fill.ok      { background: var(--color-ok); }
+  .progress .fill.danger  { background: var(--color-danger); }
+  .progress .fill.idle    { background: var(--color-ink-3); }
+}
+
 /* Keyframes live outside @layer — layered keyframes are not addressable. */
 @keyframes fb-fade  { from { opacity: 0; transform: translateY(4px); }               to { opacity: 1; transform: none; } }
 @keyframes fb-pop   { from { opacity: 0; transform: translateY(-4px) scale(0.98); }  to { opacity: 1; transform: none; } }
 @keyframes fb-slide { from { opacity: 0; transform: translateX(40px); }              to { opacity: 1; transform: none; } }
-@keyframes fb-spin  { to { transform: rotate(360deg); } }

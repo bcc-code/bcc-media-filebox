@@ -43,6 +43,19 @@
   --color-danger:     oklch(0.70 0.16 25);
   --color-info:       oklch(0.70 0.13 240);
 
+  /* Decorative accent stop — the second stop of avatar gradients. */
+  --color-accent-alt: oklch(0.62 0.12 280);
+
+  /* Identity-provider tints (avatars, provider labels). */
+  --color-provider-azure: #5da5ff;
+  --color-provider-bcc:   #9bbcff;
+
+  /* BCC brand, from the public BCC component library (components.bcc.no):
+     --color-bcc-800 / --color-bcc-700 / --color-bcc-100. */
+  --color-brand-bcc:       #014d49;
+  --color-brand-bcc-hover: #0c625c;
+  --color-brand-bcc-ink:   #f0fcfa;
+
   /* Type */
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;

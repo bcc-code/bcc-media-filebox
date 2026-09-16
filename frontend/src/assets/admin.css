@@ -5,11 +5,7 @@
 
 .admin-root { min-height: 100vh; }
 .admin-root *, .admin-root *::before, .admin-root *::after { box-sizing: border-box; }
-.admin-root button, .admin-root input, .admin-root select, .admin-root textarea { font-family: inherit; color: inherit; }
 
-@keyframes fb-spin { to { transform: rotate(360deg); } }
-@keyframes fb-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-@keyframes fb-slide { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* Topbar */
 .admin-root .topbar {
@@ -27,7 +23,7 @@
 .admin-root .topbar .crumb .here { color: var(--color-ink-2); }
 .admin-root .topbar .spacer { flex: 1; }
 .admin-root .topbar .me { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--color-ink-2); }
-.admin-root .topbar .me .avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, oklch(0.72 0.10 250), oklch(0.62 0.12 280)); display: grid; place-items: center; font-size: 11px; font-weight: 600; color: #0a1426; }
+.admin-root .topbar .me .avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, var(--color-accent), var(--color-accent-alt)); display: grid; place-items: center; font-size: 11px; font-weight: 600; color: var(--color-accent-ink); }
 .admin-root .topbar .me .role { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: color-mix(in oklch, var(--color-accent), transparent 80%); color: var(--color-accent); letter-spacing: 0.04em; }
 
 /* Tabs */
@@ -109,8 +105,8 @@
 .admin-root .inline-edit.mono { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; }
 
 /* User table extras */
-.admin-root .avatar-md { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; color: #0a1426; flex-shrink: 0; }
-.admin-root .avatar-xl { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; font-weight: 600; color: #0a1426; flex-shrink: 0; }
+.admin-root .avatar-md { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--color-accent-ink); flex-shrink: 0; }
+.admin-root .avatar-xl { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; font-weight: 600; color: var(--color-accent-ink); flex-shrink: 0; }
 .admin-root .user-search {
   width: 220px; padding: 8px 12px;
   background: var(--color-surface-2); border: 1px solid var(--color-line-2);
