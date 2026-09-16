@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { useProviders } from '../composables/useProviders'
+import UiMenu, { type UiMenuEntry } from './ui/UiMenu.vue'
 
 const { state, signIn, signOut, changeUser } = useAuth()
 const providers = useProviders()
@@ -12,75 +13,67 @@ const route = useRoute()
 const isAdmin = computed(() => state.authenticated && state.role === 'admin')
 const onAdminPage = computed(() => route.path.startsWith('/admin'))
 
-const open = ref(false)
-const menuRef = ref<HTMLDivElement | null>(null)
-
 const displayName = computed(() =>
   state.authenticated ? state.name || state.email || 'Signed in' : 'Guest',
 )
 const initial = computed(() => displayName.value.charAt(0).toUpperCase())
 
-function toggle() {
-  open.value = !open.value
-}
+const items = computed<UiMenuEntry[]>(() => {
+  const entries: UiMenuEntry[] = []
 
-function close() {
-  open.value = false
-}
+  // Guests get the sign-in options first; there is nothing else to offer them.
+  if (!state.authenticated) {
+    for (const p of providers) {
+      entries.push({
+        label: `Sign in with ${p.displayName}`,
+        onSelect: () => signIn(p.id),
+      })
+    }
+    if (providers.length > 0) entries.push({ type: 'separator' })
+  }
 
-function onDocClick(e: MouseEvent) {
-  if (menuRef.value && !menuRef.value.contains(e.target as Node)) close()
-}
+  if (isAdmin.value && !onAdminPage.value) {
+    entries.push({ label: 'Admin', onSelect: () => router.push('/admin') })
+  }
+  entries.push({ label: 'Change user', onSelect: () => changeUser() })
+  if (state.authenticated) {
+    entries.push({ label: 'Sign out', onSelect: () => signOut() })
+  }
 
-onMounted(() => document.addEventListener('click', onDocClick))
-onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
+  return entries
+})
 </script>
 
 <template>
-  <div ref="menuRef" class="user-menu-root">
-    <button type="button" class="user-trigger" :class="{ open }" @click.stop="toggle">
-      <div class="avatar" :class="{ guest: !state.authenticated }">{{ initial }}</div>
-      <span class="name">{{ displayName }}</span>
-    </button>
+  <UiMenu :items="items" width="240px" placement="bottom-end">
+    <template #trigger="{ open }">
+      <span class="user-trigger" :class="{ open }">
+        <span class="avatar" :class="{ guest: !state.authenticated }">{{
+          initial
+        }}</span>
+        <span class="name">{{ displayName }}</span>
+      </span>
+    </template>
 
-    <div v-if="open" class="user-menu fb-pop" @click.stop>
-      <div class="who">
-        <template v-if="state.authenticated">
-          <div class="n">{{ state.name || '—' }}</div>
-          <div class="e">{{ state.email }}</div>
-          <div class="o">{{ state.provider }}</div>
-        </template>
-        <template v-else>
-          <div class="n">Guest</div>
-          <div class="e">No account · uploads stay on this device</div>
-        </template>
-      </div>
-
-      <template v-if="!state.authenticated">
-        <button
-          v-for="p in providers"
-          :key="p.id"
-          type="button"
-          @click="close(); signIn(p.id)"
-        >
-          Sign in with {{ p.displayName }}
-        </button>
-        <div v-if="providers.length > 0" class="sep"></div>
+    <template #header>
+      <template v-if="state.authenticated">
+        <div class="n">{{ state.name || '—' }}</div>
+        <div class="e">{{ state.email }}</div>
+        <div class="o">{{ state.provider }}</div>
       </template>
-
-      <button v-if="isAdmin && !onAdminPage" type="button" @click="close(); router.push('/admin')">
-        Admin
-      </button>
-      <button type="button" @click="close(); changeUser()">Change user</button>
-      <button v-if="state.authenticated" type="button" @click="close(); signOut()">Sign out</button>
-    </div>
-  </div>
+      <template v-else>
+        <div class="n">Guest</div>
+        <div class="e">No account · uploads stay on this device</div>
+      </template>
+    </template>
+  </UiMenu>
 </template>
 
 <style scoped>
-.user-menu-root { position: relative; }
 /* Hide the name on narrow screens; the avatar carries the affordance. */
 @media (max-width: 560px) {
-  .user-trigger .name { display: none; }
+  .user-trigger .name {
+    display: none;
+  }
 }
 </style>

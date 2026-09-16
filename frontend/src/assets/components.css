@@ -473,62 +473,87 @@
     color: var(--color-ink-2);
   }
 
-  .user-menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 8px);
-    width: 240px;
+  /* Floating menu surface. Zag's popper positions the ancestor, so the panel
+     itself only describes its own look. */
+  .menu-positioner {
+    z-index: 30;
+  }
+
+  .menu-content {
+    min-width: 200px;
     padding: 6px;
     background: var(--color-surface-2);
     border: 1px solid var(--color-line-2);
     border-radius: 12px;
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
-    z-index: 20;
+    box-shadow: 0 18px 50px rgb(0 0 0 / 0.55);
+    animation: fb-pop 0.15s ease both;
   }
-  .user-menu .who {
+  .menu-content:focus-visible {
+    outline: none;
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--color-ink);
+    cursor: pointer;
+    user-select: none;
+  }
+  /* Zag drives highlight from keyboard *and* pointer, so styling the data
+     attribute keeps arrow keys and hover visually identical. */
+  .menu-item[data-highlighted] {
+    background: var(--color-surface-3);
+  }
+  .menu-item[data-disabled] {
+    color: var(--color-ink-3);
+    cursor: not-allowed;
+  }
+  .menu-item[data-disabled][data-highlighted] {
+    background: transparent;
+  }
+  .menu-item-danger {
+    color: var(--color-danger);
+  }
+  .menu-item-danger[data-highlighted] {
+    background: color-mix(in oklch, var(--color-danger), transparent 88%);
+  }
+
+  .menu-separator {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--color-line);
+  }
+
+  /* Non-interactive block at the top of a menu — identity, context, counts.
+     Deliberately not a menu item, so it is never a focus stop. */
+  .menu-header {
     padding: 10px 12px 12px;
-    border-bottom: 1px solid var(--color-line);
     margin-bottom: 4px;
+    border-bottom: 1px solid var(--color-line);
   }
-  .user-menu .who .n {
+  .menu-header .n {
     font-size: 14px;
     font-weight: 500;
     color: var(--color-ink);
   }
-  .user-menu .who .e {
+  .menu-header .e {
+    margin-top: 2px;
     font-size: 13px;
     color: var(--color-ink-2);
-    margin-top: 2px;
   }
-  .user-menu .who .o {
-    font-size: 10.5px;
-    color: var(--color-ink-3);
+  .menu-header .o {
     margin-top: 6px;
+    font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
+    color: var(--color-ink-3);
   }
-  .user-menu a,
-  .user-menu button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 8px 12px;
-    border-radius: 6px;
-    background: transparent;
-    border: none;
-    color: var(--color-ink);
-    font-size: 14px;
-    cursor: pointer;
-  }
-  .user-menu a:hover,
-  .user-menu button:hover {
-    background: var(--color-surface-3);
-  }
-  .user-menu .sep {
-    height: 1px;
-    background: var(--color-line);
-    margin: 4px 0;
-  }
+
   .page-title {
     margin: 0 0 4px;
     font-size: 26px;

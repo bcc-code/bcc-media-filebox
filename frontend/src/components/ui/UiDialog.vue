@@ -122,10 +122,6 @@ const api = computed(() => dialog.connect(service, normalizeProps))
 </template>
 
 <style scoped>
-/* Scoped styles survive the Teleport — Vue keeps the scope attribute on the
-   moved nodes — while the shared primitives inside the panel (.field, .btn,
-   .inp) come from the global component layer. */
-
 .dialog-backdrop {
   position: fixed;
   inset: 0;
