@@ -52,7 +52,7 @@ describe('layering', () => {
     expect(token('dropdown')).toBeGreaterThan(token('dialog'))
   })
 
-  it.each(['menu-content', 'select-content'])(
+  it.each(['menu-content', 'select-content', 'tooltip-content'])(
     'declares the z-index on .%s, where popper reads it',
     (selector) => {
       expect(rule(components, selector)).toContain(
@@ -61,7 +61,7 @@ describe('layering', () => {
     },
   )
 
-  it.each(['menu-positioner', 'select-positioner'])(
+  it.each(['menu-positioner', 'select-positioner', 'tooltip-positioner'])(
     'declares no z-index on .%s, where it would be overridden inline',
     (selector) => {
       // Must not match `z-index:` while still allowing `--z-index:`.

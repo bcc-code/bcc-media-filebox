@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { AccessRequestReason } from '../../composables/usePackages'
+import UiTooltip from '../ui/UiTooltip.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -21,7 +22,14 @@ const props = withDefaults(
     // absent Boolean prop to false, which would make the real page inert.
     interactive?: boolean
   }>(),
-  { interactive: true, senderName: '', recipientsOnly: false, error: null, sent: false, submitting: false },
+  {
+    interactive: true,
+    senderName: '',
+    recipientsOnly: false,
+    error: null,
+    sent: false,
+    submitting: false,
+  },
 )
 
 const emit = defineEmits<{ submit: [email: string, message: string] }>()
@@ -42,7 +50,9 @@ const blockedBy = computed(() => {
       return 'This link has run out of time.'
   }
 })
-const emailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()))
+const emailValid = computed(() =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()),
+)
 
 // Why the button is dead, or null. Shown next to it: a disabled submit with no
 // stated reason reads as broken, and neither reason is visible otherwise.
@@ -65,12 +75,24 @@ function submit() {
 <template>
   <div v-if="sent" class="req-done">
     <div class="req-done-ic">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
     </div>
     <div>
       <div class="req-done-h">Request sent to {{ who }}</div>
       <p class="req-done-p">
-        You'll get an email as soon as {{ who }} reopens the link. Nothing more to do here.
+        You'll get an email as soon as {{ who }} reopens the link. Nothing more
+        to do here.
       </p>
     </div>
   </div>
@@ -79,8 +101,11 @@ function submit() {
     <div class="req-h">Ask {{ who }} to reopen it</div>
     <p class="req-p">
       {{ blockedBy }}
-      {{ recipientsOnly ? 'Ask from the address it was sent to' : 'Leave an address to reach you at' }}, say what you
-      need, and we'll pass the request on to {{ who }}.
+      {{
+        recipientsOnly
+          ? 'Ask from the address it was sent to'
+          : 'Leave an address to reach you at'
+      }}, say what you need, and we'll pass the request on to {{ who }}.
     </p>
 
     <input
@@ -103,17 +128,21 @@ function submit() {
 
     <div v-if="error" class="verify-error">{{ error }}</div>
 
-    <button
-      class="btn btn-lg btn-primary btn-block"
-      style="margin-top: 12px"
-      :disabled="!!disabledReason || submitting"
-      :title="disabledReason ?? ''"
-      @click="submit"
-    >
-      {{ submitting ? 'Sending…' : 'Send request' }}
-    </button>
+    <UiTooltip :label="disabledReason ?? ''">
+      <button
+        class="btn btn-lg btn-primary btn-block"
+        style="margin-top: 12px"
+        :disabled="!!disabledReason || submitting"
+        @click="submit"
+      >
+        {{ submitting ? 'Sending…' : 'Send request' }}
+      </button>
+    </UiTooltip>
     <p class="req-note" :class="{ blocked: disabledReason }">
-      {{ disabledReason ?? `Only ${who} sees this. It doesn't reopen the link on its own — they decide.` }}
+      {{
+        disabledReason ??
+        `Only ${who} sees this. It doesn't reopen the link on its own — they decide.`
+      }}
     </p>
   </div>
 </template>

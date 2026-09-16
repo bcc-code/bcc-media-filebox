@@ -275,6 +275,7 @@
      One rule for the explicit `.inp` class and for controls nested in
      a `.field`, so both call sites stay in sync. */
   .inp,
+  .num-control,
   .select-trigger,
   .field
     :is(input:not([type='checkbox']):not([type='radio']), select, textarea):not(
@@ -299,6 +300,7 @@
   }
 
   .inp:hover,
+  .num-control:hover,
   .select-trigger:hover,
   .field
     :is(input:not([type='checkbox']):not([type='radio']), select, textarea):not(
@@ -307,6 +309,7 @@
     border-color: var(--color-ink-3);
   }
   .inp:focus,
+  .num-control:has(:focus-visible),
   .select-trigger:focus-visible,
   .select-trigger[data-state='open'],
   .field
@@ -1108,6 +1111,105 @@
   }
   .radio-label svg {
     color: var(--color-ink-2);
+  }
+}
+
+/* ============================================================
+   Number input — the shared field look plus inline steppers.
+   ============================================================ */
+
+@layer components {
+  .num-root {
+    width: 100%;
+  }
+
+  /* Inherits border/background/padding from the .inp rules above. */
+  .num-control {
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .num-input {
+    flex: 1;
+    min-width: 0;
+    /* The control owns the chrome; the inner field is bare. */
+    border: none;
+    background: transparent;
+    color: var(--color-ink);
+    font-family: inherit;
+    font-size: 13.5px;
+    outline: none;
+  }
+  .num-input::placeholder {
+    color: var(--color-ink-3);
+  }
+  /* Hide the native spinners — the steppers replace them. */
+  .num-input::-webkit-inner-spin-button,
+  .num-input::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+
+  .num-steppers {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    margin: -6px -8px -6px 6px;
+    border-left: 1px solid var(--color-line);
+  }
+
+  .num-step {
+    display: grid;
+    place-items: center;
+    flex: 1;
+    width: 26px;
+    border: none;
+    background: transparent;
+    color: var(--color-ink-3);
+    cursor: pointer;
+  }
+  .num-step:hover {
+    background: var(--color-surface-3);
+    color: var(--color-ink);
+  }
+  .num-step[data-disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .num-step:first-child {
+    border-bottom: 1px solid var(--color-line);
+  }
+}
+
+/* ============================================================
+   Tooltip — replaces native `title`, which is unstyled, slow,
+   and unreachable on touch.
+   ============================================================ */
+
+@layer components {
+  .tooltip-trigger {
+    display: inline-flex;
+  }
+
+  /* No z-index here — Zag's popper fills its inline `z-index: var(--z-index)`
+     from the content's computed value. See assets/__tests__/layering.spec.ts. */
+  .tooltip-positioner {
+    isolation: isolate;
+  }
+
+  .tooltip-content {
+    z-index: var(--z-index-dropdown);
+    max-width: 260px;
+    padding: 6px 9px;
+    border: 1px solid var(--color-line-2);
+    border-radius: 7px;
+    background: var(--color-surface-4);
+    color: var(--color-ink);
+    font-size: 12.5px;
+    line-height: 1.4;
+    box-shadow: 0 10px 28px rgb(0 0 0 / 0.45);
+    animation: fb-pop 0.12s ease both;
   }
 }
 

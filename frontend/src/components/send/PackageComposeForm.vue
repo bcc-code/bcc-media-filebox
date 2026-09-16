@@ -12,6 +12,7 @@ import UiTagsInput from '../ui/UiTagsInput.vue'
 import VerificationMethodPicker from './VerificationMethodPicker.vue'
 import UiSelect from '../ui/UiSelect.vue'
 import UiFileUpload from '../ui/UiFileUpload.vue'
+import UiNumberInput from '../ui/UiNumberInput.vue'
 import { notifyError } from '../../composables/useToast'
 
 const emit = defineEmits<{ sent: [packageId: string] }>()
@@ -406,13 +407,11 @@ async function send() {
             :options="expiryOptions"
             aria-label="Link expiry"
           />
-          <input
+          <UiNumberInput
             v-model="maxDownloads"
-            class="inp"
-            type="number"
-            min="1"
-            step="1"
+            :min="1"
             placeholder="Max downloads per item"
+            aria-label="Max downloads per item"
           />
         </div>
       </div>

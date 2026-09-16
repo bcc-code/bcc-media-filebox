@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useAdmin, type Target } from '../../composables/useAdmin'
 import { confirmAction } from '../../composables/useConfirm'
+import UiEditable from '../ui/UiEditable.vue'
 
 const emit = defineEmits<{
   (e: 'new'): void
@@ -11,8 +12,9 @@ const emit = defineEmits<{
 const { targets, grants, duplicateTarget, deleteTarget, reorderTargets } =
   useAdmin()
 
-const inlineEditId = ref<number | null>(null)
-const inlineEditField = ref<'name' | 'path' | null>(null)
+// A row must not be draggable while its name or path is open for editing,
+// or the drag fights text selection.
+const editingId = ref<number | null>(null)
 
 const dragId = ref<number | null>(null)
 const dragOverId = ref<number | null>(null)
@@ -43,32 +45,8 @@ function countGrantsForTarget(id: number) {
   ).length
 }
 
-function startEdit(id: number, field: 'name' | 'path') {
-  inlineEditId.value = id
-  inlineEditField.value = field
-}
-
-function finishEdit() {
-  inlineEditId.value = null
-  inlineEditField.value = null
-}
-
-function commitInline(t: Target, e: Event) {
-  const value = (e.target as HTMLInputElement).value.trim()
-  if (!value) {
-    finishEdit()
-    return
-  }
-  if (inlineEditField.value === 'name' && value !== t.name) {
-    emit('edit', { ...t, name: value })
-  } else if (inlineEditField.value === 'path' && value !== t.path) {
-    emit('edit', { ...t, path: value })
-  }
-  finishEdit()
-}
-
 function onDragStart(t: Target, e: DragEvent) {
-  if (inlineEditId.value === t.id) {
+  if (editingId.value === t.id) {
     e.preventDefault()
     return
   }
@@ -162,7 +140,7 @@ function onDragEnd() {
           <tr
             v-for="t in targets"
             :key="t.id"
-            :draggable="inlineEditId !== t.id"
+            :draggable="editingId !== t.id"
             :class="{
               'drag-source': dragId === t.id,
               'drag-over': dragOverId === t.id,
@@ -209,24 +187,13 @@ function onDragEnd() {
                   </svg>
                 </div>
                 <div>
-                  <input
-                    v-if="inlineEditId === t.id && inlineEditField === 'name'"
-                    class="inline-edit"
+                  <UiEditable
                     :value="t.name"
-                    @blur="commitInline(t, $event)"
-                    @keyup.enter="commitInline(t, $event)"
-                    @keyup.escape="finishEdit"
-                    ref="inlineInput"
-                    autofocus
+                    preview-class="primary editable-preview"
+                    aria-label="Target name"
+                    @commit="(name) => emit('edit', { ...t, name })"
+                    @edit-change="(on) => (editingId = on ? t.id : null)"
                   />
-                  <div
-                    v-else
-                    class="primary"
-                    @click="startEdit(t.id, 'name')"
-                    style="cursor: text"
-                  >
-                    {{ t.name }}
-                  </div>
                   <div class="secondary">
                     {{ countGrantsForTarget(t.id) }}
                     {{ countGrantsForTarget(t.id) === 1 ? 'grant' : 'grants' }}
@@ -235,22 +202,14 @@ function onDragEnd() {
               </div>
             </td>
             <td>
-              <input
-                v-if="inlineEditId === t.id && inlineEditField === 'path'"
-                class="inline-edit mono"
+              <UiEditable
                 :value="t.path"
-                @blur="commitInline(t, $event)"
-                @keyup.enter="commitInline(t, $event)"
-                @keyup.escape="finishEdit"
-                autofocus
+                preview-class="path editable-preview"
+                input-class="mono"
+                aria-label="Folder path"
+                @commit="(path) => emit('edit', { ...t, path })"
+                @edit-change="(on) => (editingId = on ? t.id : null)"
               />
-              <span
-                v-else
-                class="path"
-                @click="startEdit(t.id, 'path')"
-                style="cursor: text"
-                >{{ t.path }}</span
-              >
             </td>
             <td>
               <span
