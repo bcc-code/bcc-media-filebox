@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useTusUpload } from '../composables/useTusUpload'
-import FileUploader from '../components/FileUploader.vue'
+import UiFileUpload from '../components/ui/UiFileUpload.vue'
+import { notifyError } from '../composables/useToast'
 import UploadForm from '../components/UploadForm.vue'
 import UploadProgress from '../components/UploadProgress.vue'
 import UploadList from '../components/UploadList.vue'
@@ -12,7 +13,14 @@ import type { TargetInfo } from '../types'
 import { getForm, isFormValid, type Option } from '../forms'
 import { useAuth } from '../composables/useAuth'
 
-const { uploads, addFiles, pauseUpload, resumeUpload, retryUpload, cancelUpload } = useTusUpload()
+const {
+  uploads,
+  addFiles,
+  pauseUpload,
+  resumeUpload,
+  retryUpload,
+  cancelUpload,
+} = useTusUpload()
 // Send is unavailable to guest sessions (enforced server-side too).
 const { state: authState } = useAuth()
 const canSend = computed(() => authState.provider !== 'guest')
@@ -37,7 +45,8 @@ const catalogEndpoints: Record<string, string> = {
   arrangements: '/api/arrangements',
 }
 const scopedEndpoints: Record<string, (code: string) => string> = {
-  subEvents: (code) => `/api/arrangements/${encodeURIComponent(code)}/sub-events`,
+  subEvents: (code) =>
+    `/api/arrangements/${encodeURIComponent(code)}/sub-events`,
 }
 
 function toOptions(rows: { name: string; code: string }[]): Option[] {
@@ -48,7 +57,10 @@ async function loadCatalog(source: string) {
   if (catalogs.value[source] || !catalogEndpoints[source]) return
   try {
     const res = await fetch(catalogEndpoints[source])
-    catalogs.value = { ...catalogs.value, [source]: toOptions(await res.json()) }
+    catalogs.value = {
+      ...catalogs.value,
+      [source]: toOptions(await res.json()),
+    }
   } catch {
     /* leave empty on failure */
   }
@@ -60,7 +72,9 @@ onMounted(async () => {
   target.value = targets.value[0]?.name ?? ''
 })
 
-const selectedTarget = computed(() => targets.value.find((t) => t.name === target.value) ?? null)
+const selectedTarget = computed(
+  () => targets.value.find((t) => t.name === target.value) ?? null,
+)
 const activeForm = computed(() => getForm(selectedTarget.value?.formKey))
 const currentValues = computed(() => formValues.value[target.value] ?? {})
 
@@ -70,13 +84,17 @@ const dynamicOptions = computed<Record<string, Option[]>>(() => {
   const map: Record<string, Option[]> = {}
   for (const f of activeForm.value?.fields ?? []) {
     if (!f.optionsSource) continue
-    map[f.key] = f.optionsScope ? (scopedOptions.value[f.key] ?? []) : (catalogs.value[f.optionsSource] ?? [])
+    map[f.key] = f.optionsScope
+      ? (scopedOptions.value[f.key] ?? [])
+      : (catalogs.value[f.optionsSource] ?? [])
   }
   return map
 })
 
 // The field key whose value scopes the autocomplete (e.g. "project").
-const scopeFieldKey = computed(() => activeForm.value?.fields.find((f) => f.suggest)?.suggestScope ?? null)
+const scopeFieldKey = computed(
+  () => activeForm.value?.fields.find((f) => f.suggest)?.suggestScope ?? null,
+)
 
 function setValues(values: Record<string, string>) {
   formValues.value = { ...formValues.value, [target.value]: values }
@@ -89,7 +107,8 @@ watch(
     scopedOptions.value = {}
     for (const k of Object.keys(scopeLoaded)) delete scopeLoaded[k]
     for (const field of f?.fields ?? []) {
-      if (field.optionsSource && !field.optionsScope) loadCatalog(field.optionsSource)
+      if (field.optionsSource && !field.optionsScope)
+        loadCatalog(field.optionsSource)
     }
   },
   { immediate: true },
@@ -119,7 +138,10 @@ watch(
       fetch(ep(scopeVal))
         .then((r) => r.json())
         .then((rows) => {
-          scopedOptions.value = { ...scopedOptions.value, [field.key]: toOptions(rows) }
+          scopedOptions.value = {
+            ...scopedOptions.value,
+            [field.key]: toOptions(rows),
+          }
         })
         .catch(() => {})
     }
@@ -129,14 +151,17 @@ watch(
 
 // Refetch season/episode suggestions whenever the scoping project changes.
 watch(
-  () => (scopeFieldKey.value ? currentValues.value[scopeFieldKey.value] : undefined),
+  () =>
+    scopeFieldKey.value ? currentValues.value[scopeFieldKey.value] : undefined,
   async (code) => {
     if (!code) {
       suggestions.value = {}
       return
     }
     try {
-      const res = await fetch(`/api/projects/${encodeURIComponent(code)}/suggestions`)
+      const res = await fetch(
+        `/api/projects/${encodeURIComponent(code)}/suggestions`,
+      )
       const data: { seasons: string[]; episodes: string[] } = await res.json()
       suggestions.value = { season: data.seasons, episode: data.episodes }
     } catch {
@@ -146,9 +171,11 @@ watch(
 )
 
 // For form targets the picker is gated until required fields are valid.
-const canUpload = computed(() => !activeForm.value || isFormValid(activeForm.value, currentValues.value))
+const canUpload = computed(
+  () => !activeForm.value || isFormValid(activeForm.value, currentValues.value),
+)
 
-function onFiles(files: FileList) {
+function onFiles(files: File[]) {
   if (!canUpload.value) return
   const form = activeForm.value
   // Snapshot the values so resetting the form below can't race the upload's
@@ -163,7 +190,7 @@ function onFiles(files: FileList) {
 }
 
 watch(
-  () => uploads.value.filter(u => u.status === 'completed').length,
+  () => uploads.value.filter((u) => u.status === 'completed').length,
   () => {
     uploadList.value?.refresh()
   },
@@ -187,7 +214,9 @@ watch(
       </div>
 
       <h1 class="page-title">Upload files</h1>
-      <p class="page-sub">Pick a target, fill in what it needs, then drop your files.</p>
+      <p class="page-sub">
+        Pick a target, fill in what it needs, then drop your files.
+      </p>
 
       <div class="field">
         <label>Target</label>
@@ -207,10 +236,12 @@ watch(
         </p>
       </div>
 
-      <FileUploader
+      <UiFileUpload
         :max-files="activeForm?.maxFiles ?? 0"
         :disabled="!canUpload"
+        hint="Supports files up to 300 GB with resumable upload"
         @files="onFiles"
+        @reject="notifyError"
       />
 
       <div v-if="uploads.length > 0" class="upload-section">
@@ -236,19 +267,37 @@ watch(
 </template>
 
 <style scoped>
-.upload-root { min-height: 100vh; }
-.upload-root :deep(*), .upload-root :deep(*::before), .upload-root :deep(*::after) { box-sizing: border-box; }
+.upload-root {
+  min-height: 100vh;
+}
+.upload-root :deep(*),
+.upload-root :deep(*::before),
+.upload-root :deep(*::after) {
+  box-sizing: border-box;
+}
 
-.upload-section { margin-top: 32px; }
+.upload-section {
+  margin-top: 32px;
+}
 
 .section-title {
   margin: 0 0 14px;
-  font-size: 14px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.08em;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--color-ink-2);
 }
 
-.upload-stack { display: flex; flex-direction: column; gap: 10px; }
+.upload-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-.form-gate-note { margin: 10px 0 0; font-size: 13px; color: var(--color-warn); }
+.form-gate-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--color-warn);
+}
 </style>

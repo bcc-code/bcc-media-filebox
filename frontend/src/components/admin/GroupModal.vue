@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import UiDialog from '../ui/UiDialog.vue'
-import { reactive, ref, watch, computed } from 'vue'
+import UiTagsInput from '../ui/UiTagsInput.vue'
+import { reactive, watch, computed } from 'vue'
 import type { Group } from '../../composables/useAdmin'
 
 const props = defineProps<{ group: Group | null }>()
@@ -21,15 +22,12 @@ const draft = reactive<{
   description: '',
   members: [],
 })
-const memberInput = ref('')
-
 watch(
   () => props.group,
   (g) => {
     draft.name = g?.name ?? ''
     draft.description = g?.description ?? ''
     draft.members = g ? [...g.members] : []
-    memberInput.value = ''
   },
   { immediate: true },
 )
@@ -37,24 +35,8 @@ watch(
 const isEdit = computed(() => !!props.group)
 const valid = computed(() => draft.name.trim().length > 0)
 
-function addMember() {
-  const raw = memberInput.value.trim().replace(/,$/, '').trim()
-  if (!raw) return
-  if (!draft.members.includes(raw)) draft.members.push(raw)
-  memberInput.value = ''
-}
-
-function removeMember(i: number) {
-  draft.members.splice(i, 1)
-}
-
-function onBackspace() {
-  if (memberInput.value === '' && draft.members.length) draft.members.pop()
-}
-
 function onSave() {
   if (!valid.value) return
-  if (memberInput.value.trim()) addMember()
   emit('save', {
     name: draft.name.trim(),
     description: draft.description.trim(),
@@ -95,24 +77,13 @@ function onSave() {
 
     <div class="field">
       <label>Members</label>
-      <div class="token-input">
-        <span v-for="(m, i) in draft.members" :key="m + i" class="token">
-          {{ m }}
-          <button class="x" @click="removeMember(i)" aria-label="Remove">
-            ×
-          </button>
-        </span>
-        <input
-          v-model="memberInput"
-          @keydown.enter.prevent="addMember"
-          @keydown.,.prevent="addMember"
-          @keydown.delete="onBackspace"
-          @blur="addMember"
-          :placeholder="
-            draft.members.length ? '' : 'someone@bcc.media, another@bcc.no'
-          "
-        />
-      </div>
+      <UiTagsInput
+        v-model="draft.members"
+        :placeholder="
+          draft.members.length ? '' : 'someone@bcc.media, another@bcc.no'
+        "
+        aria-label="Members"
+      />
       <div class="hint">
         Press Enter or comma to add. Users must sign in once via BCC Login or
         Azure AD before they can be matched.

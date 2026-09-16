@@ -8,9 +8,11 @@ import {
 import { getUserId } from '../../composables/useUserId'
 import type { UploadRecord } from '../../types'
 import PackageFileRow from './PackageFileRow.vue'
-import RecipientChipInput from './RecipientChipInput.vue'
+import UiTagsInput from '../ui/UiTagsInput.vue'
 import VerificationMethodPicker from './VerificationMethodPicker.vue'
 import UiSelect from '../ui/UiSelect.vue'
+import UiFileUpload from '../ui/UiFileUpload.vue'
+import { notifyError } from '../../composables/useToast'
 
 const emit = defineEmits<{ sent: [packageId: string] }>()
 
@@ -64,23 +66,6 @@ const serverUploadsLoaded = ref(false)
 const serverUploadsLoading = ref(false)
 const serverUploadsError = ref<string | null>(null)
 const unresolvedDraftUploadIds = ref<string[]>([])
-
-const isDragging = ref(false)
-const filePicker = ref<HTMLInputElement | null>(null)
-
-function onDrop(e: DragEvent) {
-  isDragging.value = false
-  if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files, SEND_TARGET)
-}
-function onDragOver(e: DragEvent) {
-  e.preventDefault()
-  isDragging.value = true
-}
-function onFilesPicked(e: Event) {
-  const input = e.target as HTMLInputElement
-  if (input.files?.length) addFiles(input.files, SEND_TARGET)
-  input.value = ''
-}
 
 const totalSize = computed(() =>
   uploads.value.reduce((s, f) => s + f.bytesTotal, 0),
@@ -307,40 +292,12 @@ async function send() {
         <div class="block-label">
           <span class="num" :class="{ done: uploads.length }">1</span> Files
         </div>
-        <div
-          class="dropzone"
-          :class="{ dragover: isDragging }"
-          @click="filePicker?.click()"
-          @dragenter.prevent="isDragging = true"
-          @dragover="onDragOver"
-          @dragleave.prevent="isDragging = false"
-          @drop.prevent="onDrop"
-        >
-          <svg
-            class="ic"
-            width="34"
-            height="34"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M12 16V4M6 10l6-6 6 6M4 20h16" />
-          </svg>
-          <div class="t">Drag &amp; drop files, or click to browse</div>
-          <div class="s">
-            Add as many as you like — they'll be sent as one package
-          </div>
-          <input
-            ref="filePicker"
-            type="file"
-            multiple
-            hidden
-            @change="onFilesPicked"
-          />
-        </div>
+        <UiFileUpload
+          label="Drag &amp; drop files, or click to browse"
+          hint="Add as many as you like — they'll be sent as one package"
+          @files="(files) => addFiles(files, SEND_TARGET)"
+          @reject="notifyError"
+        />
         <div
           v-if="restoringDraft || restoredUploadCount"
           class="draft-restore-status"
@@ -419,7 +376,12 @@ async function send() {
           <span class="num" :class="{ done: validRecipients.length }">3</span>
           Recipients <span class="opt">optional</span>
         </div>
-        <RecipientChipInput v-model="recipients" />
+        <UiTagsInput
+          v-model="recipients"
+          :is-invalid="(v) => !isEmail(v)"
+          placeholder="Add email and press Enter…"
+          aria-label="Recipients"
+        />
       </div>
 
       <!-- Message -->

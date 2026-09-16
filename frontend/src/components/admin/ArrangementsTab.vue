@@ -2,6 +2,7 @@
 import { reactive, ref, watch } from 'vue'
 import { useAdmin, type Arrangement } from '../../composables/useAdmin'
 import SubEventImportModal from './SubEventImportModal.vue'
+import UiCollapsible from '../ui/UiCollapsible.vue'
 
 const emit = defineEmits<{
   (e: 'new'): void
@@ -15,7 +16,6 @@ const {
   deleteSubEvent,
 } = useAdmin()
 
-const expanded = ref<Set<number>>(new Set())
 // Arrangement the bulk-import modal is currently open for.
 const importFor = ref<Arrangement | null>(null)
 // Inline-edit drafts for existing sub events, keyed by sub-event id.
@@ -37,12 +37,6 @@ watch(
   },
   { immediate: true, deep: true },
 )
-
-function toggle(id: number) {
-  const s = new Set(expanded.value)
-  s.has(id) ? s.delete(id) : s.add(id)
-  expanded.value = s
-}
 
 const codeOk = (c: string) => /^[A-Za-z0-9_-]+$/.test(c.trim())
 
@@ -101,12 +95,17 @@ async function onDeleteArrangement(a: Arrangement) {
       No arrangements yet. Add one so people can select it in the upload form.
     </div>
 
-    <div v-for="a in arrangements" :key="a.id" class="card arr-card">
+    <UiCollapsible
+      v-for="a in arrangements"
+      :key="a.id"
+      v-slot="{ trigger, content, open, visible }"
+      class="card arr-card"
+    >
       <div class="arr-head">
         <button
+          v-bind="trigger"
           class="chev"
-          :class="{ open: expanded.has(a.id) }"
-          @click="toggle(a.id)"
+          :class="{ open }"
           aria-label="Toggle sub events"
         >
           <svg
@@ -139,61 +138,65 @@ async function onDeleteArrangement(a: Arrangement) {
         </div>
       </div>
 
-      <div v-if="expanded.has(a.id)" class="sub-list">
-        <div class="sub-row head">
-          <span class="sub-name">Sub event name</span>
-          <span class="sub-code">Code</span>
-          <span class="sub-spacer"></span>
-        </div>
+      <div v-bind="content" class="sub-list">
+        <template v-if="visible">
+          <div class="sub-row head">
+            <span class="sub-name">Sub event name</span>
+            <span class="sub-code">Code</span>
+            <span class="sub-spacer"></span>
+          </div>
 
-        <div v-for="s in a.subEvents" :key="s.id" class="sub-row">
-          <input
-            v-if="editById[s.id]"
-            v-model="editById[s.id].name"
-            class="inline-edit sub-name"
-            placeholder="e.g. Åpning"
-          />
-          <input
-            v-if="editById[s.id]"
-            v-model="editById[s.id].code"
-            class="inline-edit mono sub-code"
-            placeholder="CODE"
-          />
-          <button class="btn btn-sm btn-ghost" @click="saveSub(a, s.id)">
-            Save
-          </button>
-          <button
-            class="btn btn-sm btn-danger"
-            @click="deleteSubEvent(a.id, s.id)"
-          >
-            Delete
-          </button>
-        </div>
+          <div v-for="s in a.subEvents" :key="s.id" class="sub-row">
+            <input
+              v-if="editById[s.id]"
+              v-model="editById[s.id].name"
+              class="inline-edit sub-name"
+              placeholder="e.g. Åpning"
+            />
+            <input
+              v-if="editById[s.id]"
+              v-model="editById[s.id].code"
+              class="inline-edit mono sub-code"
+              placeholder="CODE"
+            />
+            <button class="btn btn-sm btn-ghost" @click="saveSub(a, s.id)">
+              Save
+            </button>
+            <button
+              class="btn btn-sm btn-danger"
+              @click="deleteSubEvent(a.id, s.id)"
+            >
+              Delete
+            </button>
+          </div>
 
-        <div v-if="a.subEvents.length === 0" class="sub-empty">
-          No sub events yet — add one below.
-        </div>
+          <div v-if="a.subEvents.length === 0" class="sub-empty">
+            No sub events yet — add one below.
+          </div>
 
-        <div v-if="newSub[a.id]" class="sub-row add">
-          <input
-            v-model="newSub[a.id].name"
-            class="inline-edit sub-name"
-            placeholder="New sub event name"
-            @keyup.enter="addSub(a)"
-          />
-          <input
-            v-model="newSub[a.id].code"
-            class="inline-edit mono sub-code"
-            placeholder="CODE"
-            @keyup.enter="addSub(a)"
-          />
-          <button class="btn btn-sm btn-primary" @click="addSub(a)">Add</button>
-          <button class="btn btn-sm btn-ghost" @click="importFor = a">
-            Import list…
-          </button>
-        </div>
+          <div v-if="newSub[a.id]" class="sub-row add">
+            <input
+              v-model="newSub[a.id].name"
+              class="inline-edit sub-name"
+              placeholder="New sub event name"
+              @keyup.enter="addSub(a)"
+            />
+            <input
+              v-model="newSub[a.id].code"
+              class="inline-edit mono sub-code"
+              placeholder="CODE"
+              @keyup.enter="addSub(a)"
+            />
+            <button class="btn btn-sm btn-primary" @click="addSub(a)">
+              Add
+            </button>
+            <button class="btn btn-sm btn-ghost" @click="importFor = a">
+              Import list…
+            </button>
+          </div>
+        </template>
       </div>
-    </div>
+    </UiCollapsible>
   </div>
 
   <SubEventImportModal
