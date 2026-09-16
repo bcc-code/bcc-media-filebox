@@ -1,14 +1,22 @@
 <script setup lang="ts">
+import UiDialog from '../ui/UiDialog.vue'
 import { reactive, ref, watch, computed } from 'vue'
 import type { Group } from '../../composables/useAdmin'
 
 const props = defineProps<{ group: Group | null }>()
 const emit = defineEmits<{
   (e: 'cancel'): void
-  (e: 'save', body: { name: string; description: string; members: string[] }): void
+  (
+    e: 'save',
+    body: { name: string; description: string; members: string[] },
+  ): void
 }>()
 
-const draft = reactive<{ name: string; description: string; members: string[] }>({
+const draft = reactive<{
+  name: string
+  description: string
+  members: string[]
+}>({
   name: '',
   description: '',
   members: [],
@@ -56,46 +64,66 @@ function onSave() {
 </script>
 
 <template>
-  <div class="modal-bg" @click.self="emit('cancel')">
-    <div class="modal fb-fade" style="width: 560px">
-      <h2>{{ isEdit ? 'Edit group' : 'New custom group' }}</h2>
-      <div class="sub">A custom group is a named bundle of users. Use it when you want to grant the same target access to several specific people at once.</div>
+  <UiDialog
+    :title="isEdit ? 'Edit group' : 'New custom group'"
+    description="A custom group is a named bundle of users. Use it when you want to grant the same target access to several specific people at once."
+    width="560px"
+    @close="emit('cancel')"
+  >
+    <div class="field">
+      <label>Group name</label>
+      <input v-model="draft.name" placeholder="e.g. Camera dept." autofocus />
+    </div>
 
-      <div class="field">
-        <label>Group name</label>
-        <input v-model="draft.name" placeholder="e.g. Camera dept." autofocus />
+    <div class="field">
+      <label
+        >Description
+        <span
+          style="
+            text-transform: none;
+            letter-spacing: 0;
+            color: var(--color-ink-3);
+          "
+          >(optional)</span
+        ></label
+      >
+      <input
+        v-model="draft.description"
+        placeholder="Short note about who this group is for"
+      />
+    </div>
+
+    <div class="field">
+      <label>Members</label>
+      <div class="token-input">
+        <span v-for="(m, i) in draft.members" :key="m + i" class="token">
+          {{ m }}
+          <button class="x" @click="removeMember(i)" aria-label="Remove">
+            ×
+          </button>
+        </span>
+        <input
+          v-model="memberInput"
+          @keydown.enter.prevent="addMember"
+          @keydown.,.prevent="addMember"
+          @keydown.delete="onBackspace"
+          @blur="addMember"
+          :placeholder="
+            draft.members.length ? '' : 'someone@bcc.media, another@bcc.no'
+          "
+        />
       </div>
-
-      <div class="field">
-        <label>Description <span style="text-transform:none;letter-spacing:0;color:var(--color-ink-3)">(optional)</span></label>
-        <input v-model="draft.description" placeholder="Short note about who this group is for" />
-      </div>
-
-      <div class="field">
-        <label>Members</label>
-        <div class="token-input">
-          <span v-for="(m, i) in draft.members" :key="m + i" class="token">
-            {{ m }}
-            <button class="x" @click="removeMember(i)" aria-label="Remove">×</button>
-          </span>
-          <input
-            v-model="memberInput"
-            @keydown.enter.prevent="addMember"
-            @keydown.,.prevent="addMember"
-            @keydown.delete="onBackspace"
-            @blur="addMember"
-            :placeholder="draft.members.length ? '' : 'someone@bcc.media, another@bcc.no'"
-          />
-        </div>
-        <div class="hint">Press Enter or comma to add. Users must sign in once via BCC Login or Azure AD before they can be matched.</div>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
-        <button class="btn btn-primary" :disabled="!valid" @click="onSave">
-          {{ isEdit ? 'Save changes' : 'Create group' }}
-        </button>
+      <div class="hint">
+        Press Enter or comma to add. Users must sign in once via BCC Login or
+        Azure AD before they can be matched.
       </div>
     </div>
-  </div>
+
+    <template #actions>
+      <button class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
+      <button class="btn btn-primary" :disabled="!valid" @click="onSave">
+        {{ isEdit ? 'Save changes' : 'Create group' }}
+      </button>
+    </template>
+  </UiDialog>
 </template>

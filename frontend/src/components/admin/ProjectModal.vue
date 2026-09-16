@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UiDialog from '../ui/UiDialog.vue'
 import { reactive, watch, computed } from 'vue'
 import type { Project } from '../../composables/useAdmin'
 
@@ -30,31 +31,36 @@ function onSave() {
 </script>
 
 <template>
-  <div class="modal-bg" @click.self="emit('cancel')">
-    <div class="modal fb-fade">
-      <h2>{{ isEdit ? 'Edit project' : 'New project' }}</h2>
-      <div class="sub">The display name is what uploaders pick; the code is embedded in the resulting filename.</div>
+  <UiDialog
+    :title="isEdit ? 'Edit project' : 'New project'"
+    description="The display name is what uploaders pick; the code is embedded in the resulting filename."
+    @close="emit('cancel')"
+  >
+    <div class="field">
+      <label>Display name</label>
+      <input
+        v-model="draft.name"
+        placeholder="e.g. Summer Camp 2026"
+        autofocus
+      />
+    </div>
 
-      <div class="field">
-        <label>Display name</label>
-        <input v-model="draft.name" placeholder="e.g. Summer Camp 2026" autofocus />
-      </div>
-
-      <div class="field">
-        <label>Code</label>
-        <input class="mono" v-model="draft.code" placeholder="e.g. SMR26" />
-        <div class="hint">
-          Used verbatim in filenames. Letters, digits, '-' and '_' only.
-          <span v-if="draft.code && !codeValid" style="color:var(--color-danger)">Invalid characters.</span>
-        </div>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
-        <button class="btn btn-primary" :disabled="!valid" @click="onSave">
-          {{ isEdit ? 'Save changes' : 'Create project' }}
-        </button>
+    <div class="field">
+      <label>Code</label>
+      <input class="mono" v-model="draft.code" placeholder="e.g. SMR26" />
+      <div class="hint">
+        Used verbatim in filenames. Letters, digits, '-' and '_' only.
+        <span v-if="draft.code && !codeValid" style="color: var(--color-danger)"
+          >Invalid characters.</span
+        >
       </div>
     </div>
-  </div>
+
+    <template #actions>
+      <button class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
+      <button class="btn btn-primary" :disabled="!valid" @click="onSave">
+        {{ isEdit ? 'Save changes' : 'Create project' }}
+      </button>
+    </template>
+  </UiDialog>
 </template>

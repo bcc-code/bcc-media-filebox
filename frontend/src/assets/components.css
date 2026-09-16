@@ -10,38 +10,73 @@
    ============================================================ */
 
 @layer components {
-
   /* ---------- Motion ---------- */
-  .fb-fade  { animation: fb-fade .25s ease both; }
-  .fb-pop   { animation: fb-pop .15s ease both; }
-  .fb-slide { animation: fb-slide .3s ease both; }
+  .fb-fade {
+    animation: fb-fade 0.25s ease both;
+  }
+  .fb-pop {
+    animation: fb-pop 0.15s ease both;
+  }
+  .fb-slide {
+    animation: fb-slide 0.3s ease both;
+  }
 
   /* ---------- Type ---------- */
-  .mono { font-family: var(--font-mono); }
+  .mono {
+    font-family: var(--font-mono);
+  }
 
   /* ---------- Buttons ----------
      Base is the dense scale used across tables and toolbars.
      Scale with .btn-sm / .btn-lg; colour with .btn-primary /
      .btn-ghost / .btn-danger; shape with .btn-icon / .btn-block. */
   .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 9px 14px; border-radius: 8px;
-    font-family: inherit; font-size: 13px; font-weight: 500;
-    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
     border: 1px solid var(--color-line-2);
     background: var(--color-surface-2);
     color: var(--color-ink);
-    transition: border-color .15s ease, background .15s ease, opacity .15s ease;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      opacity 0.15s ease;
   }
-  .btn:hover { border-color: var(--color-ink-3); background: var(--color-surface-3); }
+  .btn:hover {
+    border-color: var(--color-ink-3);
+    background: var(--color-surface-3);
+  }
 
   /* Scales */
-  .btn-sm { padding: 5px 10px; font-size: 12px; }
-  .btn-lg { padding: 11px 18px; border-radius: 9px; font-size: 14px; font-weight: 600; }
+  .btn-sm {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .btn-lg {
+    padding: 11px 18px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 600;
+  }
 
   /* Shapes */
-  .btn-icon  { padding: 6px; width: 30px; height: 30px; }
-  .btn-block { width: 100%; }
+  .btn-icon {
+    padding: 6px;
+    width: 30px;
+    height: 30px;
+  }
+  .btn-block {
+    width: 100%;
+  }
 
   /* Colours */
   .btn-primary {
@@ -55,8 +90,12 @@
     border-color: var(--color-accent-hover);
   }
 
-  .btn-ghost { background: transparent; }
-  .btn-ghost:hover { background: var(--color-surface-2); }
+  .btn-ghost {
+    background: transparent;
+  }
+  .btn-ghost:hover {
+    background: var(--color-surface-2);
+  }
 
   .btn-danger {
     background: transparent;
@@ -70,13 +109,16 @@
 
   /* Accent-tinted toggle-on state (e.g. notifications enabled) */
   .btn-active {
-    color: oklch(0.80 0.10 250);
+    color: oklch(0.8 0.1 250);
     border-color: color-mix(in oklch, var(--color-accent), transparent 55%);
     background: color-mix(in oklch, var(--color-accent), transparent 88%);
   }
 
   /* One disabled treatment for every variant */
-  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
   .btn:disabled:hover {
     border-color: var(--color-line-2);
     background: var(--color-surface-2);
@@ -89,10 +131,16 @@
   /* ---------- Badge ----------
      Read-only status pill. Was `.chip` in Admin and `.chip-sm` in Send. */
   .badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 3px 9px; border-radius: 999px;
-    font-size: 12px; font-weight: 500;
-    white-space: nowrap; flex-shrink: 0; max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: 100%;
     background: var(--color-surface-3);
     border: 1px solid var(--color-line-2);
     color: var(--color-ink-2);
@@ -100,7 +148,7 @@
   .badge-accent {
     background: color-mix(in oklch, var(--color-accent), transparent 88%);
     border-color: color-mix(in oklch, var(--color-accent), transparent 55%);
-    color: oklch(0.80 0.10 250);
+    color: oklch(0.8 0.1 250);
   }
   .badge-ok {
     background: color-mix(in oklch, var(--color-ok), transparent 85%);
@@ -115,41 +163,71 @@
   .badge-danger {
     background: color-mix(in oklch, var(--color-danger), transparent 84%);
     border-color: color-mix(in oklch, var(--color-danger), transparent 45%);
-    color: oklch(0.85 0.10 25);
+    color: oklch(0.85 0.1 25);
   }
-  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
 
   /* Row of badges */
-  .badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
 
   /* ---------- Token input ----------
      Editable list of removable values (recipients, group members).
      Was `.member-input`/`.member-chip` in Admin, `.chips`/`.chip` in Send. */
   .token-input {
-    display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
-    padding: 8px 10px; min-height: 44px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    align-items: center;
+    padding: 8px 10px;
+    min-height: 44px;
     background: var(--color-surface-2);
     border: 1px solid var(--color-line-2);
     border-radius: 9px;
-    transition: border-color .15s ease, box-shadow .15s ease;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
   .token-input:focus-within {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-accent), transparent 88%);
+    box-shadow: 0 0 0 3px
+      color-mix(in oklch, var(--color-accent), transparent 88%);
   }
   .token-input input {
-    flex: 1; min-width: 140px; width: auto;
-    padding: 4px 2px; border: none; border-radius: 0;
-    background: transparent; outline: none;
-    font-family: inherit; font-size: 13.5px;
+    flex: 1;
+    min-width: 140px;
+    width: auto;
+    padding: 4px 2px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    outline: none;
+    font-family: inherit;
+    font-size: 13.5px;
     color: var(--color-ink);
   }
-  .token-input input::placeholder { color: var(--color-ink-3); }
+  .token-input input::placeholder {
+    color: var(--color-ink-3);
+  }
 
   .token {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 3px 4px 3px 10px; border-radius: 6px;
-    font-family: var(--font-mono); font-size: 12.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 4px 3px 10px;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
     background: var(--color-surface-4);
     border: 1px solid var(--color-line-2);
     color: var(--color-ink);
@@ -157,15 +235,21 @@
   .token-invalid {
     background: color-mix(in oklch, var(--color-danger), transparent 84%);
     border-color: color-mix(in oklch, var(--color-danger), transparent 45%);
-    color: oklch(0.85 0.10 25);
+    color: oklch(0.85 0.1 25);
   }
   /* Remove affordance — `.token button` so both `<button class="x">`
      and a bare button work without a second class. */
   .token button {
-    display: grid; place-items: center;
-    padding: 0 4px; border: none; border-radius: 4px;
-    background: transparent; color: var(--color-ink-3);
-    font-size: 14px; line-height: 1; cursor: pointer;
+    display: grid;
+    place-items: center;
+    padding: 0 4px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-ink-3);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
   }
   .token button:hover {
     color: var(--color-danger);
@@ -176,42 +260,70 @@
      One rule for the explicit `.inp` class and for controls nested in
      a `.field`, so both call sites stay in sync. */
   .inp,
-  .field :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  .field
+    :is(input:not([type='checkbox']):not([type='radio']), select, textarea) {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--color-line-2);
     border-radius: 8px;
     background: var(--color-surface);
     color: var(--color-ink);
-    font-family: inherit; font-size: 13.5px;
+    font-family: inherit;
+    font-size: 13.5px;
     outline: none;
-    transition: border-color .15s ease, box-shadow .15s ease;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
   .inp::placeholder,
-  .field :is(input, textarea)::placeholder { color: var(--color-ink-3); }
+  .field :is(input, textarea)::placeholder {
+    color: var(--color-ink-3);
+  }
 
   .inp:hover,
-  .field :is(input:not([type=checkbox]):not([type=radio]), select, textarea):hover {
+  .field
+    :is(
+      input:not([type='checkbox']):not([type='radio']),
+      select,
+      textarea
+    ):hover {
     border-color: var(--color-ink-3);
   }
   .inp:focus,
-  .field :is(input:not([type=checkbox]):not([type=radio]), select, textarea):focus {
+  .field
+    :is(
+      input:not([type='checkbox']):not([type='radio']),
+      select,
+      textarea
+    ):focus {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-accent), transparent 88%);
+    box-shadow: 0 0 0 3px
+      color-mix(in oklch, var(--color-accent), transparent 88%);
   }
 
-  .field { margin-bottom: 14px; }
+  .field {
+    margin-bottom: 14px;
+  }
   .field > label {
-    display: block; margin-bottom: 6px;
-    font-size: 11px; font-weight: 500;
-    text-transform: uppercase; letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
     color: var(--color-ink-3);
   }
-  .field :is(input[type=checkbox], input[type=radio]) {
-    width: auto; padding: 0; flex-shrink: 0;
+  .field :is(input[type='checkbox'], input[type='radio']) {
+    width: auto;
+    padding: 0;
+    flex-shrink: 0;
     accent-color: var(--color-accent);
   }
-  .field .hint { margin-top: 6px; font-size: 12px; color: var(--color-ink-3); }
+  .field .hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--color-ink-3);
+  }
 
   /* ---------- Surfaces ---------- */
   .card {
@@ -222,25 +334,42 @@
   }
 
   .empty {
-    padding: 48px 20px; text-align: center;
-    color: var(--color-ink-3); font-size: 13.5px;
+    padding: 48px 20px;
+    text-align: center;
+    color: var(--color-ink-3);
+    font-size: 13.5px;
     border: 1px dashed var(--color-line-2);
     border-radius: 12px;
   }
 
   /* ---------- Toast ---------- */
   .toast {
-    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+    position: fixed;
+    bottom: 26px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 200;
-    display: flex; align-items: center; gap: 10px;
-    padding: 11px 18px; border-radius: 10px;
-    font-size: 13.5px; color: var(--color-ink);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 18px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    color: var(--color-ink);
     background: var(--color-surface-4);
     border: 1px solid var(--color-line-2);
     box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
   }
-  .toast .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-ok); flex-shrink: 0; }
-  .toast.danger .dot { background: var(--color-danger); }
+  .toast .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-ok);
+    flex-shrink: 0;
+  }
+  .toast.danger .dot {
+    background: var(--color-danger);
+  }
 }
 
 /* ============================================================
@@ -250,53 +379,174 @@
    ============================================================ */
 
 @layer components {
-  .page-wrap { max-width: 920px; margin: 0 auto; padding: 36px 24px 90px; }
-  .app-header { display: flex; align-items: center; gap: 22px; margin-bottom: 30px; position: relative; }
-  .app-brand { display: inline-flex; align-items: center; gap: 12px; color: var(--color-ink); }
-  .app-brand .mark { width: 30px; height: 30px; color: var(--color-ink); }
-  .app-brand .name { font-size: 21px; font-weight: 600; letter-spacing: -0.3px; }
-  .app-nav { display: flex; gap: 4px; }
+  .page-wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 36px 24px 90px;
+  }
+  .app-header {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    margin-bottom: 30px;
+    position: relative;
+  }
+  .app-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--color-ink);
+  }
+  .app-brand .mark {
+    width: 30px;
+    height: 30px;
+    color: var(--color-ink);
+  }
+  .app-brand .name {
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+  .app-nav {
+    display: flex;
+    gap: 4px;
+  }
   .app-nav a {
-    padding: 7px 14px; border-radius: 8px; font-size: 14px; font-weight: 500;
-    color: var(--color-ink-3); transition: color .15s, background .15s;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-ink-3);
+    transition:
+      color 0.15s,
+      background 0.15s;
   }
-  .app-nav a:hover { color: var(--color-ink-2); background: var(--color-surface-2); }
-  .app-nav a.active { color: var(--color-ink); background: var(--color-surface-3); }
-  .spacer { flex: 1; }
+  .app-nav a:hover {
+    color: var(--color-ink-2);
+    background: var(--color-surface-2);
+  }
+  .app-nav a.active {
+    color: var(--color-ink);
+    background: var(--color-surface-3);
+  }
+  .spacer {
+    flex: 1;
+  }
   .user-trigger {
-    display: inline-flex; align-items: center; gap: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
     padding: 4px 10px 4px 4px;
-    background: transparent; border: 1px solid transparent;
-    border-radius: 999px; cursor: pointer; font-size: 14px; color: var(--color-ink);
-    transition: background .15s ease, border-color .15s ease;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--color-ink);
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
   }
-  .user-trigger:hover { background: var(--color-surface-2); border-color: var(--color-line); }
-  .user-trigger.open { background: var(--color-surface-2); border-color: var(--color-line-2); }
+  .user-trigger:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-line);
+  }
+  .user-trigger.open {
+    background: var(--color-surface-2);
+    border-color: var(--color-line-2);
+  }
   .user-trigger .avatar {
-    width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
-    font-size: 12px; font-weight: 600; color: #fff; background: var(--color-accent-2); flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--color-accent-2);
+    flex-shrink: 0;
   }
   /* Guest sessions get a neutral avatar — no account, no accent. */
-  .user-trigger .avatar.guest { background: var(--color-surface-4); color: var(--color-ink-2); }
+  .user-trigger .avatar.guest {
+    background: var(--color-surface-4);
+    color: var(--color-ink-2);
+  }
 
   .user-menu {
-    position: absolute; right: 0; top: calc(100% + 8px);
-    width: 240px; padding: 6px; background: var(--color-surface-2); border: 1px solid var(--color-line-2);
-    border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,0.55); z-index: 20;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: 240px;
+    padding: 6px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line-2);
+    border-radius: 12px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+    z-index: 20;
   }
-  .user-menu .who { padding: 10px 12px 12px; border-bottom: 1px solid var(--color-line); margin-bottom: 4px; }
-  .user-menu .who .n { font-size: 14px; font-weight: 500; color: var(--color-ink); }
-  .user-menu .who .e { font-size: 13px; color: var(--color-ink-2); margin-top: 2px; }
-  .user-menu .who .o { font-size: 10.5px; color: var(--color-ink-3); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.1em; }
-  .user-menu a, .user-menu button {
-    display: block; width: 100%; text-align: left; padding: 8px 12px; border-radius: 6px;
-    background: transparent; border: none; color: var(--color-ink); font-size: 14px; cursor: pointer;
+  .user-menu .who {
+    padding: 10px 12px 12px;
+    border-bottom: 1px solid var(--color-line);
+    margin-bottom: 4px;
   }
-  .user-menu a:hover, .user-menu button:hover { background: var(--color-surface-3); }
-  .user-menu .sep { height: 1px; background: var(--color-line); margin: 4px 0; }
-  .page-title { margin: 0 0 4px; font-size: 26px; font-weight: 600; letter-spacing: -0.4px; }
-  .page-sub { margin: 0 0 6px; font-size: 14.5px; color: var(--color-ink-2); line-height: 1.5; }
-  .page-note { margin: 0 0 24px; font-size: 12px; color: var(--color-ink-3); line-height: 1.5; }
+  .user-menu .who .n {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-ink);
+  }
+  .user-menu .who .e {
+    font-size: 13px;
+    color: var(--color-ink-2);
+    margin-top: 2px;
+  }
+  .user-menu .who .o {
+    font-size: 10.5px;
+    color: var(--color-ink-3);
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .user-menu a,
+  .user-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    color: var(--color-ink);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .user-menu a:hover,
+  .user-menu button:hover {
+    background: var(--color-surface-3);
+  }
+  .user-menu .sep {
+    height: 1px;
+    background: var(--color-line);
+    margin: 4px 0;
+  }
+  .page-title {
+    margin: 0 0 4px;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+  }
+  .page-sub {
+    margin: 0 0 6px;
+    font-size: 14.5px;
+    color: var(--color-ink-2);
+    line-height: 1.5;
+  }
+  .page-note {
+    margin: 0 0 24px;
+    font-size: 12px;
+    color: var(--color-ink-3);
+    line-height: 1.5;
+  }
 }
 
 /* ============================================================
@@ -306,35 +556,108 @@
 
 @layer components {
   .dropzone {
-    border: 1.5px dashed var(--color-line-2); border-radius: 14px; padding: 40px 24px;
-    display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer;
-    transition: border-color .15s ease, background .15s ease;
+    border: 1.5px dashed var(--color-line-2);
+    border-radius: 14px;
+    padding: 40px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
   }
-  .dropzone:hover { border-color: color-mix(in oklch, var(--color-accent), transparent 40%); background: color-mix(in oklch, var(--color-accent), transparent 96%); }
-  .dropzone.dragover { border-color: var(--color-accent); background: color-mix(in oklch, var(--color-accent), transparent 90%); }
-  .dropzone .ic { color: var(--color-ink-2); margin-bottom: 12px; }
-  .dropzone .t { font-size: 16px; color: var(--color-ink); }
-  .dropzone .s { font-size: 13px; color: var(--color-ink-3); margin-top: 6px; }
-  .file-list { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+  .dropzone:hover {
+    border-color: color-mix(in oklch, var(--color-accent), transparent 40%);
+    background: color-mix(in oklch, var(--color-accent), transparent 96%);
+  }
+  .dropzone.dragover {
+    border-color: var(--color-accent);
+    background: color-mix(in oklch, var(--color-accent), transparent 90%);
+  }
+  .dropzone .ic {
+    color: var(--color-ink-2);
+    margin-bottom: 12px;
+  }
+  .dropzone .t {
+    font-size: 16px;
+    color: var(--color-ink);
+  }
+  .dropzone .s {
+    font-size: 13px;
+    color: var(--color-ink-3);
+    margin-top: 6px;
+  }
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 12px;
+  }
   .file-item {
-    display: flex; align-items: center; gap: 12px;
-    background: var(--color-surface-2); border: 1px solid var(--color-line); border-radius: 10px; padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    padding: 10px 12px;
   }
-  .file-item .fic { width: 32px; height: 32px; border-radius: 8px; background: var(--color-surface-3); border: 1px solid var(--color-line-2); color: var(--color-ink-2); display: grid; place-items: center; flex-shrink: 0; }
-  .file-item .fbody { flex: 1; min-width: 0; }
-  .file-item .fname { font-size: 13.5px; color: var(--color-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .file-item .fsize { font-size: 11.5px; color: var(--color-ink-3); margin-top: 2px; }
-  .file-item .frm { background: transparent; border: none; color: var(--color-ink-3); cursor: pointer; padding: 4px; border-radius: 6px; display: grid; place-items: center; }
-  .file-item .frm:hover { color: var(--color-danger); background: color-mix(in oklch, var(--color-danger), transparent 85%); }
+  .file-item .fic {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--color-surface-3);
+    border: 1px solid var(--color-line-2);
+    color: var(--color-ink-2);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .file-item .fbody {
+    flex: 1;
+    min-width: 0;
+  }
+  .file-item .fname {
+    font-size: 13.5px;
+    color: var(--color-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-item .fsize {
+    font-size: 11.5px;
+    color: var(--color-ink-3);
+    margin-top: 2px;
+  }
+  .file-item .frm {
+    background: transparent;
+    border: none;
+    color: var(--color-ink-3);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+  }
+  .file-item .frm:hover {
+    color: var(--color-danger);
+    background: color-mix(in oklch, var(--color-danger), transparent 85%);
+  }
 
   /* Disabled intake: the target's required fields aren't filled in yet. */
-  .dropzone:disabled, .dropzone.disabled {
-    opacity: 0.5; cursor: not-allowed;
+  .dropzone:disabled,
+  .dropzone.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
     border-color: var(--color-line);
     background: transparent;
   }
-  .dropzone:disabled:hover, .dropzone.disabled:hover {
-    border-color: var(--color-line); background: transparent;
+  .dropzone:disabled:hover,
+  .dropzone.disabled:hover {
+    border-color: var(--color-line);
+    background: transparent;
   }
 }
 
@@ -344,22 +667,95 @@
 
 @layer components {
   .progress {
-    height: 6px; border-radius: 999px; overflow: hidden;
+    height: 6px;
+    border-radius: 999px;
+    overflow: hidden;
     background: var(--color-surface-3);
     border: 1px solid var(--color-line);
   }
   .progress .fill {
-    height: 100%; border-radius: 999px;
+    height: 100%;
+    border-radius: 999px;
     background: var(--color-accent);
-    transition: width .3s ease, background .15s ease;
+    transition:
+      width 0.3s ease,
+      background 0.15s ease;
   }
-  .progress .fill.warn    { background: var(--color-warn); }
-  .progress .fill.ok      { background: var(--color-ok); }
-  .progress .fill.danger  { background: var(--color-danger); }
-  .progress .fill.idle    { background: var(--color-ink-3); }
+  .progress .fill.warn {
+    background: var(--color-warn);
+  }
+  .progress .fill.ok {
+    background: var(--color-ok);
+  }
+  .progress .fill.danger {
+    background: var(--color-danger);
+  }
+  .progress .fill.idle {
+    background: var(--color-ink-3);
+  }
+}
+
+/* ============================================================
+   Segmented control — a row of mutually exclusive options.
+   ============================================================ */
+
+@layer components {
+  .seg {
+    display: flex;
+    gap: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line-2);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .seg button {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--color-ink-2);
+    padding: 7px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+  }
+  .seg button.active {
+    background: var(--color-surface-3);
+    color: var(--color-ink);
+  }
 }
 
 /* Keyframes live outside @layer — layered keyframes are not addressable. */
-@keyframes fb-fade  { from { opacity: 0; transform: translateY(4px); }               to { opacity: 1; transform: none; } }
-@keyframes fb-pop   { from { opacity: 0; transform: translateY(-4px) scale(0.98); }  to { opacity: 1; transform: none; } }
-@keyframes fb-slide { from { opacity: 0; transform: translateX(40px); }              to { opacity: 1; transform: none; } }
+@keyframes fb-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fb-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fb-slide {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
