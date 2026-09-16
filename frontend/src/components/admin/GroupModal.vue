@@ -3,6 +3,7 @@ import UiDialog from '../ui/UiDialog.vue'
 import UiTagsInput from '../ui/UiTagsInput.vue'
 import { reactive, watch, computed } from 'vue'
 import type { Group } from '../../composables/useAdmin'
+import UiButton from '../ui/UiButton.vue'
 
 const props = defineProps<{ group: Group | null }>()
 const emit = defineEmits<{
@@ -91,10 +92,10 @@ function onSave() {
     </div>
 
     <template #actions>
-      <button class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
-      <button class="btn btn-primary" :disabled="!valid" @click="onSave">
+      <UiButton variant="ghost" @click="emit('cancel')">Cancel</UiButton>
+      <UiButton variant="primary" :disabled="!valid" @click="onSave">
         {{ isEdit ? 'Save changes' : 'Create group' }}
-      </button>
+      </UiButton>
     </template>
   </UiDialog>
 </template>

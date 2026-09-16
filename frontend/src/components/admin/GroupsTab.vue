@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAdmin, type Group } from '../../composables/useAdmin'
 import { confirmAction } from '../../composables/useConfirm'
+import UiButton from '../ui/UiButton.vue'
 
 const emit = defineEmits<{ (e: 'new'): void; (e: 'edit', g: Group): void }>()
 const { groups, grants, deleteGroup } = useAdmin()
@@ -36,7 +37,7 @@ async function onDelete(gr: Group) {
           update automatically; custom groups you maintain here.
         </div>
       </div>
-      <button class="btn btn-primary" @click="emit('new')">
+      <UiButton variant="primary" @click="emit('new')">
         <svg
           width="14"
           height="14"
@@ -49,7 +50,7 @@ async function onDelete(gr: Group) {
           <path d="M12 5v14M5 12h14" />
         </svg>
         New custom group
-      </button>
+      </UiButton>
     </div>
 
     <div class="card">
@@ -130,12 +131,12 @@ async function onDelete(gr: Group) {
             </td>
             <td class="actions">
               <template v-if="gr.kind === 'custom'">
-                <button class="btn btn-sm btn-ghost" @click="emit('edit', gr)">
+                <UiButton size="sm" variant="ghost" @click="emit('edit', gr)">
                   Edit
-                </button>
-                <button class="btn btn-sm btn-danger" @click="onDelete(gr)">
+                </UiButton>
+                <UiButton size="sm" variant="danger" @click="onDelete(gr)">
                   Delete
-                </button>
+                </UiButton>
               </template>
               <span
                 v-else

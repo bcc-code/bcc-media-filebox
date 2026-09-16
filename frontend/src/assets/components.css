@@ -35,6 +35,8 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
+    /* .btn also dresses <a>/<router-link>, which arrive underlined. */
+    text-decoration: none;
     padding: 9px 14px;
     border-radius: 8px;
     font-family: inherit;

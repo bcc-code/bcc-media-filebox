@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import type { UploadRecord } from '../types'
 import { getUserId } from '../composables/useUserId'
+import UiButton from './ui/UiButton.vue'
 
 const records = ref<UploadRecord[]>([])
 const loading = ref(false)
@@ -45,7 +46,7 @@ defineExpose({ refresh: fetchUploads })
   <div>
     <div class="list-head">
       <h2 class="section-title">Completed uploads</h2>
-      <button class="btn btn-sm btn-ghost" @click="fetchUploads">Refresh</button>
+      <UiButton size="sm" variant="ghost" @click="fetchUploads">Refresh</UiButton>
     </div>
 
     <p v-if="loading" class="list-status">Loading…</p>

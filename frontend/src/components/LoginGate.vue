@@ -4,6 +4,7 @@ import { useAuth } from '../composables/useAuth'
 import { useProviders } from '../composables/useProviders'
 import bccLogoUrl from '../assets/bcc-logo.svg'
 import AppLogo from './AppLogo.vue'
+import UiButton from './ui/UiButton.vue'
 
 const { signIn, continueAsGuest } = useAuth()
 const providers = useProviders()
@@ -166,10 +167,10 @@ async function submitGuest() {
         <div v-if="error" class="lg-error">{{ error }}</div>
 
         <div class="lg-row">
-          <button type="button" class="lg-btn ghost" :disabled="submitting" @click="backToChoices">Back</button>
-          <button type="submit" class="lg-btn primary" :disabled="!canSubmitGuest">
-            {{ submitting ? 'Continuing…' : 'Continue as guest' }}
-          </button>
+          <UiButton size="lg" variant="ghost" :disabled="submitting" @click="backToChoices">Back</UiButton>
+          <UiButton type="submit" size="lg" variant="primary" :disabled="!canSubmitGuest" :loading="submitting" loading-label="Continuing…">
+            Continue as guest
+          </UiButton>
         </div>
 
         <div class="lg-fine">
@@ -369,26 +370,8 @@ async function submitGuest() {
 }
 
 .lg-row { display: flex; gap: 8px; }
-.lg-btn {
-  flex: 1;
-  padding: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
-  border: 1px solid var(--color-line-2);
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
-}
-.lg-btn.ghost { background: transparent; color: var(--color-ink-2); }
-.lg-btn.ghost:hover:not(:disabled) { color: var(--color-ink); border-color: var(--color-ink-3); }
-.lg-btn.primary {
-  background: var(--color-accent);
-  color: var(--color-surface);
-  border-color: var(--color-accent);
-}
-.lg-btn.primary:hover:not(:disabled) { background: var(--color-accent-hover); }
-.lg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+/* The shared .btn is inline-flex and shrink-proof; the form actions split the row. */
+.lg-row .btn { flex: 1; }
 
 .lg-fine {
   color: var(--color-ink-3);

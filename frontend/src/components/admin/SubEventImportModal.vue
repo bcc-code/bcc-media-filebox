@@ -2,6 +2,7 @@
 import UiDialog from '../ui/UiDialog.vue'
 import { computed, ref } from 'vue'
 import { useAdmin, type Arrangement } from '../../composables/useAdmin'
+import UiButton from '../ui/UiButton.vue'
 
 const props = defineProps<{ arrangement: Arrangement }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -159,14 +160,16 @@ async function onImport() {
           · {{ skipCount }} skipped</template
         >
       </span>
-      <button class="btn btn-ghost" @click="emit('close')">Cancel</button>
-      <button class="btn btn-primary" :disabled="!canImport" @click="onImport">
-        {{
-          importing
-            ? 'Importing…'
-            : `Import ${newCount} sub event${newCount === 1 ? '' : 's'}`
-        }}
-      </button>
+      <UiButton variant="ghost" @click="emit('close')">Cancel</UiButton>
+      <UiButton
+        variant="primary"
+        :disabled="!canImport"
+        :loading="importing"
+        loading-label="Importing…"
+        @click="onImport"
+      >
+        {{ `Import ${newCount} sub event${newCount === 1 ? '' : 's'}` }}
+      </UiButton>
     </template>
   </UiDialog>
 </template>

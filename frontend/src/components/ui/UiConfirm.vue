@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import UiDialog from './UiDialog.vue'
 import { pending, settle } from '../../composables/useConfirm'
+import UiButton from './UiButton.vue'
 </script>
 
 <template>
@@ -21,16 +22,15 @@ import { pending, settle } from '../../composables/useConfirm'
   >
     <template #actions>
       <!-- Cancel first, so the focus trap lands on it and Enter is harmless. -->
-      <button class="btn btn-ghost" @click="settle(false)">
+      <UiButton variant="ghost" @click="settle(false)">
         {{ pending.cancelLabel ?? 'Cancel' }}
-      </button>
-      <button
-        class="btn"
-        :class="pending.danger ? 'btn-danger' : 'btn-primary'"
+      </UiButton>
+      <UiButton
+        :variant="pending.danger ? 'danger' : 'primary'"
         @click="settle(true)"
       >
         {{ pending.confirmLabel ?? 'Confirm' }}
-      </button>
+      </UiButton>
     </template>
   </UiDialog>
 </template>

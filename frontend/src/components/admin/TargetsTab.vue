@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useAdmin, type Target } from '../../composables/useAdmin'
 import { confirmAction } from '../../composables/useConfirm'
 import UiEditable from '../ui/UiEditable.vue'
+import UiButton from '../ui/UiButton.vue'
 
 const emit = defineEmits<{
   (e: 'new'): void
@@ -105,7 +106,7 @@ function onDragEnd() {
           access becomes their default.
         </div>
       </div>
-      <button class="btn btn-primary" @click="emit('new')">
+      <UiButton variant="primary" @click="emit('new')">
         <svg
           width="14"
           height="14"
@@ -118,7 +119,7 @@ function onDragEnd() {
           <path d="M12 5v14M5 12h14" />
         </svg>
         New target
-      </button>
+      </UiButton>
     </div>
 
     <div v-if="targets.length === 0" class="empty">
@@ -223,15 +224,15 @@ function onDragEnd() {
               >
             </td>
             <td class="actions">
-              <button class="btn btn-sm btn-ghost" @click="emit('open', t)">
+              <UiButton size="sm" variant="ghost" @click="emit('open', t)">
                 Edit
-              </button>
-              <button class="btn btn-sm btn-ghost" @click="duplicateTarget(t)">
+              </UiButton>
+              <UiButton size="sm" variant="ghost" @click="duplicateTarget(t)">
                 Duplicate
-              </button>
-              <button class="btn btn-sm btn-danger" @click="onDelete(t)">
+              </UiButton>
+              <UiButton size="sm" variant="danger" @click="onDelete(t)">
                 Delete
-              </button>
+              </UiButton>
             </td>
           </tr>
         </tbody>

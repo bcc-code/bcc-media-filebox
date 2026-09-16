@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { UploadItem } from '../types'
+import UiButton from './ui/UiButton.vue'
 
 const props = defineProps<{
   item: UploadItem
@@ -78,18 +79,18 @@ const fillTone = computed(() => ({
     </div>
 
     <div class="upload-actions">
-      <button v-if="item.status === 'uploading'" class="btn btn-sm btn-ghost" @click="emit('pause', item)">
+      <UiButton v-if="item.status === 'uploading'" size="sm" variant="ghost" @click="emit('pause', item)">
         Pause
-      </button>
-      <button v-if="item.status === 'paused'" class="btn btn-sm btn-primary" @click="emit('resume', item)">
+      </UiButton>
+      <UiButton v-if="item.status === 'paused'" size="sm" variant="primary" @click="emit('resume', item)">
         Resume
-      </button>
-      <button v-if="item.status === 'failed'" class="btn btn-sm btn-primary" @click="emit('retry', item)">
+      </UiButton>
+      <UiButton v-if="item.status === 'failed'" size="sm" variant="primary" @click="emit('retry', item)">
         Retry
-      </button>
-      <button v-if="item.status !== 'completed'" class="btn btn-sm btn-danger" @click="emit('cancel', item)">
+      </UiButton>
+      <UiButton v-if="item.status !== 'completed'" size="sm" variant="danger" @click="emit('cancel', item)">
         Cancel
-      </button>
+      </UiButton>
       <p v-if="item.error" class="upload-error">{{ item.error }}</p>
     </div>
   </div>

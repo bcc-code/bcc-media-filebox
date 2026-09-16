@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { VerificationMethod } from '../../composables/usePackages'
+import UiButton from '../ui/UiButton.vue'
 
 const props = defineProps<{
   verificationMethod: VerificationMethod
@@ -40,16 +41,16 @@ function submit() {
       @keydown.enter="submit"
     />
     <div v-if="error" class="verify-error">{{ error }}</div>
-    <button class="btn btn-lg btn-primary btn-block" style="margin-top: 12px" :disabled="!password || submitting" @click="submit">
-      {{ submitting ? 'Checking…' : 'Unlock files' }}
-    </button>
+    <UiButton size="lg" variant="primary" block style="margin-top: 12px" :disabled="!password" :loading="submitting" loading-label="Checking…" @click="submit">
+      Unlock files
+    </UiButton>
   </template>
 
   <template v-else-if="verificationMethod === 'bcc_login'">
     <h2 class="verify-h">Sign in required</h2>
     <p class="verify-p">This package requires you to be signed in with a <b>BCC Login</b> account to access it.</p>
     <div v-if="error" class="verify-error">{{ error }}</div>
-    <button class="btn btn-lg btn-primary btn-block" @click="emit('signInBcc')">Continue with BCC Login</button>
+    <UiButton size="lg" variant="primary" block @click="emit('signInBcc')">Continue with BCC Login</UiButton>
   </template>
 
   <template v-else>

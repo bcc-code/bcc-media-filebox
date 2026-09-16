@@ -4,6 +4,7 @@ import { reactive, watch, computed } from 'vue'
 import type { Grant, Target, Group } from '../../composables/useAdmin'
 import UiSelect, { type UiSelectEntry } from '../ui/UiSelect.vue'
 import UiRadioGroup, { type UiRadioOption } from '../ui/UiRadioGroup.vue'
+import UiButton from '../ui/UiButton.vue'
 
 const props = defineProps<{
   grant: Grant | null
@@ -269,10 +270,10 @@ function onSave() {
     </div>
 
     <template #actions>
-      <button class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
-      <button class="btn btn-primary" :disabled="!valid" @click="onSave">
+      <UiButton variant="ghost" @click="emit('cancel')">Cancel</UiButton>
+      <UiButton variant="primary" :disabled="!valid" @click="onSave">
         {{ isEdit ? 'Save changes' : 'Add grant' }}
-      </button>
+      </UiButton>
     </template>
   </UiDialog>
 </template>

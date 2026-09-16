@@ -14,6 +14,7 @@ import UiSelect from '../ui/UiSelect.vue'
 import UiFileUpload from '../ui/UiFileUpload.vue'
 import UiNumberInput from '../ui/UiNumberInput.vue'
 import { notifyError } from '../../composables/useToast'
+import UiButton from '../ui/UiButton.vue'
 
 const emit = defineEmits<{ sent: [packageId: string] }>()
 
@@ -455,13 +456,17 @@ async function send() {
       <div v-if="sendError" class="verify-error">{{ sendError }}</div>
 
       <div class="compose-actions">
-        <button
-          class="btn btn-lg btn-primary btn-block"
+        <UiButton
+          size="lg"
+          variant="primary"
+          block
           :disabled="!canSend"
+          :loading="sending"
+          loading-label="Sending…"
           @click="send"
         >
-          {{ sending ? 'Sending…' : 'Send package' }}
-        </button>
+          Send package
+        </UiButton>
       </div>
     </div>
 
@@ -502,14 +507,18 @@ async function send() {
         <span class="k">Notify</span
         ><span class="v">{{ notify ? 'On' : 'Off' }}</span>
       </div>
-      <button
-        class="btn btn-lg btn-primary btn-block"
+      <UiButton
+        size="lg"
+        variant="primary"
+        block
         style="margin-top: 16px"
         :disabled="!canSend"
+        :loading="sending"
+        loading-label="Sending…"
         @click="send"
       >
-        {{ sending ? 'Sending…' : 'Send package' }}
-      </button>
+        Send package
+      </UiButton>
       <div
         v-if="!canSend"
         style="

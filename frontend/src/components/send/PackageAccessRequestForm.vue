@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { AccessRequestReason } from '../../composables/usePackages'
 import UiTooltip from '../ui/UiTooltip.vue'
+import UiButton from '../ui/UiButton.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -129,14 +130,18 @@ function submit() {
     <div v-if="error" class="verify-error">{{ error }}</div>
 
     <UiTooltip :label="disabledReason ?? ''">
-      <button
-        class="btn btn-lg btn-primary btn-block"
+      <UiButton
+        variant="primary"
+        size="lg"
+        block
         style="margin-top: 12px"
-        :disabled="!!disabledReason || submitting"
+        :disabled="!!disabledReason"
+        :loading="submitting"
+        loading-label="Sending…"
         @click="submit"
       >
-        {{ submitting ? 'Sending…' : 'Send request' }}
-      </button>
+        Send request
+      </UiButton>
     </UiTooltip>
     <p class="req-note" :class="{ blocked: disabledReason }">
       {{

@@ -30,6 +30,7 @@ import AppLogo from '../components/AppLogo.vue'
 import '../assets/admin.css'
 import UiTabs, { type UiTabEntry } from '../components/ui/UiTabs.vue'
 import { confirmAction } from '../composables/useConfirm'
+import UiButton from '../components/ui/UiButton.vue'
 
 type Tab =
   | 'targets'
@@ -257,12 +258,7 @@ async function revokeUser(u: AdminUserDetail) {
         ><span class="here">Admin</span>
       </div>
       <div class="spacer"></div>
-      <router-link
-        to="/"
-        class="btn btn-ghost btn-sm"
-        style="text-decoration: none"
-        >← Back to FileBox</router-link
-      >
+      <UiButton to="/" variant="ghost" size="sm">← Back to FileBox</UiButton>
       <div class="me">
         <div class="avatar">{{ initials(state.name || state.email) }}</div>
         <span>{{ state.email }}</span>

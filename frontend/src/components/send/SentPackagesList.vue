@@ -5,6 +5,7 @@ import SentPackageCard from './SentPackageCard.vue'
 import { notify, notifyError } from '../../composables/useToast'
 import { confirmAction } from '../../composables/useConfirm'
 import { copyToClipboard } from '../../composables/useClipboard'
+import UiButton from '../ui/UiButton.vue'
 
 const props = defineProps<{ focusPackageId?: string }>()
 const emit = defineEmits<{ preview: [packageId: string]; focusConsumed: [] }>()
@@ -151,13 +152,13 @@ onUnmounted(stopPreparationPolling)
       @dismiss-request="(id) => dismiss(p.packageId, id)"
       @set-notify="(on) => setNotify(p.packageId, on)"
     />
-    <button
+    <UiButton
       v-if="packages.length < total"
-      class="btn"
-      :disabled="loading"
+      :loading="loading"
+      loading-label="Loading…"
       @click="loadMorePackages"
     >
-      {{ loading ? 'Loading…' : `Load more (${packages.length}/${total})` }}
-    </button>
+      Load more ({{ packages.length }}/{{ total }})
+    </UiButton>
   </div>
 </template>

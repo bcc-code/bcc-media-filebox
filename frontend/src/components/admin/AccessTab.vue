@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useAdmin, type Grant } from '../../composables/useAdmin'
 import { confirmAction } from '../../composables/useConfirm'
+import UiButton from '../ui/UiButton.vue'
 
 const emit = defineEmits<{ (e: 'new'): void; (e: 'edit', g: Grant): void }>()
 const { grants, targets, groups, deleteGrant } = useAdmin()
@@ -54,7 +55,7 @@ const sortedGrants = computed(() =>
           group can use. Groups expand to everyone they include.
         </div>
       </div>
-      <button class="btn btn-primary" @click="emit('new')">
+      <UiButton variant="primary" @click="emit('new')">
         <svg
           width="14"
           height="14"
@@ -67,7 +68,7 @@ const sortedGrants = computed(() =>
           <path d="M12 5v14M5 12h14" />
         </svg>
         Grant access
-      </button>
+      </UiButton>
     </div>
 
     <div v-if="grants.length === 0" class="empty">
@@ -164,12 +165,12 @@ const sortedGrants = computed(() =>
               >
             </td>
             <td class="actions">
-              <button class="btn btn-sm btn-ghost" @click="emit('edit', g)">
+              <UiButton size="sm" variant="ghost" @click="emit('edit', g)">
                 Edit
-              </button>
-              <button class="btn btn-sm btn-danger" @click="onRemove(g)">
+              </UiButton>
+              <UiButton size="sm" variant="danger" @click="onRemove(g)">
                 Remove
-              </button>
+              </UiButton>
             </td>
           </tr>
         </tbody>

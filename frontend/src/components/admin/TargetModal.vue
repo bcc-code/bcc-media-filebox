@@ -4,6 +4,7 @@ import { reactive, watch, computed } from 'vue'
 import type { Target } from '../../composables/useAdmin'
 import { registry } from '../../forms'
 import UiSelect from '../ui/UiSelect.vue'
+import UiButton from '../ui/UiButton.vue'
 
 const props = defineProps<{ target: Target | null }>()
 const emit = defineEmits<{
@@ -106,10 +107,10 @@ function onSave() {
     </div>
 
     <template #actions>
-      <button class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
-      <button class="btn btn-primary" :disabled="!valid" @click="onSave">
+      <UiButton variant="ghost" @click="emit('cancel')">Cancel</UiButton>
+      <UiButton variant="primary" :disabled="!valid" @click="onSave">
         {{ isEdit ? 'Save changes' : 'Create target' }}
-      </button>
+      </UiButton>
     </template>
   </UiDialog>
 </template>

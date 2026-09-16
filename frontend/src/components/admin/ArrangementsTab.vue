@@ -4,6 +4,7 @@ import { useAdmin, type Arrangement } from '../../composables/useAdmin'
 import SubEventImportModal from './SubEventImportModal.vue'
 import UiCollapsible from '../ui/UiCollapsible.vue'
 import { confirmAction } from '../../composables/useConfirm'
+import UiButton from '../ui/UiButton.vue'
 
 const emit = defineEmits<{
   (e: 'new'): void
@@ -89,7 +90,7 @@ async function onDeleteArrangement(a: Arrangement) {
           filename. Expand a row to manage its sub events.
         </div>
       </div>
-      <button class="btn btn-primary" @click="emit('new')">
+      <UiButton variant="primary" @click="emit('new')">
         <svg
           width="14"
           height="14"
@@ -102,7 +103,7 @@ async function onDeleteArrangement(a: Arrangement) {
           <path d="M12 5v14M5 12h14" />
         </svg>
         New arrangement
-      </button>
+      </UiButton>
     </div>
 
     <div v-if="arrangements.length === 0" class="empty">
@@ -143,12 +144,12 @@ async function onDeleteArrangement(a: Arrangement) {
           }}</span
         >
         <div class="arr-actions">
-          <button class="btn btn-sm btn-ghost" @click="emit('edit', a)">
+          <UiButton size="sm" variant="ghost" @click="emit('edit', a)">
             Edit
-          </button>
-          <button class="btn btn-sm btn-danger" @click="onDeleteArrangement(a)">
+          </UiButton>
+          <UiButton size="sm" variant="danger" @click="onDeleteArrangement(a)">
             Delete
-          </button>
+          </UiButton>
         </div>
       </div>
 
@@ -173,15 +174,16 @@ async function onDeleteArrangement(a: Arrangement) {
               class="inline-edit mono sub-code"
               placeholder="CODE"
             />
-            <button class="btn btn-sm btn-ghost" @click="saveSub(a, s.id)">
+            <UiButton size="sm" variant="ghost" @click="saveSub(a, s.id)">
               Save
-            </button>
-            <button
-              class="btn btn-sm btn-danger"
+            </UiButton>
+            <UiButton
+              size="sm"
+              variant="danger"
               @click="onDeleteSubEvent(a, s.id, s.name)"
             >
               Delete
-            </button>
+            </UiButton>
           </div>
 
           <div v-if="a.subEvents.length === 0" class="sub-empty">
@@ -201,12 +203,12 @@ async function onDeleteArrangement(a: Arrangement) {
               placeholder="CODE"
               @keyup.enter="addSub(a)"
             />
-            <button class="btn btn-sm btn-primary" @click="addSub(a)">
+            <UiButton size="sm" variant="primary" @click="addSub(a)">
               Add
-            </button>
-            <button class="btn btn-sm btn-ghost" @click="importFor = a">
+            </UiButton>
+            <UiButton size="sm" variant="ghost" @click="importFor = a">
               Import list…
-            </button>
+            </UiButton>
           </div>
         </template>
       </div>

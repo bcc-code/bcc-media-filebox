@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAdmin, type Project } from '../../composables/useAdmin'
 import { confirmAction } from '../../composables/useConfirm'
+import UiButton from '../ui/UiButton.vue'
 
 const emit = defineEmits<{ (e: 'new'): void; (e: 'edit', p: Project): void }>()
 const { projects, deleteProject } = useAdmin()
@@ -27,7 +28,7 @@ async function onDelete(p: Project) {
           filename.
         </div>
       </div>
-      <button class="btn btn-primary" @click="emit('new')">
+      <UiButton variant="primary" @click="emit('new')">
         <svg
           width="14"
           height="14"
@@ -40,7 +41,7 @@ async function onDelete(p: Project) {
           <path d="M12 5v14M5 12h14" />
         </svg>
         New project
-      </button>
+      </UiButton>
     </div>
 
     <div v-if="projects.length === 0" class="empty">
@@ -83,12 +84,12 @@ async function onDelete(p: Project) {
               <span class="badge mono">{{ p.code }}</span>
             </td>
             <td class="actions">
-              <button class="btn btn-sm btn-ghost" @click="emit('edit', p)">
+              <UiButton size="sm" variant="ghost" @click="emit('edit', p)">
                 Edit
-              </button>
-              <button class="btn btn-sm btn-danger" @click="onDelete(p)">
+              </UiButton>
+              <UiButton size="sm" variant="danger" @click="onDelete(p)">
                 Delete
-              </button>
+              </UiButton>
             </td>
           </tr>
         </tbody>

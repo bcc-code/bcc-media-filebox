@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import AppLogo from '../components/AppLogo.vue'
 import { muteNotifications } from '../composables/usePackages'
 import '../assets/send.css'
+import UiButton from '../components/ui/UiButton.vue'
 
 // Public: the token in the link is the only credential, since the author's mail
 // client may have no FileBox session. A button, not an on-load call — mail
@@ -41,7 +42,7 @@ async function confirm() {
             You won't be emailed about this package again. The link still works for its recipients — turn
             notifications back on from the package's card under Sent packages.
           </p>
-          <a class="btn btn-lg btn-primary btn-block" href="/send?tab=sent" style="margin-top: 18px">Open Sent packages</a>
+          <UiButton href="/send?tab=sent" size="lg" variant="primary" block style="margin-top: 18px">Open Sent packages</UiButton>
         </template>
 
         <template v-else>
@@ -51,9 +52,9 @@ async function confirm() {
             live and its recipients keep their access.
           </p>
           <div v-if="error" class="verify-error" style="margin-top: 14px">{{ error }}</div>
-          <button class="btn btn-lg btn-primary btn-block" :disabled="submitting" style="margin-top: 18px" @click="confirm">
-            {{ submitting ? 'Turning off…' : 'Stop these notifications' }}
-          </button>
+          <UiButton size="lg" variant="primary" block :loading="submitting" loading-label="Turning off…" style="margin-top: 18px" @click="confirm">
+            Stop these notifications
+          </UiButton>
         </template>
       </div>
     </div>

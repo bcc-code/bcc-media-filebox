@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useAdmin } from '../../composables/useAdmin'
 import { formatBytes, relTime } from '../../composables/adminHelpers'
 import UiTooltip from '../ui/UiTooltip.vue'
+import UiButton from '../ui/UiButton.vue'
 
 const { adminUploads, loadAdminUploads, retriggerWebhook } = useAdmin()
 
@@ -36,7 +37,7 @@ async function onRetrigger(id: string) {
           upload.
         </div>
       </div>
-      <button class="btn btn-ghost" @click="loadAdminUploads()">
+      <UiButton variant="ghost" @click="loadAdminUploads()">
         <svg
           width="14"
           height="14"
@@ -50,7 +51,7 @@ async function onRetrigger(id: string) {
           <path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6" />
         </svg>
         Refresh
-      </button>
+      </UiButton>
     </div>
 
     <div v-if="adminUploads.length === 0" class="empty">
@@ -100,13 +101,16 @@ async function onRetrigger(id: string) {
                     : 'No webhook configured on this target'
                 "
               >
-                <button
-                  class="btn btn-sm btn-ghost"
-                  :disabled="!u.webhookConfigured || sending === u.id"
+                <UiButton
+                  size="sm"
+                  variant="ghost"
+                  :disabled="!u.webhookConfigured"
+                  :loading="sending === u.id"
+                  loading-label="Sending…"
                   @click="onRetrigger(u.id)"
                 >
-                  {{ sending === u.id ? 'Sending…' : '↻ Webhook' }}
-                </button>
+                  ↻ Webhook
+                </UiButton>
               </UiTooltip>
             </td>
           </tr>

@@ -7,6 +7,7 @@ import type {
 } from '../../composables/usePackages'
 
 import UiNumberInput from '../ui/UiNumberInput.vue'
+import UiButton from '../ui/UiButton.vue'
 
 const props = defineProps<{
   pkg: PackageInfo
@@ -404,26 +405,25 @@ onMounted(() => {
         that.
       </p>
       <div class="ex-actions">
-        <button
-          class="btn btn-sm btn-primary"
-          :disabled="!extendValid || extending"
+        <UiButton
+          size="sm"
+          variant="primary"
+          :disabled="!extendValid"
+          :loading="extending"
+          loading-label="Extending…"
           @click="submitExtend"
         >
-          {{ extending ? 'Extending…' : 'Confirm' }}
-        </button>
-        <button
-          class="btn btn-sm"
-          :disabled="extending"
-          @click="showExtend = false"
-        >
+          Confirm
+        </UiButton>
+        <UiButton size="sm" :disabled="extending" @click="showExtend = false">
           Cancel
-        </button>
+        </UiButton>
       </div>
     </div>
 
     <div class="pkg-foot">
-      <button
-        class="btn btn-sm"
+      <UiButton
+        size="sm"
         :disabled="!downloadsReady"
         :title="
           downloadsReady
@@ -446,9 +446,9 @@ onMounted(() => {
           <path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
         </svg>
         Copy link
-      </button>
-      <button
-        class="btn btn-sm"
+      </UiButton>
+      <UiButton
+        size="sm"
         :disabled="!downloadsReady"
         :title="
           downloadsReady
@@ -458,23 +458,23 @@ onMounted(() => {
         @click="emit('preview')"
       >
         Preview
-      </button>
+      </UiButton>
       <span class="spacer"></span>
       <span v-if="displayStatus === 'deleted'" class="pkg-gone-note"
         >Files deleted — can't be renewed</span
       >
-      <button
+      <UiButton
         v-else-if="!showExtend"
-        class="btn btn-sm"
-        :class="{ 'btn-primary': pkg.pendingRequests.length > 0 }"
+        size="sm"
+        :variant="pkg.pendingRequests.length > 0 ? 'primary' : 'default'"
         @click="openExtend"
       >
         {{ isLive ? 'Extend' : 'Reopen' }}
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         v-if="canNotify"
-        class="btn btn-sm"
-        :class="{ 'btn-active': pkg.notifyOnDownload }"
+        size="sm"
+        :active="pkg.notifyOnDownload"
         :title="
           pkg.notifyOnDownload
             ? 'Stop emailing me when this is downloaded'
@@ -513,14 +513,15 @@ onMounted(() => {
           <path d="M2 2l20 20" />
         </svg>
         Notify {{ pkg.notifyOnDownload ? 'on' : 'off' }}
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         v-if="isLive"
-        class="btn btn-sm btn-danger"
+        size="sm"
+        variant="danger"
         @click="emit('revoke')"
       >
         Revoke
-      </button>
+      </UiButton>
     </div>
   </div>
 </template>

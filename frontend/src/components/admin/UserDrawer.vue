@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useAdmin, type AdminUserDetail } from '../../composables/useAdmin'
 import { formatBytes, relTime, initials, providerLabel, providerColor, avatarBg } from '../../composables/adminHelpers'
+import UiButton from '../ui/UiButton.vue'
 
 const props = defineProps<{ user: AdminUserDetail }>()
 const emit = defineEmits<{
@@ -38,9 +39,9 @@ const failureRate = computed(() => {
   <div class="drawer-bg" @click.self="emit('close')">
     <div class="drawer fb-slide">
       <div class="drawer-head">
-        <button class="btn btn-icon btn-ghost" @click="emit('close')" aria-label="Close">
+        <UiButton icon variant="ghost" @click="emit('close')" aria-label="Close">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
+        </UiButton>
         <div class="crumb" style="margin-left:8px">filebox / admin / users / <span style="color:var(--color-ink-2)">{{ user.id }}</span></div>
       </div>
 
@@ -69,8 +70,8 @@ const failureRate = computed(() => {
             </div>
           </div>
           <div style="display:flex;gap:8px;flex-shrink:0">
-            <button class="btn btn-sm" @click="emit('edit-access', user)">Edit access</button>
-            <button class="btn btn-sm btn-danger" v-if="role !== 'guest'" @click="emit('revoke', user)">Revoke</button>
+            <UiButton size="sm" @click="emit('edit-access', user)">Edit access</UiButton>
+            <UiButton v-if="role !== 'guest'" size="sm" variant="danger" @click="emit('revoke', user)">Revoke</UiButton>
           </div>
         </div>
 
