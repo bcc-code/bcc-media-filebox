@@ -3,6 +3,7 @@ import { reactive, ref, watch } from 'vue'
 import { useAdmin, type Arrangement } from '../../composables/useAdmin'
 import SubEventImportModal from './SubEventImportModal.vue'
 import UiCollapsible from '../ui/UiCollapsible.vue'
+import { confirmAction } from '../../composables/useConfirm'
 
 const emit = defineEmits<{
   (e: 'new'): void
@@ -53,13 +54,26 @@ async function saveSub(a: Arrangement, id: number) {
   await updateSubEvent(a.id, id, { name: d.name.trim(), code: d.code.trim() })
 }
 
+async function onDeleteSubEvent(a: Arrangement, id: number, name: string) {
+  const ok = await confirmAction({
+    title: `Delete sub event “${name}”?`,
+    body: 'Uploads that already used it keep their filenames; new uploads cannot pick it.',
+    confirmLabel: 'Delete sub event',
+  })
+  if (!ok) return
+  await deleteSubEvent(a.id, id)
+}
+
 async function onDeleteArrangement(a: Arrangement) {
-  if (
-    !confirm(
-      `Delete arrangement “${a.name}” and its ${a.subEvents.length} sub event(s)?`,
-    )
-  )
-    return
+  const count = a.subEvents.length
+  const ok = await confirmAction({
+    title: `Delete arrangement “${a.name}”?`,
+    body: count
+      ? `Its ${count} sub event${count === 1 ? '' : 's'} will be deleted too.`
+      : undefined,
+    confirmLabel: 'Delete arrangement',
+  })
+  if (!ok) return
   await deleteArrangement(a.id)
 }
 </script>
@@ -164,7 +178,7 @@ async function onDeleteArrangement(a: Arrangement) {
             </button>
             <button
               class="btn btn-sm btn-danger"
-              @click="deleteSubEvent(a.id, s.id)"
+              @click="onDeleteSubEvent(a, s.id, s.name)"
             >
               Delete
             </button>

@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { usePackages } from '../../composables/usePackages'
 import SentPackageCard from './SentPackageCard.vue'
 import { notify, notifyError } from '../../composables/useToast'
+import { confirmAction } from '../../composables/useConfirm'
 
 const props = defineProps<{ focusPackageId?: string }>()
 const emit = defineEmits<{ preview: [packageId: string]; focusConsumed: [] }>()
@@ -46,7 +47,15 @@ function copyLink(packageId: string) {
   notify('Download link copied')
 }
 
-async function revoke(packageId: string) {
+async function revoke(packageId: string, name: string) {
+  // Reversible: ExtendPackage clears 'revoked', which is the card's "Reopen".
+  // Worth saying, so the confirm reads as recoverable rather than final.
+  const ok = await confirmAction({
+    title: `Revoke “${name}”?`,
+    body: 'Recipients lose access to the download link immediately. You can reopen it later from this card.',
+    confirmLabel: 'Revoke package',
+  })
+  if (!ok) return
   try {
     await revokePackage(packageId)
     notify('Package revoked')
@@ -94,6 +103,15 @@ async function setNotify(packageId: string, notifyOnDownload: boolean) {
 }
 
 async function dismiss(packageId: string, requestId: string) {
+  const pkg = packages.value.find((p) => p.packageId === packageId)
+  const who =
+    pkg?.pendingRequests.find((r) => r.id === requestId)?.email ?? 'this person'
+  const ok = await confirmAction({
+    title: `Dismiss the request from ${who}?`,
+    body: 'They are not notified, and will not gain access unless they ask again.',
+    confirmLabel: 'Dismiss request',
+  })
+  if (!ok) return
   try {
     await dismissAccessRequest(packageId, requestId)
     notify('Request dismissed')
@@ -124,7 +142,7 @@ onUnmounted(stopPreparationPolling)
       @auto-focused="emit('focusConsumed')"
       @copy-link="copyLink(p.packageId)"
       @preview="emit('preview', p.packageId)"
-      @revoke="revoke(p.packageId)"
+      @revoke="revoke(p.packageId, p.name)"
       @extend="(days, max) => extend(p.packageId, days, max)"
       @dismiss-request="(id) => dismiss(p.packageId, id)"
       @set-notify="(on) => setNotify(p.packageId, on)"

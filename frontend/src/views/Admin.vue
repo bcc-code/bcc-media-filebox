@@ -29,6 +29,7 @@ import GrantModal from '../components/admin/GrantModal.vue'
 import AppLogo from '../components/AppLogo.vue'
 import '../assets/admin.css'
 import UiTabs, { type UiTabEntry } from '../components/ui/UiTabs.vue'
+import { confirmAction } from '../composables/useConfirm'
 
 type Tab =
   | 'targets'
@@ -228,12 +229,12 @@ async function editAccessFor(u: AdminUserDetail) {
   }
 }
 async function revokeUser(u: AdminUserDetail) {
-  if (
-    !confirm(
-      `Revoke all access for ${u.name || u.email}? They will keep their upload history but won't be able to upload anymore.`,
-    )
-  )
-    return
+  const ok = await confirmAction({
+    title: `Revoke all access for ${u.name || u.email}?`,
+    body: "They keep their upload history but won't be able to upload anymore.",
+    confirmLabel: 'Revoke access',
+  })
+  if (!ok) return
   const matches = admin.grants.value.filter(
     (g) =>
       g.principalKind === 'user' &&
