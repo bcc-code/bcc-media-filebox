@@ -4,6 +4,7 @@ import { usePackages } from '../../composables/usePackages'
 import SentPackageCard from './SentPackageCard.vue'
 import { notify, notifyError } from '../../composables/useToast'
 import { confirmAction } from '../../composables/useConfirm'
+import { copyToClipboard } from '../../composables/useClipboard'
 
 const props = defineProps<{ focusPackageId?: string }>()
 const emit = defineEmits<{ preview: [packageId: string]; focusConsumed: [] }>()
@@ -41,10 +42,13 @@ watch(
 // Per-package so one slow extend doesn't disable every other card's button.
 const extendingId = ref<string | null>(null)
 
-function copyLink(packageId: string) {
+async function copyLink(packageId: string) {
   const url = `${location.origin}/s/${packageId}`
-  navigator.clipboard?.writeText(url).catch(() => {})
-  notify('Download link copied')
+  if (await copyToClipboard(url)) notify('Download link copied')
+  else
+    notifyError(
+      'Could not copy the link — copy it from the address bar instead.',
+    )
 }
 
 async function revoke(packageId: string, name: string) {
