@@ -3,6 +3,7 @@ import UiDialog from '../ui/UiDialog.vue'
 import { reactive, watch, computed } from 'vue'
 import type { Grant, Target, Group } from '../../composables/useAdmin'
 import UiSelect, { type UiSelectEntry } from '../ui/UiSelect.vue'
+import UiRadioGroup, { type UiRadioOption } from '../ui/UiRadioGroup.vue'
 
 const props = defineProps<{
   grant: Grant | null
@@ -86,6 +87,13 @@ const selectedGroup = computed(
     ) ?? null,
 )
 
+const kindOptions: UiRadioOption<'user' | 'group'>[] = [
+  { value: 'user', label: 'Individual user' },
+  { value: 'group', label: 'Group' },
+]
+
+// Switching principal type clears the name, so this needs the change handler
+// rather than a plain v-model.
 function setKind(k: 'user' | 'group') {
   draft.kind = k
   draft.name = ''
@@ -118,11 +126,14 @@ function onSave() {
   >
     <div class="field">
       <label>Principal type</label>
-      <div class="seg">
-        <button
-          :class="{ active: draft.kind === 'user' }"
-          @click="setKind('user')"
-        >
+      <UiRadioGroup
+        :model-value="draft.kind"
+        :options="kindOptions"
+        variant="segmented"
+        aria-label="Principal type"
+        @update:model-value="setKind"
+      >
+        <template #icon-user>
           <svg
             width="13"
             height="13"
@@ -134,12 +145,8 @@ function onSave() {
             <circle cx="12" cy="8" r="3.2" />
             <path d="M5 20c1.5-3.6 4-5 7-5s5.5 1.4 7 5" />
           </svg>
-          Individual user
-        </button>
-        <button
-          :class="{ active: draft.kind === 'group' }"
-          @click="setKind('group')"
-        >
+        </template>
+        <template #icon-group>
           <svg
             width="13"
             height="13"
@@ -153,9 +160,8 @@ function onSave() {
             <path d="M3 19c1-3 3.5-4.5 6-4.5s5 1.5 6 4.5" />
             <path d="M15 19c.5-2 2-3 3.5-3s3 1 3.5 3" />
           </svg>
-          Group
-        </button>
-      </div>
+        </template>
+      </UiRadioGroup>
     </div>
 
     <div v-if="draft.kind === 'user'" class="field">

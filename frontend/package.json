@@ -15,6 +15,7 @@
     "@zag-js/dialog": "^1.44.0",
     "@zag-js/file-upload": "^1.44.0",
     "@zag-js/menu": "^1.44.0",
+    "@zag-js/radio-group": "^1.44.0",
     "@zag-js/select": "^1.44.0",
     "@zag-js/tabs": "^1.44.0",
     "@zag-js/tags-input": "^1.44.0",
