@@ -2,7 +2,16 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
-import { useAdmin, type Target, type Project, type Arrangement, type Group, type Grant, type AdminUser, type AdminUserDetail } from '../composables/useAdmin'
+import {
+  useAdmin,
+  type Target,
+  type Project,
+  type Arrangement,
+  type Group,
+  type Grant,
+  type AdminUser,
+  type AdminUserDetail,
+} from '../composables/useAdmin'
 import { initials } from '../composables/adminHelpers'
 import TargetsTab from '../components/admin/TargetsTab.vue'
 import ProjectsTab from '../components/admin/ProjectsTab.vue'
@@ -20,7 +29,14 @@ import GrantModal from '../components/admin/GrantModal.vue'
 import AppLogo from '../components/AppLogo.vue'
 import '../assets/admin.css'
 
-type Tab = 'targets' | 'projects' | 'arrangements' | 'uploads' | 'users' | 'groups' | 'access'
+type Tab =
+  | 'targets'
+  | 'projects'
+  | 'arrangements'
+  | 'uploads'
+  | 'users'
+  | 'groups'
+  | 'access'
 
 const router = useRouter()
 const { state } = useAuth()
@@ -97,7 +113,12 @@ async function saveArrangement(body: { name: string; code: string }) {
   }
   arrangementModalOpen.value = false
 }
-async function saveTarget(body: { name: string; path: string; formKey: string | null; webhookUrl: string | null }) {
+async function saveTarget(body: {
+  name: string
+  path: string
+  formKey: string | null
+  webhookUrl: string | null
+}) {
   if (editingTarget.value) {
     await admin.updateTarget(editingTarget.value.id, body)
   } else {
@@ -115,7 +136,11 @@ function openEditGroup(g: Group) {
   editingGroup.value = g
   groupModalOpen.value = true
 }
-async function saveGroup(body: { name: string; description: string; members: string[] }) {
+async function saveGroup(body: {
+  name: string
+  description: string
+  members: string[]
+}) {
   if (editingGroup.value) {
     await admin.updateGroup(editingGroup.value.id, body)
   } else {
@@ -165,7 +190,11 @@ function closeUser() {
   selectedUser.value = null
 }
 async function editAccessFor(u: AdminUserDetail) {
-  const existing = admin.grants.value.find(g => g.principalKind === 'user' && g.principalValue.toLowerCase() === u.email.toLowerCase())
+  const existing = admin.grants.value.find(
+    (g) =>
+      g.principalKind === 'user' &&
+      g.principalValue.toLowerCase() === u.email.toLowerCase(),
+  )
   selectedUser.value = null
   if (existing) {
     openEditGrant(existing)
@@ -176,8 +205,17 @@ async function editAccessFor(u: AdminUserDetail) {
   }
 }
 async function revokeUser(u: AdminUserDetail) {
-  if (!confirm(`Revoke all access for ${u.name || u.email}? They will keep their upload history but won't be able to upload anymore.`)) return
-  const matches = admin.grants.value.filter(g => g.principalKind === 'user' && g.principalValue.toLowerCase() === u.email.toLowerCase())
+  if (
+    !confirm(
+      `Revoke all access for ${u.name || u.email}? They will keep their upload history but won't be able to upload anymore.`,
+    )
+  )
+    return
+  const matches = admin.grants.value.filter(
+    (g) =>
+      g.principalKind === 'user' &&
+      g.principalValue.toLowerCase() === u.email.toLowerCase(),
+  )
   for (const m of matches) await admin.deleteGrant(m.id)
   closeUser()
 }
@@ -190,9 +228,17 @@ async function revokeUser(u: AdminUserDetail) {
         <AppLogo style="width: 22px; height: 22px" />
         <span class="name">FileBox</span>
       </div>
-      <div class="crumb"><span>filebox</span><span class="sep">/</span><span class="here">Admin</span></div>
+      <div class="crumb">
+        <span>filebox</span><span class="sep">/</span
+        ><span class="here">Admin</span>
+      </div>
       <div class="spacer"></div>
-      <router-link to="/" class="btn btn-ghost btn-sm" style="text-decoration:none">← Back to FileBox</router-link>
+      <router-link
+        to="/"
+        class="btn btn-ghost btn-sm"
+        style="text-decoration: none"
+        >← Back to FileBox</router-link
+      >
       <div class="me">
         <div class="avatar">{{ initials(state.name || state.email) }}</div>
         <span>{{ state.email }}</span>
@@ -202,42 +248,160 @@ async function revokeUser(u: AdminUserDetail) {
 
     <div class="tabs">
       <button :class="{ active: tab === 'targets' }" @click="tab = 'targets'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-        Upload targets <span class="count">{{ admin.targets.value.length }}</span>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+          />
+        </svg>
+        Upload targets
+        <span class="count">{{ admin.targets.value.length }}</span>
       </button>
       <button :class="{ active: tab === 'projects' }" @click="tab = 'projects'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+          />
+        </svg>
         Projects <span class="count">{{ admin.projects.value.length }}</span>
       </button>
-      <button :class="{ active: tab === 'arrangements' }" @click="tab = 'arrangements'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>
-        Arrangements <span class="count">{{ admin.arrangements.value.length }}</span>
+      <button
+        :class="{ active: tab === 'arrangements' }"
+        @click="tab = 'arrangements'"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M3 9h18M9 9v11" />
+        </svg>
+        Arrangements
+        <span class="count">{{ admin.arrangements.value.length }}</span>
       </button>
       <button :class="{ active: tab === 'uploads' }" @click="tab = 'uploads'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 3v12M7 8l5-5 5 5" />
+          <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+        </svg>
         Uploads <span class="count">{{ admin.adminUploads.value.length }}</span>
       </button>
       <button :class="{ active: tab === 'users' }" @click="tab = 'users'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1.5-3.6 4-5 7-5s5.5 1.4 7 5"/></svg>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="8" r="3.2" />
+          <path d="M5 20c1.5-3.6 4-5 7-5s5.5 1.4 7 5" />
+        </svg>
         Users <span class="count">{{ admin.users.value.length }}</span>
       </button>
       <button :class="{ active: tab === 'groups' }" @click="tab = 'groups'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c1-3 3.5-4.5 6-4.5s5 1.5 6 4.5"/><path d="M15 19c.5-2 2-3 3.5-3s3 1 3.5 3"/></svg>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="9" cy="8" r="3" />
+          <circle cx="17" cy="9" r="2.5" />
+          <path d="M3 19c1-3 3.5-4.5 6-4.5s5 1.5 6 4.5" />
+          <path d="M15 19c.5-2 2-3 3.5-3s3 1 3.5 3" />
+        </svg>
         Groups <span class="count">{{ admin.groups.value.length }}</span>
       </button>
       <button :class="{ active: tab === 'access' }" @click="tab = 'access'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 2 4 5v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V5l-8-3z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
         Access <span class="count">{{ admin.grants.value.length }}</span>
       </button>
     </div>
 
     <div class="page">
-      <TargetsTab v-if="tab === 'targets'" @new="openNewTarget" @open="openEditTarget" @edit="(t) => admin.updateTarget(t.id, { name: t.name, path: t.path, formKey: t.formKey, webhookUrl: t.webhookUrl })" />
-      <ProjectsTab v-else-if="tab === 'projects'" @new="openNewProject" @edit="openEditProject" />
-      <ArrangementsTab v-else-if="tab === 'arrangements'" @new="openNewArrangement" @edit="openEditArrangement" />
+      <TargetsTab
+        v-if="tab === 'targets'"
+        @new="openNewTarget"
+        @open="openEditTarget"
+        @edit="
+          (t) =>
+            admin.updateTarget(t.id, {
+              name: t.name,
+              path: t.path,
+              formKey: t.formKey,
+              webhookUrl: t.webhookUrl,
+            })
+        "
+      />
+      <ProjectsTab
+        v-else-if="tab === 'projects'"
+        @new="openNewProject"
+        @edit="openEditProject"
+      />
+      <ArrangementsTab
+        v-else-if="tab === 'arrangements'"
+        @new="openNewArrangement"
+        @edit="openEditArrangement"
+      />
       <UploadsTab v-else-if="tab === 'uploads'" />
       <UsersTab v-else-if="tab === 'users'" @open="openUser" />
-      <GroupsTab v-else-if="tab === 'groups'" @new="openNewGroup" @edit="openEditGroup" />
+      <GroupsTab
+        v-else-if="tab === 'groups'"
+        @new="openNewGroup"
+        @edit="openEditGroup"
+      />
       <AccessTab v-else @new="openNewGrant" @edit="openEditGrant" />
     </div>
 
@@ -288,9 +452,5 @@ async function revokeUser(u: AdminUserDetail) {
       @edit-access="editAccessFor"
       @revoke="revokeUser"
     />
-
-    <div v-if="admin.toast.value" class="toast fb-fade" :class="{ danger: admin.toast.value.danger }">
-      <span class="dot"></span><span>{{ admin.toast.value.text }}</span>
-    </div>
   </div>
 </template>

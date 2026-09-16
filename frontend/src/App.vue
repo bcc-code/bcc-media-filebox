@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuth } from './composables/useAuth'
 import LoginGate from './components/LoginGate.vue'
+import UiToaster from './components/ui/UiToaster.vue'
 
 const route = useRoute()
 const { mustChoose } = useAuth()
@@ -12,4 +13,5 @@ const showLoginGate = computed(() => mustChoose.value && !route.meta.public)
 <template>
   <LoginGate v-if="showLoginGate" />
   <router-view v-else />
+  <UiToaster />
 </template>

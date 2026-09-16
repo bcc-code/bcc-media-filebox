@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { usePackages } from '../../composables/usePackages'
 import SentPackageCard from './SentPackageCard.vue'
+import { notify, notifyError } from '../../composables/useToast'
 
 const props = defineProps<{ focusPackageId?: string }>()
 const emit = defineEmits<{ preview: [packageId: string]; focusConsumed: [] }>()
@@ -38,40 +39,42 @@ watch(
 )
 // Per-package so one slow extend doesn't disable every other card's button.
 const extendingId = ref<string | null>(null)
-const toast = ref('')
-let toastTimer: number | null = null
-
-function flash(text: string) {
-  toast.value = text
-  if (toastTimer) window.clearTimeout(toastTimer)
-  toastTimer = window.setTimeout(() => (toast.value = ''), 2200)
-}
 
 function copyLink(packageId: string) {
   const url = `${location.origin}/s/${packageId}`
   navigator.clipboard?.writeText(url).catch(() => {})
-  flash('Download link copied')
+  notify('Download link copied')
 }
 
 async function revoke(packageId: string) {
   try {
     await revokePackage(packageId)
-    flash('Package revoked')
+    notify('Package revoked')
   } catch (e) {
-    flash((e as Error).message || 'Failed to revoke package')
+    notifyError((e as Error).message || 'Failed to revoke package')
   }
 }
 
-async function extend(packageId: string, expiresInDays: number, maxDownloads: number | undefined) {
+async function extend(
+  packageId: string,
+  expiresInDays: number,
+  maxDownloads: number | undefined,
+) {
   // Counted before the call: extending grants every pending request, so the
   // refreshed package comes back with none left to count.
-  const granted = packages.value.find((p) => p.packageId === packageId)?.pendingRequests.length ?? 0
+  const granted =
+    packages.value.find((p) => p.packageId === packageId)?.pendingRequests
+      .length ?? 0
   extendingId.value = packageId
   try {
     await extendPackage(packageId, { expiresInDays, maxDownloads })
-    flash(granted ? `Package extended — ${granted} requester${granted === 1 ? '' : 's'} notified` : 'Package extended')
+    notify(
+      granted
+        ? `Package extended — ${granted} requester${granted === 1 ? '' : 's'} notified`
+        : 'Package extended',
+    )
   } catch (e) {
-    flash((e as Error).message || 'Failed to extend package')
+    notifyError((e as Error).message || 'Failed to extend package')
   } finally {
     extendingId.value = null
   }
@@ -80,18 +83,22 @@ async function extend(packageId: string, expiresInDays: number, maxDownloads: nu
 async function setNotify(packageId: string, notifyOnDownload: boolean) {
   try {
     await setNotifyOnDownload(packageId, notifyOnDownload)
-    flash(notifyOnDownload ? 'Download notifications on' : 'Download notifications off')
+    notify(
+      notifyOnDownload
+        ? 'Download notifications on'
+        : 'Download notifications off',
+    )
   } catch (e) {
-    flash((e as Error).message || 'Failed to update notifications')
+    notifyError((e as Error).message || 'Failed to update notifications')
   }
 }
 
 async function dismiss(packageId: string, requestId: string) {
   try {
     await dismissAccessRequest(packageId, requestId)
-    flash('Request dismissed')
+    notify('Request dismissed')
   } catch (e) {
-    flash((e as Error).message || 'Failed to dismiss request')
+    notifyError((e as Error).message || 'Failed to dismiss request')
   }
 }
 
@@ -105,7 +112,9 @@ onUnmounted(stopPreparationPolling)
   <div v-if="loading && !packages.length" class="empty">Loading…</div>
   <div v-else-if="!packages.length" class="empty">No packages sent yet.</div>
   <div v-else class="pkg-list">
-    <p v-if="seekingFocus" class="ask-hint">Loading more packages to find the one from your link…</p>
+    <p v-if="seekingFocus" class="ask-hint">
+      Loading more packages to find the one from your link…
+    </p>
     <SentPackageCard
       v-for="p in packages"
       :key="p.packageId"
@@ -120,9 +129,13 @@ onUnmounted(stopPreparationPolling)
       @dismiss-request="(id) => dismiss(p.packageId, id)"
       @set-notify="(on) => setNotify(p.packageId, on)"
     />
-    <button v-if="packages.length < total" class="btn" :disabled="loading" @click="loadMorePackages">
+    <button
+      v-if="packages.length < total"
+      class="btn"
+      :disabled="loading"
+      @click="loadMorePackages"
+    >
       {{ loading ? 'Loading…' : `Load more (${packages.length}/${total})` }}
     </button>
   </div>
-  <div v-if="toast" class="toast fb-pop"><span class="ok">✓</span>{{ toast }}</div>
 </template>
