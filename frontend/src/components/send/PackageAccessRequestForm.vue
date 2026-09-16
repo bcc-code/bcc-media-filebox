@@ -104,7 +104,7 @@ function submit() {
     <div v-if="error" class="verify-error">{{ error }}</div>
 
     <button
-      class="btn btn-primary btn-block"
+      class="btn btn-lg btn-primary btn-block"
       style="margin-top: 12px"
       :disabled="!!disabledReason || submitting"
       :title="disabledReason ?? ''"

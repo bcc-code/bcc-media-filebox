@@ -106,26 +106,26 @@ function role(u: AdminUser) {
               </div>
             </td>
             <td>
-              <span v-if="role(u) === 'admin'" class="chip accent"><span class="chip-dot"></span>Admin</span>
-              <span v-else-if="role(u) === 'guest'" class="chip warn"><span class="chip-dot"></span>Guest</span>
-              <span v-else class="chip"><span class="chip-dot"></span>Uploader</span>
+              <span v-if="role(u) === 'admin'" class="badge badge-accent"><span class="badge-dot"></span>Admin</span>
+              <span v-else-if="role(u) === 'guest'" class="badge badge-warn"><span class="badge-dot"></span>Guest</span>
+              <span v-else class="badge"><span class="badge-dot"></span>Uploader</span>
             </td>
             <td>
               <div style="font-size:13.5px">{{ relTime(u.lastLoginAt) }}</div>
-              <div class="mono" style="font-size:11.5px;color:var(--ink-3);margin-top:2px">{{ u.lastLoginAt.slice(0, 10) }}</div>
+              <div class="mono" style="font-size:11.5px;color:var(--color-ink-3);margin-top:2px">{{ u.lastLoginAt.slice(0, 10) }}</div>
             </td>
             <td style="text-align:right"><span class="mono" style="font-size:13px">{{ u.uploads.toLocaleString() }}</span></td>
             <td style="text-align:right"><span class="mono" style="font-size:13px">{{ formatBytes(u.totalBytes) }}</span></td>
             <td>
-              <span v-if="u.active" class="chip ok"><span class="chip-dot"></span>Active</span>
-              <span v-else class="chip" style="color:var(--ink-3)"><span class="chip-dot" style="background:var(--ink-3)"></span>Dormant</span>
+              <span v-if="u.active" class="badge badge-ok"><span class="badge-dot"></span>Active</span>
+              <span v-else class="badge" style="color:var(--color-ink-3)"><span class="badge-dot" style="background:var(--color-ink-3)"></span>Dormant</span>
             </td>
             <td class="actions">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ink-3)"><path d="M9 6l6 6-6 6"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-ink-3)"><path d="M9 6l6 6-6 6"/></svg>
             </td>
           </tr>
           <tr v-if="filteredUsers.length === 0">
-            <td colspan="7" style="padding: 48px; text-align: center; color: var(--ink-3);">No users match.</td>
+            <td colspan="7" style="padding: 48px; text-align: center; color: var(--color-ink-3);">No users match.</td>
           </tr>
         </tbody>
       </table>

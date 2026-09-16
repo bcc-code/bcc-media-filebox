@@ -41,7 +41,7 @@ async function confirm() {
             You won't be emailed about this package again. The link still works for its recipients — turn
             notifications back on from the package's card under Sent packages.
           </p>
-          <a class="btn btn-primary btn-block" href="/send?tab=sent" style="margin-top: 18px">Open Sent packages</a>
+          <a class="btn btn-lg btn-primary btn-block" href="/send?tab=sent" style="margin-top: 18px">Open Sent packages</a>
         </template>
 
         <template v-else>
@@ -51,7 +51,7 @@ async function confirm() {
             live and its recipients keep their access.
           </p>
           <div v-if="error" class="verify-error" style="margin-top: 14px">{{ error }}</div>
-          <button class="btn btn-primary btn-block" :disabled="submitting" style="margin-top: 18px" @click="confirm">
+          <button class="btn btn-lg btn-primary btn-block" :disabled="submitting" style="margin-top: 18px" @click="confirm">
             {{ submitting ? 'Turning off…' : 'Stop these notifications' }}
           </button>
         </template>

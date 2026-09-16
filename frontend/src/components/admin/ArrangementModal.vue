@@ -45,7 +45,7 @@ function onSave() {
         <input class="mono" v-model="draft.code" placeholder="e.g. SMR26" />
         <div class="hint">
           Used verbatim in filenames. Letters, digits, '-' and '_' only.
-          <span v-if="draft.code && !codeValid" style="color:var(--danger)">Invalid characters.</span>
+          <span v-if="draft.code && !codeValid" style="color:var(--color-danger)">Invalid characters.</span>
         </div>
       </div>
 

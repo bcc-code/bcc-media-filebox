@@ -43,7 +43,7 @@ function signInBcc() {
       <div class="public-card fb-fade">
         <div class="public-brand"><AppLogo class="mark" /><span class="name">FileBox</span></div>
 
-        <div v-if="loading" style="text-align: center; color: var(--ink-3); padding: 20px 0">Loading…</div>
+        <div v-if="loading" style="text-align: center; color: var(--color-ink-3); padding: 20px 0">Loading…</div>
 
         <template v-else-if="error">
           <PackageUnavailableScreen heading="This link isn't available" :message="error" />

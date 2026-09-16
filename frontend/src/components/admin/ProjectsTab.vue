@@ -48,7 +48,7 @@ async function onDelete(p: Project) {
                 <div class="primary">{{ p.name }}</div>
               </div>
             </td>
-            <td><span class="chip mono">{{ p.code }}</span></td>
+            <td><span class="badge mono">{{ p.code }}</span></td>
             <td class="actions">
               <button class="btn btn-sm btn-ghost" @click="emit('edit', p)">Edit</button>
               <button class="btn btn-sm btn-danger" @click="onDelete(p)">Delete</button>

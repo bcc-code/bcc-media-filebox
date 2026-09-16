@@ -135,15 +135,15 @@ onMounted(() => {
         <div class="pkg-recips">{{ pkg.recipients.length ? `To ${pkg.recipients.join(', ')}` : 'No recipients — link only' }}</div>
       </div>
       <div class="pkg-badges">
-        <span v-if="pkg.pendingRequests.length" class="chip-sm ask">
+        <span v-if="pkg.pendingRequests.length" class="badge badge-warn">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           {{ pkg.pendingRequests.length }} request{{ pkg.pendingRequests.length === 1 ? '' : 's' }}
         </span>
-        <span v-if="pkg.isDownloadLimitHit && displayStatus === 'active'" class="chip-sm warn">
+        <span v-if="pkg.isDownloadLimitHit && displayStatus === 'active'" class="badge badge-warn">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
           Limit reached
         </span>
-        <span v-if="pkg.verificationMethod !== 'none'" class="chip-sm lock">
+        <span v-if="pkg.verificationMethod !== 'none'" class="badge badge-accent">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
           {{ verifyShort }}
         </span>
@@ -244,16 +244,16 @@ onMounted(() => {
         possible after that.
       </p>
       <div class="ex-actions">
-        <button class="btn sm btn-primary" :disabled="!extendValid || extending" @click="submitExtend">
+        <button class="btn btn-sm btn-primary" :disabled="!extendValid || extending" @click="submitExtend">
           {{ extending ? 'Extending…' : 'Confirm' }}
         </button>
-        <button class="btn sm" :disabled="extending" @click="showExtend = false">Cancel</button>
+        <button class="btn btn-sm" :disabled="extending" @click="showExtend = false">Cancel</button>
       </div>
     </div>
 
     <div class="pkg-foot">
       <button
-        class="btn sm"
+        class="btn btn-sm"
         :disabled="!downloadsReady"
         :title="downloadsReady ? 'Copy recipient link' : 'Available after download preparation finishes'"
         @click="emit('copyLink')"
@@ -262,7 +262,7 @@ onMounted(() => {
         Copy link
       </button>
       <button
-        class="btn sm"
+        class="btn btn-sm"
         :disabled="!downloadsReady"
         :title="downloadsReady ? 'Preview recipient page' : 'Available after download preparation finishes'"
         @click="emit('preview')"
@@ -271,7 +271,7 @@ onMounted(() => {
       <span v-if="displayStatus === 'deleted'" class="pkg-gone-note">Files deleted — can't be renewed</span>
       <button
         v-else-if="!showExtend"
-        class="btn sm"
+        class="btn btn-sm"
         :class="{ 'btn-primary': pkg.pendingRequests.length > 0 }"
         @click="openExtend"
       >
@@ -279,8 +279,8 @@ onMounted(() => {
       </button>
       <button
         v-if="canNotify"
-        class="btn sm"
-        :class="{ notifying: pkg.notifyOnDownload }"
+        class="btn btn-sm"
+        :class="{ 'btn-active': pkg.notifyOnDownload }"
         :title="pkg.notifyOnDownload ? 'Stop emailing me when this is downloaded' : 'Email me when this is downloaded'"
         :aria-pressed="pkg.notifyOnDownload"
         @click="emit('setNotify', !pkg.notifyOnDownload)"
@@ -289,7 +289,7 @@ onMounted(() => {
         <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 3A6 6 0 0 1 18 8c0 7 3 9 3 9H6"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M2 2l20 20"/></svg>
         Notify {{ pkg.notifyOnDownload ? 'on' : 'off' }}
       </button>
-      <button v-if="isLive" class="btn sm btn-danger" @click="emit('revoke')">Revoke</button>
+      <button v-if="isLive" class="btn btn-sm btn-danger" @click="emit('revoke')">Revoke</button>
     </div>
   </div>
 </template>

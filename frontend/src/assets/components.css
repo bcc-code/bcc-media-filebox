@@ -1,0 +1,252 @@
+/* ============================================================
+   FileBox shared component layer.
+
+   Every primitive used by more than one surface lives here, once.
+   Tokens come from the `@theme` block in src/style.css — reference
+   var(--color-*); never hardcode a colour or redeclare a token.
+
+   These sit in Tailwind's `components` layer, so a utility class
+   on the element still wins when you need a one-off override.
+   ============================================================ */
+
+@layer components {
+
+  /* ---------- Motion ---------- */
+  .fb-fade  { animation: fb-fade .25s ease both; }
+  .fb-pop   { animation: fb-pop .15s ease both; }
+  .fb-slide { animation: fb-slide .3s ease both; }
+  .fb-spin  { animation: fb-spin 1s linear infinite; }
+
+  /* ---------- Type ---------- */
+  .mono { font-family: var(--font-mono); }
+
+  /* ---------- Buttons ----------
+     Base is the dense scale used across tables and toolbars.
+     Scale with .btn-sm / .btn-lg; colour with .btn-primary /
+     .btn-ghost / .btn-danger; shape with .btn-icon / .btn-block. */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 9px 14px; border-radius: 8px;
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    border: 1px solid var(--color-line-2);
+    background: var(--color-surface-2);
+    color: var(--color-ink);
+    transition: border-color .15s ease, background .15s ease, opacity .15s ease;
+  }
+  .btn:hover { border-color: var(--color-ink-3); background: var(--color-surface-3); }
+
+  /* Scales */
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-lg { padding: 11px 18px; border-radius: 9px; font-size: 14px; font-weight: 600; }
+
+  /* Shapes */
+  .btn-icon  { padding: 6px; width: 30px; height: 30px; }
+  .btn-block { width: 100%; }
+
+  /* Colours */
+  .btn-primary {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-ink);
+    font-weight: 600;
+  }
+  .btn-primary:hover {
+    background: var(--color-accent-hover);
+    border-color: var(--color-accent-hover);
+  }
+
+  .btn-ghost { background: transparent; }
+  .btn-ghost:hover { background: var(--color-surface-2); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--color-danger);
+    border-color: color-mix(in oklch, var(--color-danger), transparent 70%);
+  }
+  .btn-danger:hover {
+    background: color-mix(in oklch, var(--color-danger), transparent 88%);
+    border-color: var(--color-danger);
+  }
+
+  /* Accent-tinted toggle-on state (e.g. notifications enabled) */
+  .btn-active {
+    color: oklch(0.80 0.10 250);
+    border-color: color-mix(in oklch, var(--color-accent), transparent 55%);
+    background: color-mix(in oklch, var(--color-accent), transparent 88%);
+  }
+
+  /* One disabled treatment for every variant */
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn:disabled:hover {
+    border-color: var(--color-line-2);
+    background: var(--color-surface-2);
+  }
+  .btn-primary:disabled:hover {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+
+  /* ---------- Badge ----------
+     Read-only status pill. Was `.chip` in Admin and `.chip-sm` in Send. */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 500;
+    white-space: nowrap; flex-shrink: 0; max-width: 100%;
+    background: var(--color-surface-3);
+    border: 1px solid var(--color-line-2);
+    color: var(--color-ink-2);
+  }
+  .badge-accent {
+    background: color-mix(in oklch, var(--color-accent), transparent 88%);
+    border-color: color-mix(in oklch, var(--color-accent), transparent 55%);
+    color: oklch(0.80 0.10 250);
+  }
+  .badge-ok {
+    background: color-mix(in oklch, var(--color-ok), transparent 85%);
+    border-color: color-mix(in oklch, var(--color-ok), transparent 60%);
+    color: var(--color-ok);
+  }
+  .badge-warn {
+    background: color-mix(in oklch, var(--color-warn), transparent 85%);
+    border-color: color-mix(in oklch, var(--color-warn), transparent 55%);
+    color: oklch(0.85 0.13 75);
+  }
+  .badge-danger {
+    background: color-mix(in oklch, var(--color-danger), transparent 84%);
+    border-color: color-mix(in oklch, var(--color-danger), transparent 45%);
+    color: oklch(0.85 0.10 25);
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* Row of badges */
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+  /* ---------- Token input ----------
+     Editable list of removable values (recipients, group members).
+     Was `.member-input`/`.member-chip` in Admin, `.chips`/`.chip` in Send. */
+  .token-input {
+    display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+    padding: 8px 10px; min-height: 44px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line-2);
+    border-radius: 9px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .token-input:focus-within {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-accent), transparent 88%);
+  }
+  .token-input input {
+    flex: 1; min-width: 140px; width: auto;
+    padding: 4px 2px; border: none; border-radius: 0;
+    background: transparent; outline: none;
+    font-family: inherit; font-size: 13.5px;
+    color: var(--color-ink);
+  }
+  .token-input input::placeholder { color: var(--color-ink-3); }
+
+  .token {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 4px 3px 10px; border-radius: 6px;
+    font-family: var(--font-mono); font-size: 12.5px;
+    background: var(--color-surface-4);
+    border: 1px solid var(--color-line-2);
+    color: var(--color-ink);
+  }
+  .token-invalid {
+    background: color-mix(in oklch, var(--color-danger), transparent 84%);
+    border-color: color-mix(in oklch, var(--color-danger), transparent 45%);
+    color: oklch(0.85 0.10 25);
+  }
+  /* Remove affordance — `.token button` so both `<button class="x">`
+     and a bare button work without a second class. */
+  .token button {
+    display: grid; place-items: center;
+    padding: 0 4px; border: none; border-radius: 4px;
+    background: transparent; color: var(--color-ink-3);
+    font-size: 14px; line-height: 1; cursor: pointer;
+  }
+  .token button:hover {
+    color: var(--color-danger);
+    background: color-mix(in oklch, var(--color-danger), transparent 85%);
+  }
+
+  /* ---------- Text inputs ----------
+     One rule for the explicit `.inp` class and for controls nested in
+     a `.field`, so both call sites stay in sync. */
+  .inp,
+  .field :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-line-2);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-family: inherit; font-size: 13.5px;
+    outline: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .inp::placeholder,
+  .field :is(input, textarea)::placeholder { color: var(--color-ink-3); }
+
+  .inp:hover,
+  .field :is(input:not([type=checkbox]):not([type=radio]), select, textarea):hover {
+    border-color: var(--color-ink-3);
+  }
+  .inp:focus,
+  .field :is(input:not([type=checkbox]):not([type=radio]), select, textarea):focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-accent), transparent 88%);
+  }
+
+  .field { margin-bottom: 14px; }
+  .field > label {
+    display: block; margin-bottom: 6px;
+    font-size: 11px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--color-ink-3);
+  }
+  .field :is(input[type=checkbox], input[type=radio]) {
+    width: auto; padding: 0; flex-shrink: 0;
+    accent-color: var(--color-accent);
+  }
+  .field .hint { margin-top: 6px; font-size: 12px; color: var(--color-ink-3); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ---------- Surfaces ---------- */
+  .card {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .empty {
+    padding: 48px 20px; text-align: center;
+    color: var(--color-ink-3); font-size: 13.5px;
+    border: 1px dashed var(--color-line-2);
+    border-radius: 12px;
+  }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+    z-index: 200;
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 18px; border-radius: 10px;
+    font-size: 13.5px; color: var(--color-ink);
+    background: var(--color-surface-4);
+    border: 1px solid var(--color-line-2);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  }
+  .toast .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-ok); flex-shrink: 0; }
+  .toast.danger .dot { background: var(--color-danger); }
+}
+
+/* Keyframes live outside @layer — layered keyframes are not addressable. */
+@keyframes fb-fade  { from { opacity: 0; transform: translateY(4px); }               to { opacity: 1; transform: none; } }
+@keyframes fb-pop   { from { opacity: 0; transform: translateY(-4px) scale(0.98); }  to { opacity: 1; transform: none; } }
+@keyframes fb-slide { from { opacity: 0; transform: translateX(40px); }              to { opacity: 1; transform: none; } }
+@keyframes fb-spin  { to { transform: rotate(360deg); } }

@@ -67,14 +67,14 @@ function onSave() {
       </div>
 
       <div class="field">
-        <label>Description <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">(optional)</span></label>
+        <label>Description <span style="text-transform:none;letter-spacing:0;color:var(--color-ink-3)">(optional)</span></label>
         <input v-model="draft.description" placeholder="Short note about who this group is for" />
       </div>
 
       <div class="field">
         <label>Members</label>
-        <div class="member-input">
-          <span v-for="(m, i) in draft.members" :key="m + i" class="member-chip">
+        <div class="token-input">
+          <span v-for="(m, i) in draft.members" :key="m + i" class="token">
             {{ m }}
             <button class="x" @click="removeMember(i)" aria-label="Remove">×</button>
           </span>

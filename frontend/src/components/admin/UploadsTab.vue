@@ -57,9 +57,9 @@ async function onRetrigger(id: string) {
           <tr v-for="u in adminUploads" :key="u.id">
             <td><span class="mono" style="font-size:12.5px">{{ u.filename }}</span></td>
             <td>{{ u.targetName }}</td>
-            <td><span style="color:var(--ink-2)">{{ u.uploaderEmail || '—' }}</span></td>
+            <td><span style="color:var(--color-ink-2)">{{ u.uploaderEmail || '—' }}</span></td>
             <td style="text-align:right"><span class="mono" style="font-size:12.5px">{{ formatBytes(u.size) }}</span></td>
-            <td><span style="font-size:13px;color:var(--ink-2)">{{ relTime(u.when) }}</span></td>
+            <td><span style="font-size:13px;color:var(--color-ink-2)">{{ relTime(u.when) }}</span></td>
             <td class="actions">
               <button
                 class="btn btn-sm btn-ghost"

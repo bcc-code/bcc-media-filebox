@@ -40,7 +40,7 @@ function submit() {
       @keydown.enter="submit"
     />
     <div v-if="error" class="verify-error">{{ error }}</div>
-    <button class="btn btn-primary btn-block" style="margin-top: 12px" :disabled="!password || submitting" @click="submit">
+    <button class="btn btn-lg btn-primary btn-block" style="margin-top: 12px" :disabled="!password || submitting" @click="submit">
       {{ submitting ? 'Checking…' : 'Unlock files' }}
     </button>
   </template>
@@ -49,7 +49,7 @@ function submit() {
     <h2 class="verify-h">Sign in required</h2>
     <p class="verify-p">This package requires you to be signed in with a <b>BCC Login</b> account to access it.</p>
     <div v-if="error" class="verify-error">{{ error }}</div>
-    <button class="btn btn-primary btn-block" @click="emit('signInBcc')">Continue with BCC Login</button>
+    <button class="btn btn-lg btn-primary btn-block" @click="emit('signInBcc')">Continue with BCC Login</button>
   </template>
 
   <template v-else>

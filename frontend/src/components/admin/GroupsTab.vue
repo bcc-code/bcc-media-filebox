@@ -61,25 +61,25 @@ async function onDelete(gr: Group) {
               </div>
             </td>
             <td>
-              <span v-if="gr.kind === 'builtin'" class="chip"><span class="chip-dot"></span>Built-in</span>
-              <span v-else class="chip accent"><span class="chip-dot"></span>Custom</span>
+              <span v-if="gr.kind === 'builtin'" class="badge"><span class="badge-dot"></span>Built-in</span>
+              <span v-else class="badge badge-accent"><span class="badge-dot"></span>Custom</span>
             </td>
             <td>
-              <span v-if="gr.kind === 'builtin'" class="mono" style="font-size:12px;color:var(--ink-3)">Directory-managed</span>
-              <span v-else class="mono" style="font-size:12.5px;color:var(--ink-2)">
+              <span v-if="gr.kind === 'builtin'" class="mono" style="font-size:12px;color:var(--color-ink-3)">Directory-managed</span>
+              <span v-else class="mono" style="font-size:12.5px;color:var(--color-ink-2)">
                 {{ gr.members.length }} {{ gr.members.length === 1 ? 'member' : 'members' }}
               </span>
             </td>
             <td>
-              <span v-if="countGrantsForGroup(gr.name) === 0" class="chip" style="color:var(--ink-3)">No grants</span>
-              <span v-else class="chip ok">{{ countGrantsForGroup(gr.name) }} {{ countGrantsForGroup(gr.name) === 1 ? 'grant' : 'grants' }}</span>
+              <span v-if="countGrantsForGroup(gr.name) === 0" class="badge" style="color:var(--color-ink-3)">No grants</span>
+              <span v-else class="badge badge-ok">{{ countGrantsForGroup(gr.name) }} {{ countGrantsForGroup(gr.name) === 1 ? 'grant' : 'grants' }}</span>
             </td>
             <td class="actions">
               <template v-if="gr.kind === 'custom'">
                 <button class="btn btn-sm btn-ghost" @click="emit('edit', gr)">Edit</button>
                 <button class="btn btn-sm btn-danger" @click="onDelete(gr)">Delete</button>
               </template>
-              <span v-else class="mono" style="font-size:11px;color:var(--ink-3)">Managed by directory</span>
+              <span v-else class="mono" style="font-size:11px;color:var(--color-ink-3)">Managed by directory</span>
             </td>
           </tr>
         </tbody>

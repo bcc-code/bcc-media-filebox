@@ -67,20 +67,20 @@ const sortedGrants = computed(() => [...grants.value].sort((a, b) => a.id - b.id
               </div>
             </td>
             <td>
-              <span class="chip accent" v-if="g.admin"><span class="chip-dot"></span>Admin</span>
-              <span class="chip" v-else style="color:var(--ink-3)">Uploader</span>
+              <span class="badge badge-accent" v-if="g.admin"><span class="badge-dot"></span>Admin</span>
+              <span class="badge" v-else style="color:var(--color-ink-3)">Uploader</span>
             </td>
             <td>
-              <div class="chips">
-                <span v-if="g.admin || g.allTargets" class="chip all"><span class="chip-dot"></span>All targets</span>
+              <div class="badges">
+                <span v-if="g.admin || g.allTargets" class="badge badge-ok"><span class="badge-dot"></span>All targets</span>
                 <template v-else>
-                  <span v-for="tid in g.targetIds" :key="tid" class="chip">{{ targetName(tid) }}</span>
-                  <span v-if="g.targetIds.length === 0" class="chip" style="color:var(--ink-3)">No targets</span>
+                  <span v-for="tid in g.targetIds" :key="tid" class="badge">{{ targetName(tid) }}</span>
+                  <span v-if="g.targetIds.length === 0" class="badge" style="color:var(--color-ink-3)">No targets</span>
                 </template>
               </div>
             </td>
             <td>
-              <span class="mono" style="font-size:12px;color:var(--ink-3)">{{ g.createdAt.slice(0, 10) }}</span>
+              <span class="mono" style="font-size:12px;color:var(--color-ink-3)">{{ g.createdAt.slice(0, 10) }}</span>
             </td>
             <td class="actions">
               <button class="btn btn-sm btn-ghost" @click="emit('edit', g)">Edit</button>

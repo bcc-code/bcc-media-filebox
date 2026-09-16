@@ -62,7 +62,7 @@ export function providerColor(p: string): string {
     case 'guest':
       return 'oklch(0.80 0.14 75)'
     default:
-      return 'var(--ink-2)'
+      return 'var(--color-ink-2)'
   }
 }
 

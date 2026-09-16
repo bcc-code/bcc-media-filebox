@@ -363,7 +363,7 @@ async function send() {
       <div v-if="sendError" class="verify-error">{{ sendError }}</div>
 
       <div class="compose-actions">
-        <button class="btn btn-primary btn-block" :disabled="!canSend" @click="send">
+        <button class="btn btn-lg btn-primary btn-block" :disabled="!canSend" @click="send">
           {{ sending ? 'Sending…' : 'Send package' }}
         </button>
       </div>
@@ -379,10 +379,10 @@ async function send() {
       <div class="sum-line"><span class="k">Downloads / item</span><span class="v mono">{{ maxDownloads === '' ? 'unlimited' : `max ${maxDownloads}` }}</span></div>
       <div class="sum-line"><span class="k">Verification</span><span class="v">{{ verifyName }}</span></div>
       <div class="sum-line"><span class="k">Notify</span><span class="v">{{ notify ? 'On' : 'Off' }}</span></div>
-      <button class="btn btn-primary btn-block" style="margin-top: 16px" :disabled="!canSend" @click="send">
+      <button class="btn btn-lg btn-primary btn-block" style="margin-top: 16px" :disabled="!canSend" @click="send">
         {{ sending ? 'Sending…' : 'Send package' }}
       </button>
-      <div v-if="!canSend" style="font-size: 11.5px; color: var(--ink-3); margin-top: 10px; text-align: center; line-height: 1.5">{{ blockReason }}</div>
+      <div v-if="!canSend" style="font-size: 11.5px; color: var(--color-ink-3); margin-top: 10px; text-align: center; line-height: 1.5">{{ blockReason }}</div>
     </aside>
   </div>
 </template>

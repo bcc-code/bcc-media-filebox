@@ -28,7 +28,7 @@ function fmtBytes(bytes: number): string {
         {{ fmtBytes(item.bytesTotal) }}
         <template v-if="item.status === 'uploading'"> — uploading {{ Math.round(item.progress) }}%</template>
         <template v-else-if="item.status === 'pending'"> — queued</template>
-        <template v-else-if="item.status === 'failed'" style="color: var(--danger)"> — {{ item.error || 'upload failed' }}</template>
+        <template v-else-if="item.status === 'failed'" style="color: var(--color-danger)"> — {{ item.error || 'upload failed' }}</template>
         <template v-else-if="item.status === 'completed'">
           — {{ item.restored ? 'ready · already uploaded' : 'ready' }}
         </template>

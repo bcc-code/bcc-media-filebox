@@ -5,7 +5,6 @@ const props = defineProps<{ modelValue: string[] }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>()
 
 const input = ref('')
-const focus = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 
 function isEmail(s: string): boolean {
@@ -43,8 +42,8 @@ function remove(r: string) {
 </script>
 
 <template>
-  <div class="chips" :class="{ focus }" @click="inputRef?.focus()">
-    <span v-for="r in modelValue" :key="r" class="chip" :class="{ invalid: !isEmail(r) }">
+  <div class="token-input" @click="inputRef?.focus()">
+    <span v-for="r in modelValue" :key="r" class="token" :class="{ 'token-invalid': !isEmail(r) }">
       {{ r }}
       <button type="button" @click.stop="remove(r)">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -57,8 +56,7 @@ function remove(r: string) {
       @keydown.enter.prevent="commit"
       @keydown="onKeydown"
       @paste="onPaste"
-      @focus="focus = true"
-      @blur="focus = false; commit()"
+      @blur="commit()"
     />
   </div>
 </template>

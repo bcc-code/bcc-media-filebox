@@ -136,15 +136,15 @@ async function onImport() {
 
 <style scoped>
 .paste-area { width: 100%; resize: vertical; }
-.preview { border: 1px solid var(--line); border-radius: 8px; max-height: 240px; overflow-y: auto; margin-bottom: 14px; }
-.prev-row { display: flex; gap: 10px; align-items: baseline; padding: 5px 10px; border-top: 1px solid var(--line); font-size: 13px; }
+.preview { border: 1px solid var(--color-line); border-radius: 8px; max-height: 240px; overflow-y: auto; margin-bottom: 14px; }
+.prev-row { display: flex; gap: 10px; align-items: baseline; padding: 5px 10px; border-top: 1px solid var(--color-line); font-size: 13px; }
 .prev-row:first-child { border-top: none; }
-.prev-row.head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); position: sticky; top: 0; background: var(--bg-2); }
+.prev-row.head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-ink-3); position: sticky; top: 0; background: var(--color-surface-2); }
 .prev-name { flex: 1 1 auto; min-width: 0; }
 .prev-code { flex: 0 0 140px; }
-.prev-status { flex: 0 0 45%; font-size: 12px; color: var(--ink-3); }
-.prev-row.skip .prev-status { color: var(--ink-3); font-style: italic; }
-.prev-row.error .prev-status { color: var(--danger); }
-.prev-row.new .prev-status { color: var(--ok); }
-.summary { margin-right: auto; font-size: 12.5px; color: var(--ink-3); }
+.prev-status { flex: 0 0 45%; font-size: 12px; color: var(--color-ink-3); }
+.prev-row.skip .prev-status { color: var(--color-ink-3); font-style: italic; }
+.prev-row.error .prev-status { color: var(--color-danger); }
+.prev-row.new .prev-status { color: var(--color-ok); }
+.summary { margin-right: auto; font-size: 12.5px; color: var(--color-ink-3); }
 </style>

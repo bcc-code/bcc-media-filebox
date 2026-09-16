@@ -122,20 +122,20 @@ function onSave() {
         <div class="hint" v-if="selectedGroup">{{ selectedGroup.description }}</div>
         <div class="hint" v-else-if="customGroups.length === 0">
           No custom groups yet.
-          <a href="#" @click.prevent="emit('goToGroups')" style="color:var(--accent)">Create one →</a>
+          <a href="#" @click.prevent="emit('goToGroups')" style="color:var(--color-accent)">Create one →</a>
         </div>
       </div>
 
       <div class="field">
         <label>Role</label>
         <label
-          style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line-2);border-radius:8px;text-transform:none;letter-spacing:0;color:var(--ink);font-size:13.5px;cursor:pointer;background:var(--bg);"
-          :style="draft.admin ? 'border-color:var(--accent);background:color-mix(in oklch,var(--accent),transparent 88%)' : ''"
+          style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--color-line-2);border-radius:8px;text-transform:none;letter-spacing:0;color:var(--color-ink);font-size:13.5px;cursor:pointer;background:var(--color-surface);"
+          :style="draft.admin ? 'border-color:var(--color-accent);background:color-mix(in oklch,var(--color-accent),transparent 88%)' : ''"
         >
-          <input type="checkbox" v-model="draft.admin" style="accent-color: var(--accent);" />
+          <input type="checkbox" v-model="draft.admin" style="accent-color: var(--color-accent);" />
           <div style="flex:1">
             <div style="font-weight:500">Grant admin access</div>
-            <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Can manage targets and other people's access. Implies access to all targets.</div>
+            <div style="font-size:12px;color:var(--color-ink-3);margin-top:2px">Can manage targets and other people's access. Implies access to all targets.</div>
           </div>
         </label>
       </div>

@@ -166,8 +166,8 @@ function onDragEnd() {
               <span v-else class="path" @click="startEdit(t.id, 'path')" style="cursor:text">{{ t.path }}</span>
             </td>
             <td>
-              <span class="chip" v-if="countGrantsForTarget(t.id) === 0" style="color:var(--ink-3)">No one</span>
-              <span v-else class="chip ok">{{ countGrantsForTarget(t.id) }} principals</span>
+              <span class="badge" v-if="countGrantsForTarget(t.id) === 0" style="color:var(--color-ink-3)">No one</span>
+              <span v-else class="badge badge-ok">{{ countGrantsForTarget(t.id) }} principals</span>
             </td>
             <td class="actions">
               <button class="btn btn-sm btn-ghost" @click="emit('open', t)">Edit</button>
@@ -184,12 +184,12 @@ function onDragEnd() {
 <style scoped>
 .drag-handle {
   cursor: grab;
-  color: var(--ink-3);
+  color: var(--color-ink-3);
   text-align: center;
   width: 24px;
   user-select: none;
 }
 .drag-handle:active { cursor: grabbing; }
 tr.drag-source { opacity: 0.4; }
-tr.drag-over td { box-shadow: inset 0 2px 0 0 var(--accent); }
+tr.drag-over td { box-shadow: inset 0 2px 0 0 var(--color-accent); }
 </style>

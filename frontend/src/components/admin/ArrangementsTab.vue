@@ -79,7 +79,7 @@ async function onDeleteArrangement(a: Arrangement) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </button>
         <div class="primary">{{ a.name }}</div>
-        <span class="chip mono">{{ a.code }}</span>
+        <span class="badge mono">{{ a.code }}</span>
         <span class="secondary">{{ a.subEvents.length }} sub event{{ a.subEvents.length === 1 ? '' : 's' }}</span>
         <div class="arr-actions">
           <button class="btn btn-sm btn-ghost" @click="emit('edit', a)">Edit</button>
@@ -122,16 +122,16 @@ async function onDeleteArrangement(a: Arrangement) {
 .arr-card { padding: 0; margin-bottom: 10px; }
 .arr-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
 .arr-head .primary { font-weight: 600; }
-.arr-head .secondary { color: var(--ink-3); font-size: 12.5px; }
+.arr-head .secondary { color: var(--color-ink-3); font-size: 12.5px; }
 .arr-actions { margin-left: auto; display: flex; gap: 6px; }
-.chev { background: none; border: none; color: var(--ink-2); cursor: pointer; display: flex; transition: transform 0.15s; padding: 2px; }
+.chev { background: none; border: none; color: var(--color-ink-2); cursor: pointer; display: flex; transition: transform 0.15s; padding: 2px; }
 .chev.open { transform: rotate(90deg); }
-.sub-list { border-top: 1px solid var(--line); padding: 10px 14px 14px 40px; display: flex; flex-direction: column; gap: 8px; }
+.sub-list { border-top: 1px solid var(--color-line); padding: 10px 14px 14px 40px; display: flex; flex-direction: column; gap: 8px; }
 .sub-row { display: flex; align-items: center; gap: 8px; }
 .sub-name { flex: 1 1 auto; min-width: 0; width: auto; }
 .sub-code { flex: 0 0 150px; width: auto; }
 .sub-spacer { flex: 0 0 130px; }
-.sub-row.head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
-.sub-row.add { padding-top: 10px; margin-top: 2px; border-top: 1px dashed var(--line); }
-.sub-empty { font-size: 12.5px; color: var(--ink-3); padding: 2px 0; }
+.sub-row.head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-ink-3); }
+.sub-row.add { padding-top: 10px; margin-top: 2px; border-top: 1px dashed var(--color-line); }
+.sub-empty { font-size: 12.5px; color: var(--color-ink-3); padding: 2px 0; }
 </style>
