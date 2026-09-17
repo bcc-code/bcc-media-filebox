@@ -1068,6 +1068,29 @@
     cursor: not-allowed;
   }
 
+  /* Grid cards: a tile of choices rather than a stacked list. */
+  .radio-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .radio-cards-grid .radio-card {
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+  }
+  /* The label owns its own line here, so the body must not share a flex row. */
+  .radio-cards-grid .radio-body {
+    flex: none;
+    width: 100%;
+  }
+  .radio-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    width: 100%;
+  }
+
   .radio-dot {
     display: grid;
     place-items: center;

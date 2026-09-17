@@ -140,6 +140,63 @@ describe('UiRadioGroup', () => {
     })
   })
 
+  describe('card variant, grid layout', () => {
+    it('adds the grid class on top of the stacked card class', async () => {
+      mountGroup({ layout: 'grid' })
+      await flush()
+
+      // Additive, not a replacement: the card shell keeps applying.
+      expect(root().classList.contains('radio-cards')).toBe(true)
+      expect(root().classList.contains('radio-cards-grid')).toBe(true)
+      expect(items()[0].classList.contains('radio-card')).toBe(true)
+    })
+
+    it('moves the control onto a top row beside the icon', async () => {
+      mountGroup(
+        { layout: 'grid' },
+        { 'icon-none': '<span class="ic">*</span>' },
+      )
+      await flush()
+
+      const top = items()[0].querySelector('.radio-card-top')
+      expect(top).not.toBeNull()
+      expect(top!.querySelector('.ic')).not.toBeNull()
+      expect(top!.querySelector('.radio-dot')).not.toBeNull()
+      // The icon must not also render inside the label.
+      expect(items()[0].querySelector('.radio-label .ic')).toBeNull()
+    })
+
+    it('keeps the icon inline with the label when stacked', async () => {
+      mountGroup(
+        { layout: 'stack' },
+        { 'icon-none': '<span class="ic">*</span>' },
+      )
+      await flush()
+
+      expect(items()[0].querySelector('.radio-card-top')).toBeNull()
+      expect(items()[0].querySelector('.radio-label .ic')).not.toBeNull()
+    })
+
+    it('still drives selection through the machine', async () => {
+      const w = mountGroup({ layout: 'grid' })
+      await flush()
+
+      items()[1].click()
+      await flush()
+
+      expect(w.emitted('update:modelValue')).toEqual([['bcc_login']])
+    })
+
+    it('is ignored by the segmented variant', async () => {
+      mountGroup({ variant: 'segmented', layout: 'grid' })
+      await flush()
+
+      expect(root().classList.contains('radio-cards-grid')).toBe(false)
+      expect(root().classList.contains('seg')).toBe(true)
+      expect(document.querySelector('.radio-card-top')).toBeNull()
+    })
+  })
+
   describe('segmented variant', () => {
     it('reuses the shared .seg switch and drops the dots', async () => {
       mountGroup({ variant: 'segmented' })

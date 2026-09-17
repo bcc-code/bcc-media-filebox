@@ -17,13 +17,19 @@ const props = withDefaults(
   defineProps<{
     modelValue: T
     options: UiRadioOption<T>[]
-    /** `card` stacks labelled cards; `segmented` is a compact inline switch. */
+    /** `card` renders labelled cards; `segmented` is a compact inline switch. */
     variant?: 'card' | 'segmented'
+    /**
+     * How `card` options are arranged. `grid` tiles them and moves the control
+     * onto a top row beside the icon, so the label gets its own line. Ignored
+     * by the `segmented` variant.
+     */
+    layout?: 'stack' | 'grid'
     disabled?: boolean
     /** Accessible name for the group, when the visible label sits outside. */
     ariaLabel?: string
   }>(),
-  { variant: 'card', disabled: false, ariaLabel: undefined },
+  { variant: 'card', layout: 'stack', disabled: false, ariaLabel: undefined },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
@@ -44,6 +50,7 @@ const service = useMachine(
 const api = computed(() => radio.connect(service, normalizeProps))
 
 const isCard = computed(() => props.variant === 'card')
+const isGrid = computed(() => isCard.value && props.layout === 'grid')
 
 /** Zag derives per-item state from these, so they must reach every getter. */
 const itemArgs = (option: UiRadioOption<T>) => ({
@@ -57,7 +64,7 @@ const itemProps = (option: UiRadioOption<T>) =>
 <template>
   <div
     v-bind="api.getRootProps()"
-    :class="isCard ? 'radio-cards' : 'seg'"
+    :class="[isCard ? 'radio-cards' : 'seg', isGrid && 'radio-cards-grid']"
     :aria-label="ariaLabel"
   >
     <label
@@ -67,15 +74,23 @@ const itemProps = (option: UiRadioOption<T>) =>
       :class="isCard ? 'radio-card' : 'seg-item'"
     >
       <!-- The control is the visual radio dot; the card variant shows it, the
-           segmented one relies on the selected background instead. -->
+           segmented one relies on the selected background instead. A grid card
+           pairs it with the icon on a top row instead of inline with the text. -->
+      <span v-if="isGrid" class="radio-card-top">
+        <slot :name="`icon-${option.value}`" />
+        <span
+          v-bind="api.getItemControlProps(itemArgs(option))"
+          class="radio-dot"
+        />
+      </span>
       <span
-        v-if="isCard"
+        v-else-if="isCard"
         v-bind="api.getItemControlProps(itemArgs(option))"
         class="radio-dot"
       />
       <span v-bind="api.getItemTextProps(itemArgs(option))" class="radio-body">
         <span class="radio-label">
-          <slot :name="`icon-${option.value}`" />
+          <slot v-if="!isGrid" :name="`icon-${option.value}`" />
           {{ option.label }}
         </span>
         <span v-if="isCard && option.description" class="radio-description">
