@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { toastStore } from './useToast'
 
 export interface Target {
   id: number
@@ -103,14 +104,12 @@ const adminUploads = ref<AdminUpload[]>([])
 const loading = ref(false)
 const lastError = ref<string | null>(null)
 
-const toast = ref<{ text: string; danger?: boolean } | null>(null)
-let toastTimer: number | null = null
+// `danger` here only ever meant "red". It is used both for failures and for
+// successful destructive actions ("Removed …"), so keep the store's default
+// duration for both rather than treating every red toast as an error.
 function showToast(text: string, danger = false) {
-  toast.value = { text, danger }
-  if (toastTimer) window.clearTimeout(toastTimer)
-  toastTimer = window.setTimeout(() => {
-    toast.value = null
-  }, 2400)
+  if (danger) toastStore.error({ title: text })
+  else toastStore.success({ title: text })
 }
 
 async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
@@ -160,9 +159,17 @@ async function loadAll() {
 
 // Targets ---------------------------------------------------------------
 
-async function createTarget(body: { name: string; path: string; formKey?: string | null; webhookUrl?: string | null }) {
+async function createTarget(body: {
+  name: string
+  path: string
+  formKey?: string | null
+  webhookUrl?: string | null
+}) {
   try {
-    const t = await jsonFetch<Target>('/api/admin/targets', { method: 'POST', body: JSON.stringify(body) })
+    const t = await jsonFetch<Target>('/api/admin/targets', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
     targets.value.push(t)
     showToast(`Added target “${t.name}”`)
   } catch (e) {
@@ -170,10 +177,21 @@ async function createTarget(body: { name: string; path: string; formKey?: string
   }
 }
 
-async function updateTarget(id: number, body: { name: string; path: string; formKey?: string | null; webhookUrl?: string | null }) {
+async function updateTarget(
+  id: number,
+  body: {
+    name: string
+    path: string
+    formKey?: string | null
+    webhookUrl?: string | null
+  },
+) {
   try {
-    const t = await jsonFetch<Target>(`/api/admin/targets/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
-    const i = targets.value.findIndex(x => x.id === id)
+    const t = await jsonFetch<Target>(`/api/admin/targets/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+    const i = targets.value.findIndex((x) => x.id === id)
     if (i >= 0) targets.value[i] = t
     showToast(`Saved “${t.name}”`)
   } catch (e) {
@@ -182,13 +200,13 @@ async function updateTarget(id: number, body: { name: string; path: string; form
 }
 
 async function deleteTarget(id: number) {
-  const t = targets.value.find(x => x.id === id)
+  const t = targets.value.find((x) => x.id === id)
   try {
     await jsonFetch(`/api/admin/targets/${id}`, { method: 'DELETE' })
-    targets.value = targets.value.filter(x => x.id !== id)
+    targets.value = targets.value.filter((x) => x.id !== id)
     // The server cascade-clears grant_targets but we hold a stale local copy.
-    grants.value.forEach(g => {
-      g.targetIds = g.targetIds.filter(tid => tid !== id)
+    grants.value.forEach((g) => {
+      g.targetIds = g.targetIds.filter((tid) => tid !== id)
     })
     showToast(`Removed “${t?.name ?? 'target'}”`, true)
   } catch (e) {
@@ -197,14 +215,19 @@ async function deleteTarget(id: number) {
 }
 
 async function duplicateTarget(t: Target) {
-  await createTarget({ name: `${t.name} (copy)`, path: t.path, formKey: t.formKey, webhookUrl: t.webhookUrl })
+  await createTarget({
+    name: `${t.name} (copy)`,
+    path: t.path,
+    formKey: t.formKey,
+    webhookUrl: t.webhookUrl,
+  })
 }
 
 async function reorderTargets(ids: number[]) {
   const prev = targets.value
   // Optimistic: reorder locally so the row jumps immediately under the cursor.
-  const byId = new Map(prev.map(t => [t.id, t]))
-  targets.value = ids.map(id => byId.get(id)).filter((t): t is Target => !!t)
+  const byId = new Map(prev.map((t) => [t.id, t]))
+  targets.value = ids.map((id) => byId.get(id)).filter((t): t is Target => !!t)
   try {
     const t = await jsonFetch<Target[]>('/api/admin/targets/reorder', {
       method: 'POST',
@@ -222,7 +245,10 @@ async function reorderTargets(ids: number[]) {
 
 async function createProject(body: { name: string; code: string }) {
   try {
-    const p = await jsonFetch<Project>('/api/admin/projects', { method: 'POST', body: JSON.stringify(body) })
+    const p = await jsonFetch<Project>('/api/admin/projects', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
     projects.value.push(p)
     showToast(`Added project “${p.name}”`)
   } catch (e) {
@@ -232,8 +258,11 @@ async function createProject(body: { name: string; code: string }) {
 
 async function updateProject(id: number, body: { name: string; code: string }) {
   try {
-    const p = await jsonFetch<Project>(`/api/admin/projects/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
-    const i = projects.value.findIndex(x => x.id === id)
+    const p = await jsonFetch<Project>(`/api/admin/projects/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+    const i = projects.value.findIndex((x) => x.id === id)
     if (i >= 0) projects.value[i] = p
     showToast(`Saved “${p.name}”`)
   } catch (e) {
@@ -242,10 +271,10 @@ async function updateProject(id: number, body: { name: string; code: string }) {
 }
 
 async function deleteProject(id: number) {
-  const p = projects.value.find(x => x.id === id)
+  const p = projects.value.find((x) => x.id === id)
   try {
     await jsonFetch(`/api/admin/projects/${id}`, { method: 'DELETE' })
-    projects.value = projects.value.filter(x => x.id !== id)
+    projects.value = projects.value.filter((x) => x.id !== id)
     showToast(`Removed “${p?.name ?? 'project'}”`, true)
   } catch (e) {
     showToast((e as Error).message, true)
@@ -256,7 +285,10 @@ async function deleteProject(id: number) {
 
 async function createArrangement(body: { name: string; code: string }) {
   try {
-    const a = await jsonFetch<Arrangement>('/api/admin/arrangements', { method: 'POST', body: JSON.stringify(body) })
+    const a = await jsonFetch<Arrangement>('/api/admin/arrangements', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
     arrangements.value.push({ ...a, subEvents: a.subEvents ?? [] })
     showToast(`Added arrangement “${a.name}”`)
   } catch (e) {
@@ -264,12 +296,22 @@ async function createArrangement(body: { name: string; code: string }) {
   }
 }
 
-async function updateArrangement(id: number, body: { name: string; code: string }) {
+async function updateArrangement(
+  id: number,
+  body: { name: string; code: string },
+) {
   try {
-    const a = await jsonFetch<Arrangement>(`/api/admin/arrangements/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
-    const i = arrangements.value.findIndex(x => x.id === id)
+    const a = await jsonFetch<Arrangement>(`/api/admin/arrangements/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+    const i = arrangements.value.findIndex((x) => x.id === id)
     // The PATCH response carries no sub-events; keep the ones we already hold.
-    if (i >= 0) arrangements.value[i] = { ...a, subEvents: arrangements.value[i].subEvents }
+    if (i >= 0)
+      arrangements.value[i] = {
+        ...a,
+        subEvents: arrangements.value[i].subEvents,
+      }
     showToast(`Saved “${a.name}”`)
   } catch (e) {
     showToast((e as Error).message, true)
@@ -277,20 +319,26 @@ async function updateArrangement(id: number, body: { name: string; code: string 
 }
 
 async function deleteArrangement(id: number) {
-  const a = arrangements.value.find(x => x.id === id)
+  const a = arrangements.value.find((x) => x.id === id)
   try {
     await jsonFetch(`/api/admin/arrangements/${id}`, { method: 'DELETE' })
-    arrangements.value = arrangements.value.filter(x => x.id !== id)
+    arrangements.value = arrangements.value.filter((x) => x.id !== id)
     showToast(`Removed “${a?.name ?? 'arrangement'}”`, true)
   } catch (e) {
     showToast((e as Error).message, true)
   }
 }
 
-async function createSubEvent(arrangementId: number, body: { name: string; code: string }) {
+async function createSubEvent(
+  arrangementId: number,
+  body: { name: string; code: string },
+) {
   try {
-    const s = await jsonFetch<SubEvent>(`/api/admin/arrangements/${arrangementId}/sub-events`, { method: 'POST', body: JSON.stringify(body) })
-    const arr = arrangements.value.find(x => x.id === arrangementId)
+    const s = await jsonFetch<SubEvent>(
+      `/api/admin/arrangements/${arrangementId}/sub-events`,
+      { method: 'POST', body: JSON.stringify(body) },
+    )
+    const arr = arrangements.value.find((x) => x.id === arrangementId)
     if (arr) arr.subEvents.push(s)
     showToast(`Added sub event “${s.name}”`)
   } catch (e) {
@@ -298,16 +346,21 @@ async function createSubEvent(arrangementId: number, body: { name: string; code:
   }
 }
 
-async function importSubEvents(arrangementId: number, items: { name: string; code: string }[]): Promise<boolean> {
+async function importSubEvents(
+  arrangementId: number,
+  items: { name: string; code: string }[],
+): Promise<boolean> {
   try {
     const res = await jsonFetch<{ created: SubEvent[]; skipped: number }>(
       `/api/admin/arrangements/${arrangementId}/sub-events/import`,
       { method: 'POST', body: JSON.stringify({ items }) },
     )
-    const arr = arrangements.value.find(x => x.id === arrangementId)
+    const arr = arrangements.value.find((x) => x.id === arrangementId)
     if (arr) arr.subEvents.push(...res.created)
     const skipped = res.skipped > 0 ? ` (${res.skipped} already existed)` : ''
-    showToast(`Imported ${res.created.length} sub event${res.created.length === 1 ? '' : 's'}${skipped}`)
+    showToast(
+      `Imported ${res.created.length} sub event${res.created.length === 1 ? '' : 's'}${skipped}`,
+    )
     return true
   } catch (e) {
     showToast((e as Error).message, true)
@@ -315,12 +368,19 @@ async function importSubEvents(arrangementId: number, items: { name: string; cod
   }
 }
 
-async function updateSubEvent(arrangementId: number, id: number, body: { name: string; code: string }) {
+async function updateSubEvent(
+  arrangementId: number,
+  id: number,
+  body: { name: string; code: string },
+) {
   try {
-    const s = await jsonFetch<SubEvent>(`/api/admin/sub-events/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
-    const arr = arrangements.value.find(x => x.id === arrangementId)
+    const s = await jsonFetch<SubEvent>(`/api/admin/sub-events/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+    const arr = arrangements.value.find((x) => x.id === arrangementId)
     if (arr) {
-      const i = arr.subEvents.findIndex(x => x.id === id)
+      const i = arr.subEvents.findIndex((x) => x.id === id)
       if (i >= 0) arr.subEvents[i] = s
     }
     showToast(`Saved “${s.name}”`)
@@ -332,8 +392,8 @@ async function updateSubEvent(arrangementId: number, id: number, body: { name: s
 async function deleteSubEvent(arrangementId: number, id: number) {
   try {
     await jsonFetch(`/api/admin/sub-events/${id}`, { method: 'DELETE' })
-    const arr = arrangements.value.find(x => x.id === arrangementId)
-    if (arr) arr.subEvents = arr.subEvents.filter(x => x.id !== id)
+    const arr = arrangements.value.find((x) => x.id === arrangementId)
+    if (arr) arr.subEvents = arr.subEvents.filter((x) => x.id !== id)
     showToast('Removed sub event', true)
   } catch (e) {
     showToast((e as Error).message, true)
@@ -342,9 +402,16 @@ async function deleteSubEvent(arrangementId: number, id: number) {
 
 // Groups ----------------------------------------------------------------
 
-async function createGroup(body: { name: string; description: string; members: string[] }) {
+async function createGroup(body: {
+  name: string
+  description: string
+  members: string[]
+}) {
   try {
-    const g = await jsonFetch<Group>('/api/admin/groups', { method: 'POST', body: JSON.stringify(body) })
+    const g = await jsonFetch<Group>('/api/admin/groups', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
     groups.value.push(g)
     showToast(`Created group “${g.name}”`)
   } catch (e) {
@@ -352,10 +419,16 @@ async function createGroup(body: { name: string; description: string; members: s
   }
 }
 
-async function updateGroup(id: number, body: { name: string; description: string; members: string[] }) {
+async function updateGroup(
+  id: number,
+  body: { name: string; description: string; members: string[] },
+) {
   try {
-    const g = await jsonFetch<Group>(`/api/admin/groups/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
-    const i = groups.value.findIndex(x => x.id === id)
+    const g = await jsonFetch<Group>(`/api/admin/groups/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+    const i = groups.value.findIndex((x) => x.id === id)
     if (i >= 0) groups.value[i] = g
     // Renames cascade to grants on the backend; reflect that locally too.
     showToast(`Saved group “${g.name}”`)
@@ -367,11 +440,14 @@ async function updateGroup(id: number, body: { name: string; description: string
 }
 
 async function deleteGroup(id: number) {
-  const g = groups.value.find(x => x.id === id)
+  const g = groups.value.find((x) => x.id === id)
   try {
     await jsonFetch(`/api/admin/groups/${id}`, { method: 'DELETE' })
-    groups.value = groups.value.filter(x => x.id !== id)
-    if (g) grants.value = grants.value.filter(gr => !(gr.principalKind === 'group' && gr.principalValue === g.name))
+    groups.value = groups.value.filter((x) => x.id !== id)
+    if (g)
+      grants.value = grants.value.filter(
+        (gr) => !(gr.principalKind === 'group' && gr.principalValue === g.name),
+      )
     showToast(`Removed group “${g?.name ?? 'group'}”`, true)
   } catch (e) {
     showToast((e as Error).message, true)
@@ -390,7 +466,10 @@ interface GrantWrite {
 
 async function createGrant(body: GrantWrite) {
   try {
-    const g = await jsonFetch<Grant>('/api/admin/grants', { method: 'POST', body: JSON.stringify(body) })
+    const g = await jsonFetch<Grant>('/api/admin/grants', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
     grants.value.push(g)
     showToast(`Granted access to ${g.principalValue}`)
   } catch (e) {
@@ -400,8 +479,11 @@ async function createGrant(body: GrantWrite) {
 
 async function updateGrant(id: number, body: GrantWrite) {
   try {
-    const g = await jsonFetch<Grant>(`/api/admin/grants/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
-    const i = grants.value.findIndex(x => x.id === id)
+    const g = await jsonFetch<Grant>(`/api/admin/grants/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+    const i = grants.value.findIndex((x) => x.id === id)
     if (i >= 0) grants.value[i] = g
     showToast(`Saved access for ${g.principalValue}`)
   } catch (e) {
@@ -410,10 +492,10 @@ async function updateGrant(id: number, body: GrantWrite) {
 }
 
 async function deleteGrant(id: number) {
-  const g = grants.value.find(x => x.id === id)
+  const g = grants.value.find((x) => x.id === id)
   try {
     await jsonFetch(`/api/admin/grants/${id}`, { method: 'DELETE' })
-    grants.value = grants.value.filter(x => x.id !== id)
+    grants.value = grants.value.filter((x) => x.id !== id)
     showToast(`Removed access for ${g?.principalValue ?? 'principal'}`, true)
   } catch (e) {
     showToast((e as Error).message, true)
@@ -452,8 +534,12 @@ async function retriggerWebhook(id: string) {
 
 // Derived ---------------------------------------------------------------
 
-const builtinGroups = computed(() => groups.value.filter(g => g.kind === 'builtin'))
-const customGroups = computed(() => groups.value.filter(g => g.kind === 'custom'))
+const builtinGroups = computed(() =>
+  groups.value.filter((g) => g.kind === 'builtin'),
+)
+const customGroups = computed(() =>
+  groups.value.filter((g) => g.kind === 'custom'),
+)
 
 export function useAdmin() {
   return {
@@ -468,7 +554,6 @@ export function useAdmin() {
     customGroups,
     loading,
     lastError,
-    toast,
     showToast,
     loadAll,
     createTarget,

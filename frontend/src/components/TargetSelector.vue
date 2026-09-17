@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { TargetInfo } from '../types'
+import UiRadioGroup, { type UiRadioOption } from './ui/UiRadioGroup.vue'
 
-defineProps<{
+const props = defineProps<{
   modelValue: string
   targets: TargetInfo[]
 }>()
@@ -10,55 +12,72 @@ const emit = defineEmits<{
   'update:modelValue': [name: string]
 }>()
 
-function select(name: string) {
-  emit('update:modelValue', name)
-}
+// The target name is the value, so no id mapping is needed.
+const options = computed<UiRadioOption<string>[]>(() =>
+  props.targets.map((t) => ({ value: t.name, label: t.name })),
+)
 </script>
 
 <template>
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-    <button
-      v-for="t in targets"
-      :key="t.name"
-      type="button"
-      :aria-pressed="t.name === modelValue"
-      class="group flex flex-col gap-3 rounded-xl border p-4 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-      :class="t.name === modelValue
-        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 ring-1 ring-blue-500'
-        : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 bg-white dark:bg-gray-800'"
-      @click="select(t.name)"
-    >
-      <div class="flex items-start justify-between">
-        <!-- Generic disk icon -->
-        <span
-          class="flex h-10 w-10 items-center justify-center rounded-lg transition"
-          :class="t.name === modelValue
-            ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
-            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'"
+  <UiRadioGroup
+    :model-value="modelValue"
+    :options="options"
+    layout="grid"
+    indicator="check"
+    aria-label="Upload target"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
+    <!--
+      One icon slot per option, by the `icon-<value>` convention UiTabs and
+      UiRadioGroup share. Every target gets the same generic disk tile; the
+      per-option slot is what lets a future target carry its own.
+    -->
+    <template v-for="t in targets" #[`icon-${t.name}`] :key="t.name">
+      <span class="target-ic">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <ellipse cx="12" cy="5" rx="8" ry="3" />
-            <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
-            <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
-          </svg>
-        </span>
-
-        <!-- Selection indicator -->
-        <span
-          v-if="t.name === modelValue"
-          class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 13l4 4L19 7" />
-          </svg>
-        </span>
-        <span
-          v-else
-          class="h-6 w-6 rounded-full border-2 border-gray-300 dark:border-gray-600"
-        />
-      </div>
-
-      <div class="font-semibold text-gray-900 dark:text-gray-100">{{ t.name }}</div>
-    </button>
-  </div>
+          <ellipse cx="12" cy="5" rx="8" ry="3" />
+          <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
+          <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
+        </svg>
+      </span>
+    </template>
+  </UiRadioGroup>
 </template>
+
+<style scoped>
+/* The icon tile is this component's own decoration, not part of the shared
+   card. */
+.target-ic {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-line-2);
+  color: var(--color-ink-3);
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+/* The tile reacts to the enclosing item's checked state. That item is rendered
+   by UiRadioGroup, but the tile is our own slot content, and scoped CSS tags
+   only the last compound selector — so a plain descendant selector reaches it
+   without :deep(). */
+[data-part='item'][data-state='checked'] .target-ic {
+  background: color-mix(in oklch, var(--color-accent), transparent 82%);
+  border-color: color-mix(in oklch, var(--color-accent), transparent 55%);
+  color: var(--color-accent-2);
+}
+</style>

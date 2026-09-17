@@ -1,0 +1,507 @@
+/* ============================================================
+   FileBox shared component layer.
+
+   Every primitive used by more than one surface lives here, once.
+   Tokens come from the `@theme` block in src/style.css — reference
+   var(--color-*); never hardcode a colour or redeclare a token.
+
+   These sit in Tailwind's `components` layer, so a utility class
+   on the element still wins when you need a one-off override.
+   ============================================================ */
+
+@layer components {
+  /* ---------- Motion ---------- */
+  .fb-fade {
+    animation: fb-fade 0.25s ease both;
+  }
+  .fb-pop {
+    animation: fb-pop 0.15s ease both;
+  }
+  .fb-slide {
+    animation: fb-slide 0.3s ease both;
+  }
+
+  /* ---------- Type ---------- */
+  .mono {
+    font-family: var(--font-mono);
+  }
+
+  /* Scales */
+
+  /* Colours */
+
+  /* ---------- Badge ----------
+     Read-only status pill. Was `.chip` in Admin and `.chip-sm` in Send. */
+
+  /* Row of badges */
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  /* ---------- Text inputs ----------
+     One rule for the explicit `.inp` class and for controls nested in
+     a `.field`, so both call sites stay in sync. */
+  .inp,
+  .num-control,
+  .select-trigger,
+  .field
+    :is(input:not([type='checkbox']):not([type='radio']), select, textarea):not(
+      .token-input *
+    ) {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-surface);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-family: inherit;
+    font-size: var(--text-body-3);
+    line-height: var(--text-body-3--line-height);
+    font-weight: var(--text-body-3--font-weight);
+    letter-spacing: var(--text-body-3--letter-spacing);
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .inp::placeholder,
+  .field :is(input, textarea)::placeholder {
+    color: var(--color-ink-3);
+  }
+
+  .inp:hover,
+  .num-control:hover,
+  .select-trigger:hover,
+  .field
+    :is(input:not([type='checkbox']):not([type='radio']), select, textarea):not(
+      .token-input *
+    ):hover {
+    border-color: var(--color-ink-3);
+  }
+  .inp:focus,
+  .num-control:has(:focus-visible),
+  .select-trigger:focus-visible,
+  .select-trigger[data-state='open'],
+  .field
+    :is(input:not([type='checkbox']):not([type='radio']), select, textarea):not(
+      .token-input *
+    ):focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px
+      color-mix(in oklch, var(--color-accent), transparent 88%);
+  }
+
+  /* Textarea affordances. These lived in send.css as `.send-root textarea.inp`,
+     which meant a textarea on any other surface lost them. */
+  textarea.inp {
+    resize: vertical;
+    min-height: 74px;
+    line-height: 1.5;
+  }
+
+  .inp-invalid,
+  .inp-invalid:focus {
+    border-color: var(--color-danger);
+  }
+
+  .field {
+    margin-bottom: 14px;
+  }
+  .field > label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: var(--text-caption-2);
+    line-height: var(--text-caption-2--line-height);
+    font-weight: var(--text-caption-2--font-weight);
+    letter-spacing: var(--text-caption-2--letter-spacing);
+    color: var(--color-ink-3);
+  }
+  .field :is(input[type='checkbox'], input[type='radio']) {
+    width: auto;
+    padding: 0;
+    flex-shrink: 0;
+    accent-color: var(--color-accent);
+  }
+  .field .hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--color-ink-3);
+  }
+
+  /* ---------- Surfaces ---------- */
+  .card {
+    /* No border: the gradient-border band is the edge. Keeping both drew a
+       solid hairline with a second, lighter one just inside it. */
+    background: var(--color-surface-2);
+    border-radius: var(--radius-surface);
+    overflow: hidden;
+    box-shadow: var(--shadow-resting);
+    position: relative;
+  }
+  /* The same hairline as the `gradient-border` utility. .card is applied in 21
+     templates, so the band lives in the rule rather than on every call site. */
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      to top,
+      rgb(255 255 255 / 0.05),
+      rgb(255 255 255 / 0.12)
+    );
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* ---------------------------------------------------------------------
+     Admin list vocabulary, promoted out of admin.css: every caller is a
+     component, not a page, and a teleported drawer has to reach these from
+     outside .admin-root. Table rules hang off .card because every table in
+     the app already sits in one — opt-in by structure, so a stray table
+     elsewhere stays unstyled.
+     --------------------------------------------------------------------- */
+  .section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 24px;
+    flex-wrap: nowrap;
+  }
+  .section-head > div:first-child {
+    min-width: 0;
+  }
+  .section-head h1 {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+  .section-head .sub {
+    color: var(--color-ink-2);
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 620px;
+  }
+  .card table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .card thead th {
+    text-align: left;
+    padding: 12px 18px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-ink-3);
+    font-weight: 500;
+    border-bottom: 1px solid var(--color-line);
+    background: var(--color-surface-2);
+  }
+  .card tbody td {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--color-line);
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  .card tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .card tbody tr:hover {
+    background: var(--color-surface-3);
+  }
+  .card td.actions {
+    text-align: right;
+    width: 1%;
+    white-space: nowrap;
+  }
+  /* The buttons are inline-flex and Vue's compiler condenses the whitespace
+     between elements, so nothing separates them without this. Margin rather
+     than `display: flex` on the cell, which would drop it out of table layout.
+     6px matches .arr-actions, the one action row that already had a gap. */
+  .card td.actions > * + * {
+    margin-left: 6px;
+  }
+  .name-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .name-cell .swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: var(--color-surface-3);
+    border: 1px solid var(--color-line-2);
+    flex-shrink: 0;
+    color: var(--color-ink-2);
+  }
+  .name-cell .swatch.group {
+    background: color-mix(in oklch, var(--color-accent), transparent 85%);
+    border-color: color-mix(in oklch, var(--color-accent), transparent 60%);
+    color: var(--color-accent-2);
+  }
+  .name-cell .primary {
+    font-weight: 500;
+    color: var(--color-ink);
+  }
+  .name-cell .secondary {
+    font-size: 12px;
+    color: var(--color-ink-3);
+    margin-top: 2px;
+  }
+  .inline-edit {
+    background: var(--color-surface);
+    border: 1px solid var(--color-accent);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 14px;
+    color: var(--color-ink);
+    outline: none;
+    width: 100%;
+  }
+  .inline-edit.mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+  }
+
+  .empty {
+    padding: 48px 20px;
+    text-align: center;
+    color: var(--color-ink-3);
+    font-size: 13.5px;
+    border: 1px dashed var(--color-line-2);
+    border-radius: 12px;
+  }
+}
+
+/* ============================================================
+   App chrome — the page header, brand, tab nav and user menu
+   shared by the Upload and Send surfaces. Promoted out of
+   send.css so both consume one definition.
+   ============================================================ */
+
+@layer components {
+  .page-wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 36px 24px 90px;
+  }
+  .spacer {
+    flex: 1;
+  }
+  .user-trigger .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--color-accent-2);
+    flex-shrink: 0;
+  }
+  /* Guest sessions get a neutral avatar — no account, no accent. */
+  .user-trigger .avatar.guest {
+    background: var(--color-surface-4);
+    color: var(--color-ink-2);
+  }
+  .menu-header .n {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-ink);
+  }
+  .menu-header .e {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--color-ink-2);
+  }
+  .menu-header .o {
+    margin-top: 6px;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-ink-3);
+  }
+
+  .page-title {
+    margin: 0 0 4px;
+    font-size: var(--text-heading-2);
+    line-height: var(--text-heading-2--line-height);
+    font-weight: var(--text-heading-2--font-weight);
+    letter-spacing: var(--text-heading-2--letter-spacing);
+  }
+  .page-sub {
+    margin: 0 0 6px;
+    font-size: var(--text-body-2);
+    line-height: var(--text-body-2--line-height);
+    font-weight: var(--text-body-2--font-weight);
+
+    color: var(--color-ink-2);
+    line-height: 1.5;
+  }
+  /* The intro sits tight against whatever follows it. Where that is the first
+     form field, it needs room to read as a new section. */
+  .page-sub + .field {
+    margin-top: 22px;
+  }
+}
+
+/* ============================================================
+   File intake — the drop zone and the staged-file list, shared
+   by the Upload surface and Send's compose form.
+   ============================================================ */
+
+@layer components {
+  .dropzone .t {
+    font-size: 16px;
+    color: var(--color-ink);
+  }
+  .dropzone .s {
+    font-size: 13px;
+    color: var(--color-ink-3);
+    margin-top: 6px;
+  }
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 12px;
+  }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .file-item .fic {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--color-surface-3);
+    border: 1px solid var(--color-line-2);
+    color: var(--color-ink-2);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .file-item .fbody {
+    flex: 1;
+    min-width: 0;
+  }
+  .file-item .fname {
+    font-size: 13.5px;
+    color: var(--color-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-item .fsize {
+    font-size: 11.5px;
+    color: var(--color-ink-3);
+    margin-top: 2px;
+  }
+  .file-item .frm {
+    background: transparent;
+    border: none;
+    color: var(--color-ink-3);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+  }
+  .file-item .frm:hover {
+    color: var(--color-danger);
+    background: color-mix(in oklch, var(--color-danger), transparent 85%);
+  }
+}
+
+/* ============================================================
+   Progress — a determinate track + fill, tinted by state.
+   ============================================================ */
+
+@layer components {
+}
+
+/* ============================================================
+   Select — trigger reuses the field-control look above; this
+   adds the layout, the popup list and the option rows.
+   ============================================================ */
+
+/* ============================================================
+   Tabs — one underline bar for both the Admin and Send surfaces.
+   Zag marks the active trigger with data-selected, which covers
+   pointer and keyboard selection alike.
+   ============================================================ */
+
+@layer components {
+  .tab .count {
+    padding: 1px 7px;
+    border: 1px solid var(--color-line-2);
+    border-radius: 999px;
+    background: var(--color-surface-3);
+    color: var(--color-ink-2);
+    font-size: 11px;
+  }
+  .tab[data-selected] .count {
+    border-color: transparent;
+    background: color-mix(in oklch, var(--color-accent), transparent 80%);
+    color: var(--color-accent-2);
+  }
+}
+
+/* ============================================================
+   Number input — the shared field look plus inline steppers.
+   ============================================================ */
+
+/* ============================================================
+   Tooltip — replaces native `title`, which is unstyled, slow,
+   and unreachable on touch.
+   ============================================================ */
+
+/* Keyframes live outside @layer — layered keyframes are not addressable. */
+@keyframes fb-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fb-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fb-slide {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

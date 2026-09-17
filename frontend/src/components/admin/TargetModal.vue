@@ -1,17 +1,32 @@
 <script setup lang="ts">
+import UiDialog from '../ui/UiDialog.vue'
 import { reactive, watch, computed } from 'vue'
 import type { Target } from '../../composables/useAdmin'
 import { registry } from '../../forms'
+import UiSelect from '../ui/UiSelect.vue'
+import UiButton from '../ui/UiButton.vue'
 
 const props = defineProps<{ target: Target | null }>()
 const emit = defineEmits<{
   (e: 'cancel'): void
-  (e: 'save', body: { name: string; path: string; formKey: string | null; webhookUrl: string | null }): void
+  (
+    e: 'save',
+    body: {
+      name: string
+      path: string
+      formKey: string | null
+      webhookUrl: string | null
+    },
+  ): void
 }>()
 
 const draft = reactive({ name: '', path: '', formKey: '', webhookUrl: '' })
 
-const formOptions = computed(() => Object.values(registry).map((f) => ({ key: f.key, label: f.label })))
+const formOptions = computed(() => [
+  // '' is a real choice here, not a placeholder — it means "no form".
+  { value: '', label: 'None — free upload' },
+  ...Object.values(registry).map((f) => ({ value: f.key, label: f.label })),
+])
 
 watch(
   () => props.target,
@@ -39,46 +54,63 @@ function onSave() {
 </script>
 
 <template>
-  <div class="modal-bg" @click.self="emit('cancel')">
-    <div class="modal fb-fade">
-      <h2>{{ isEdit ? 'Edit target' : 'New upload target' }}</h2>
-      <div class="sub">Maps a friendly name visible to uploaders to a real folder path on the storage backend.</div>
+  <UiDialog
+    :title="isEdit ? 'Edit target' : 'New upload target'"
+    description="Maps a friendly name visible to uploaders to a real folder path on the storage backend."
+    @close="emit('cancel')"
+  >
+    <div class="field">
+      <label>Display name</label>
+      <input
+        v-model="draft.name"
+        placeholder="e.g. Upload to BCC Media (Isilon)"
+        autofocus
+      />
+    </div>
 
-      <div class="field">
-        <label>Display name</label>
-        <input v-model="draft.name" placeholder="e.g. Upload to BCC Media (Isilon)" autofocus />
-      </div>
-
-      <div class="field">
-        <label>Folder path</label>
-        <input class="mono" v-model="draft.path" placeholder="/mnt/isilon/filebox/incoming" />
-        <div class="hint">Path must exist and be writable on the server's filesystem.</div>
-      </div>
-
-      <div class="field">
-        <label>Upload form</label>
-        <select v-model="draft.formKey">
-          <option value="">None — free upload</option>
-          <option v-for="f in formOptions" :key="f.key" :value="f.key">{{ f.label }}</option>
-        </select>
-        <div class="hint">Forms collect structured details and derive the filename from them.</div>
-      </div>
-
-      <div class="field">
-        <label>Webhook URL</label>
-        <input class="mono" v-model="draft.webhookUrl" placeholder="https://example.com/hook" />
-        <div class="hint">
-          POSTed a JSON body with the sidecar name and path when an upload completes.
-          Only fires for targets bound to a form, which produce a JSON sidecar.
-        </div>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
-        <button class="btn btn-primary" :disabled="!valid" @click="onSave">
-          {{ isEdit ? 'Save changes' : 'Create target' }}
-        </button>
+    <div class="field">
+      <label>Folder path</label>
+      <input
+        class="mono"
+        v-model="draft.path"
+        placeholder="/mnt/isilon/filebox/incoming"
+      />
+      <div class="hint">
+        Path must exist and be writable on the server's filesystem.
       </div>
     </div>
-  </div>
+
+    <div class="field">
+      <label>Upload form</label>
+      <UiSelect
+        v-model="draft.formKey"
+        :options="formOptions"
+        aria-label="Upload form"
+      />
+      <div class="hint">
+        Forms collect structured details and derive the filename from them.
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Webhook URL</label>
+      <input
+        class="mono"
+        v-model="draft.webhookUrl"
+        placeholder="https://example.com/hook"
+      />
+      <div class="hint">
+        POSTed a JSON body with the sidecar name and path when an upload
+        completes. Only fires for targets bound to a form, which produce a JSON
+        sidecar.
+      </div>
+    </div>
+
+    <template #actions>
+      <UiButton variant="ghost" @click="emit('cancel')">Cancel</UiButton>
+      <UiButton variant="primary" :disabled="!valid" @click="onSave">
+        {{ isEdit ? 'Save changes' : 'Create target' }}
+      </UiButton>
+    </template>
+  </UiDialog>
 </template>

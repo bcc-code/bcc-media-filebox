@@ -4,6 +4,7 @@ import { useAuth } from '../composables/useAuth'
 import { useProviders } from '../composables/useProviders'
 import bccLogoUrl from '../assets/bcc-logo.svg'
 import AppLogo from './AppLogo.vue'
+import UiButton from './ui/UiButton.vue'
 
 const { signIn, continueAsGuest } = useAuth()
 const providers = useProviders()
@@ -15,7 +16,10 @@ const guestEmail = ref('')
 const submitting = ref(false)
 const error = ref<string | null>(null)
 
-const providerCopy: Record<string, { title: string; subtitle: string; primary?: boolean }> = {
+const providerCopy: Record<
+  string,
+  { title: string; subtitle: string; primary?: boolean }
+> = {
   bcc: {
     title: 'Continue with BCC Login',
     subtitle: 'Recommended for BCC members',
@@ -27,23 +31,33 @@ const providerCopy: Record<string, { title: string; subtitle: string; primary?: 
   },
 }
 
-const hasBcc = computed(() => providers.some(p => p.id === 'bcc'))
+const hasBcc = computed(() => providers.some((p) => p.id === 'bcc'))
 const orderedProviders = computed(() => {
   const order = ['bcc', 'azure']
   const known = order
-    .map(id => providers.find(p => p.id === id))
+    .map((id) => providers.find((p) => p.id === id))
     .filter((p): p is { id: string; displayName: string } => !!p)
-  const extras = providers.filter(p => !order.includes(p.id))
+  const extras = providers.filter((p) => !order.includes(p.id))
   return [...known, ...extras]
 })
 
-const emailLooksValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.value.trim()))
+const emailLooksValid = computed(() =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.value.trim()),
+)
 const canSubmitGuest = computed(
-  () => guestName.value.trim().length > 0 && emailLooksValid.value && !submitting.value,
+  () =>
+    guestName.value.trim().length > 0 &&
+    emailLooksValid.value &&
+    !submitting.value,
 )
 
 function copyFor(id: string, displayName: string) {
-  return providerCopy[id] ?? { title: `Continue with ${displayName}`, subtitle: displayName }
+  return (
+    providerCopy[id] ?? {
+      title: `Continue with ${displayName}`,
+      subtitle: displayName,
+    }
+  )
 }
 
 function openGuestForm() {
@@ -60,7 +74,10 @@ async function submitGuest() {
   if (!canSubmitGuest.value) return
   submitting.value = true
   error.value = null
-  const message = await continueAsGuest(guestName.value.trim(), guestEmail.value.trim())
+  const message = await continueAsGuest(
+    guestName.value.trim(),
+    guestEmail.value.trim(),
+  )
   if (message) {
     submitting.value = false
     error.value = message
@@ -80,7 +97,10 @@ async function submitGuest() {
 
       <div class="lg-header">
         <h1>Sign in to upload</h1>
-        <p>Choose a method to continue. Files you upload stay tied to the identity you sign in with.</p>
+        <p>
+          Choose a method to continue. Files you upload stay tied to the
+          identity you sign in with.
+        </p>
       </div>
 
       <div v-if="mode === 'choices'" class="lg-stack">
@@ -88,19 +108,46 @@ async function submitGuest() {
           v-for="(p, i) in orderedProviders"
           :key="p.id"
           class="provider-btn"
-          :data-tier="copyFor(p.id, p.displayName).primary ? 'primary' : (i === 0 && !hasBcc ? 'primary' : undefined)"
+          :data-tier="
+            copyFor(p.id, p.displayName).primary
+              ? 'primary'
+              : i === 0 && !hasBcc
+                ? 'primary'
+                : undefined
+          "
           :data-provider="p.id"
           @click="signIn(p.id)"
         >
           <span class="icon">
-            <img v-if="p.id === 'bcc'" :src="bccLogoUrl" alt="" width="22" height="22" />
-            <svg v-else-if="p.id === 'azure'" width="18" height="18" viewBox="0 0 24 24">
+            <img
+              v-if="p.id === 'bcc'"
+              :src="bccLogoUrl"
+              alt=""
+              width="22"
+              height="22"
+            />
+            <svg
+              v-else-if="p.id === 'azure'"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+            >
               <rect x="2" y="2" width="9" height="9" fill="#F25022" />
               <rect x="13" y="2" width="9" height="9" fill="#7FBA00" />
               <rect x="2" y="13" width="9" height="9" fill="#00A4EF" />
               <rect x="13" y="13" width="9" height="9" fill="#FFB900" />
             </svg>
-            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              v-else
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <circle cx="12" cy="8" r="3.5" />
               <path d="M4 20c1.6-4 4.5-5.5 8-5.5s6.4 1.5 8 5.5" />
             </svg>
@@ -110,7 +157,16 @@ async function submitGuest() {
             <span class="s">{{ copyFor(p.id, p.displayName).subtitle }}</span>
           </span>
           <span class="chev">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <path d="M9 6l6 6-6 6" />
             </svg>
           </span>
@@ -120,7 +176,16 @@ async function submitGuest() {
 
         <button class="provider-btn" data-tier="ghost" @click="openGuestForm">
           <span class="icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <circle cx="12" cy="9" r="3.2" />
               <path d="M5 20c1.5-3.6 4-5 7-5s5.5 1.4 7 5" />
             </svg>
@@ -130,7 +195,16 @@ async function submitGuest() {
             <span class="s">No account · name + email required</span>
           </span>
           <span class="chev">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <path d="M9 6l6 6-6 6" />
             </svg>
           </span>
@@ -166,14 +240,29 @@ async function submitGuest() {
         <div v-if="error" class="lg-error">{{ error }}</div>
 
         <div class="lg-row">
-          <button type="button" class="lg-btn ghost" :disabled="submitting" @click="backToChoices">Back</button>
-          <button type="submit" class="lg-btn primary" :disabled="!canSubmitGuest">
-            {{ submitting ? 'Continuing…' : 'Continue as guest' }}
-          </button>
+          <UiButton
+            size="lg"
+            variant="ghost"
+            :disabled="submitting"
+            @click="backToChoices"
+            >Back</UiButton
+          >
+          <UiButton
+            type="submit"
+            size="lg"
+            variant="primary"
+            :disabled="!canSubmitGuest"
+            :loading="submitting"
+            loading-label="Continuing…"
+          >
+            Continue as guest
+          </UiButton>
         </div>
 
         <div class="lg-fine">
-          Guests can upload and review their own history. Your name and email are stored with each upload so the team can reach you about the files you send.
+          Guests can upload and review their own history. Your name and email
+          are stored with each upload so the team can reach you about the files
+          you send.
         </div>
       </form>
     </div>
@@ -189,10 +278,8 @@ async function submitGuest() {
   place-items: center;
   padding: 40px 24px;
   overflow: hidden;
-  background: #0a1426;
-  color: #e7ecf5;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  -webkit-font-smoothing: antialiased;
+  background: var(--color-surface);
+  color: var(--color-ink);
 }
 
 .lg-bg {
@@ -200,8 +287,16 @@ async function submitGuest() {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(800px 400px at 50% -10%, color-mix(in oklch, oklch(0.72 0.10 250), transparent 88%), transparent),
-    radial-gradient(600px 300px at 50% 110%, color-mix(in oklch, oklch(0.72 0.10 250), transparent 92%), transparent);
+    radial-gradient(
+      800px 400px at 50% -10%,
+      color-mix(in oklch, var(--color-accent), transparent 88%),
+      transparent
+    ),
+    radial-gradient(
+      600px 300px at 50% 110%,
+      color-mix(in oklch, var(--color-accent), transparent 92%),
+      transparent
+    );
 }
 
 .lg-card {
@@ -217,7 +312,7 @@ async function submitGuest() {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: #e7ecf5;
+  color: var(--color-ink);
 }
 .lg-brand-name {
   font-size: 22px;
@@ -225,23 +320,32 @@ async function submitGuest() {
   letter-spacing: -0.3px;
 }
 
-.lg-header { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.lg-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
 .lg-header h1 {
   margin: 0;
   font-size: 28px;
   font-weight: 600;
   letter-spacing: -0.6px;
   line-height: 1.15;
-  color: #e7ecf5;
+  color: var(--color-ink);
 }
 .lg-header p {
   margin: 0;
-  color: #aeb8cc;
+  color: var(--color-ink-2);
   font-size: 15px;
   line-height: 1.5;
 }
 
-.lg-stack { display: flex; flex-direction: column; gap: 10px; }
+.lg-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
 .provider-btn {
   width: 100%;
@@ -249,19 +353,27 @@ async function submitGuest() {
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  background: #0f1c33;
-  border: 1px solid #2a3d61;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line-2);
   border-radius: 10px;
-  color: #e7ecf5;
+  color: var(--color-ink);
   font-size: 15px;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
   text-align: left;
 }
-.provider-btn:hover { border-color: oklch(0.72 0.10 250); background: #15243f; }
-.provider-btn:active { transform: translateY(1px); }
+.provider-btn:hover {
+  border-color: var(--color-accent);
+  background: var(--color-surface-3);
+}
+.provider-btn:active {
+  transform: translateY(1px);
+}
 
 .provider-btn .icon {
   width: 36px;
@@ -269,62 +381,92 @@ async function submitGuest() {
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #15243f;
-  border: 1px solid #2a3d61;
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-line-2);
   flex-shrink: 0;
-  color: #e7ecf5;
+  color: var(--color-ink);
 }
-.provider-btn .label { flex: 1; }
-.provider-btn .label .t { display: block; }
+.provider-btn .label {
+  flex: 1;
+}
+.provider-btn .label .t {
+  display: block;
+}
 .provider-btn .label .s {
   display: block;
   font-size: 12px;
-  color: #6c7896;
+  color: var(--color-ink-3);
   font-weight: 400;
   margin-top: 2px;
 }
-.provider-btn .chev { color: #6c7896; display: inline-flex; }
-.provider-btn:hover .chev { color: oklch(0.72 0.10 250); }
+.provider-btn .chev {
+  color: var(--color-ink-3);
+  display: inline-flex;
+}
+.provider-btn:hover .chev {
+  color: var(--color-accent-2);
+}
 
 .provider-btn[data-tier='primary'] {
-  background: oklch(0.72 0.10 250);
-  color: #0a1426;
-  border-color: oklch(0.72 0.10 250);
+  background: var(--color-accent);
+  color: var(--color-surface);
+  border-color: var(--color-accent);
 }
-.provider-btn[data-tier='primary']:hover { background: oklch(0.78 0.10 250); }
-.provider-btn[data-tier='primary'] .label .s { color: color-mix(in oklch, #0a1426, transparent 50%); }
-.provider-btn[data-tier='primary'] .chev { color: #0a1426; }
+.provider-btn[data-tier='primary']:hover {
+  background: var(--color-accent-hover);
+}
+.provider-btn[data-tier='primary'] .label .s {
+  color: color-mix(in oklch, var(--color-accent-ink), transparent 50%);
+}
+.provider-btn[data-tier='primary'] .chev {
+  color: var(--color-surface);
+}
 .provider-btn[data-tier='primary'] .icon {
   background: rgba(10, 20, 38, 0.18);
   border-color: rgba(10, 20, 38, 0.3);
-  color: #0a1426;
+  color: var(--color-surface);
 }
 
-.provider-btn[data-tier='ghost'] { background: transparent; border-style: dashed; }
-.provider-btn[data-tier='ghost']:hover { background: #0f1c33; border-style: solid; }
+.provider-btn[data-tier='ghost'] {
+  background: transparent;
+  border-style: dashed;
+}
+.provider-btn[data-tier='ghost']:hover {
+  background: var(--color-surface-2);
+  border-style: solid;
+}
 
 /* BCC brand override — pulled from the public BCC component library
    (components.bcc.no): --color-bcc-800 / --color-bcc-700 / --color-bcc-100. */
 .provider-btn[data-provider='bcc'] {
-  background: #014d49;
-  border-color: #014d49;
+  background: var(--color-brand-bcc);
+  border-color: var(--color-brand-bcc);
   color: #ffffff;
 }
-.provider-btn[data-provider='bcc']:hover { background: #0c625c; border-color: #0c625c; }
+.provider-btn[data-provider='bcc']:hover {
+  background: var(--color-brand-bcc-hover);
+  border-color: var(--color-brand-bcc-hover);
+}
 .provider-btn[data-provider='bcc'] .icon {
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
-.provider-btn[data-provider='bcc'] .label .s { color: color-mix(in oklch, #ffffff, transparent 35%); }
-.provider-btn[data-provider='bcc'] .chev { color: #ffffff; }
-.provider-btn[data-provider='bcc']:hover .chev { color: #f0fcfa; }
+.provider-btn[data-provider='bcc'] .label .s {
+  color: color-mix(in oklch, #ffffff, transparent 35%);
+}
+.provider-btn[data-provider='bcc'] .chev {
+  color: #ffffff;
+}
+.provider-btn[data-provider='bcc']:hover .chev {
+  color: var(--color-brand-bcc-ink);
+}
 
 .divider-or {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #6c7896;
+  color: var(--color-ink-3);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -335,65 +477,62 @@ async function submitGuest() {
   content: '';
   flex: 1;
   height: 1px;
-  background: #1f2f4d;
+  background: var(--color-line);
 }
 
-.lg-form { display: flex; flex-direction: column; gap: 14px; }
-.lg-field { display: flex; flex-direction: column; gap: 6px; }
+.lg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .lg-field label {
   font-size: 12px;
-  color: #aeb8cc;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--color-ink-2);
 }
 .lg-field input {
   width: 100%;
   padding: 12px 14px;
-  background: #0f1c33;
-  border: 1px solid #2a3d61;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line-2);
   border-radius: 8px;
-  color: #e7ecf5;
+  color: var(--color-ink);
   font-size: 14px;
   font-family: inherit;
   outline: none;
   transition: border-color 0.15s ease;
 }
-.lg-field input:focus { border-color: oklch(0.72 0.10 250); }
-.lg-field input::placeholder { color: #6c7896; }
+.lg-field input:focus {
+  border-color: var(--color-accent);
+}
+.lg-field input::placeholder {
+  color: var(--color-ink-3);
+}
 
 .lg-error {
-  color: #f08a8a;
+  color: oklch(0.8 0.12 25);
   font-size: 13px;
-  background: rgba(240, 138, 138, 0.08);
-  border: 1px solid rgba(240, 138, 138, 0.25);
+  background: color-mix(in oklch, var(--color-danger), transparent 92%);
+  border: 1px solid color-mix(in oklch, var(--color-danger), transparent 75%);
   padding: 8px 10px;
   border-radius: 6px;
 }
 
-.lg-row { display: flex; gap: 8px; }
-.lg-btn {
+.lg-row {
+  display: flex;
+  gap: 8px;
+}
+/* The shared .btn is inline-flex and shrink-proof; the form actions split the row. */
+.lg-row .btn {
   flex: 1;
-  padding: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
-  border: 1px solid #2a3d61;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
-.lg-btn.ghost { background: transparent; color: #aeb8cc; }
-.lg-btn.ghost:hover:not(:disabled) { color: #e7ecf5; border-color: #6c7896; }
-.lg-btn.primary {
-  background: oklch(0.72 0.10 250);
-  color: #0a1426;
-  border-color: oklch(0.72 0.10 250);
-}
-.lg-btn.primary:hover:not(:disabled) { background: oklch(0.78 0.10 250); }
-.lg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .lg-fine {
-  color: #6c7896;
+  color: var(--color-ink-3);
   font-size: 12px;
   line-height: 1.55;
   margin-top: 2px;

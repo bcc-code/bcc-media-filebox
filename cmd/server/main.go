@@ -71,10 +71,13 @@ func main() {
 		log.Fatalf("failed to bootstrap admin: %v", err)
 	}
 
-	var (
-		authManager  *auth.Manager
-		sessionStore *auth.SessionStore
-	)
+	// Sessions are opaque tokens in the `sessions` table and carry no OIDC
+	// dependency, so the store is always constructed — guest-only mode needs it
+	// to issue guest sessions, and gating it behind authConfig.Enabled() left
+	// POST /auth/guest answering 503 in exactly the mode named after it.
+	sessionStore := auth.NewSessionStore(queries, authConfig.CookieSecure)
+
+	var authManager *auth.Manager
 	if authConfig.Enabled() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -82,14 +85,13 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to initialise OAuth providers: %v", err)
 		}
-		sessionStore = auth.NewSessionStore(queries, authConfig.CookieSecure)
 		ids := make([]string, 0, len(authConfig.Providers))
 		for _, p := range authConfig.Providers {
 			ids = append(ids, p.ID)
 		}
 		log.Printf("OAuth enabled (providers: %v)", ids)
 	} else {
-		log.Println("OAuth disabled (no OIDC_* env vars set) — running in guest-only mode")
+		log.Println("OAuth disabled (no OIDC_* env vars set) — guest sign-in only")
 	}
 
 	// Send uploads go to S3 when a bucket is configured, else to a local target.

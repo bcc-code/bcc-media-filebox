@@ -1,23 +1,32 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import AppLogo from '../components/AppLogo.vue'
-import SendUserMenu from '../components/send/SendUserMenu.vue'
+import AppHeader from '../components/AppHeader.vue'
 import PackageComposeForm from '../components/send/PackageComposeForm.vue'
 import SentPackagesList from '../components/send/SentPackagesList.vue'
 import RecipientPreviewTab from '../components/send/RecipientPreviewTab.vue'
 import { usePackages } from '../composables/usePackages'
 import { useAuth } from '../composables/useAuth'
 import '../assets/send.css'
+import UiTabs, { type UiTabEntry } from '../components/ui/UiTabs.vue'
 
 type View = 'compose' | 'sent' | 'preview'
 const route = useRoute()
 
 // ?tab=sent is what an access-request email links to (mail.ManageURL), landing
 // the author on the package they were asked about rather than the compose form.
-const initialView: View = route.query.tab === 'sent' || route.query.tab === 'preview' ? (route.query.tab as View) : 'compose'
+const initialView: View =
+  route.query.tab === 'sent' || route.query.tab === 'preview'
+    ? (route.query.tab as View)
+    : 'compose'
 const view = ref<View>(initialView)
 const { total, fetchPackages } = usePackages()
+
+const viewTabs = computed<UiTabEntry[]>(() => [
+  { value: 'compose', label: 'New package' },
+  { value: 'sent', label: 'Sent packages', count: total.value },
+  { value: 'preview', label: 'Recipient preview' },
+])
 // Send is unavailable to guest sessions — the backend rejects both the
 // package-creation call and Send-flow uploads; this just explains why.
 const { state: authState } = useAuth()
@@ -43,52 +52,74 @@ function onPreview(packageId: string) {
 <template>
   <div class="send-root">
     <div class="page-wrap">
-      <div class="header">
-        <router-link to="/" class="brand">
-          <AppLogo class="mark" />
-          <span class="name">FileBox</span>
-        </router-link>
-        <nav class="nav">
-          <router-link to="/">Upload</router-link>
-          <router-link to="/send" class="active">Send</router-link>
-        </nav>
-        <span class="spacer"></span>
-        <SendUserMenu />
-      </div>
+      <AppHeader />
 
       <h1 class="page-title">Send files</h1>
 
       <template v-if="isGuest">
-        <p class="page-sub">Send is not available for guest accounts. Sign in with your organisation account to send packages.</p>
+        <p class="page-sub">
+          Send is not available for guest accounts. Sign in with your
+          organisation account to send packages.
+        </p>
         <p class="page-note">
-          <router-link to="/">Back to Upload</router-link>
+          <router-link to="/" class="link">Back to Upload</router-link>
         </p>
       </template>
 
       <template v-else>
-      <p class="page-sub">Bundle files into a single package and send a secure download link to anyone by email.</p>
-      <p class="page-note">
-        Files are permanently deleted from storage 90 days after upload — packages can no longer be renewed after
-        that.
-      </p>
+        <p class="page-sub">
+          Bundle files into a single package and send a secure download link to
+          anyone by email.
+        </p>
+        <p class="page-note">
+          Files are permanently deleted from storage 90 days after upload —
+          packages can no longer be renewed after that.
+        </p>
 
-      <div class="view-tabs">
-        <button :class="{ active: view === 'compose' }" @click="view = 'compose'">New package</button>
-        <button :class="{ active: view === 'sent' }" @click="view = 'sent'">
-          Sent packages <span class="count">{{ total }}</span>
-        </button>
-        <button :class="{ active: view === 'preview' }" @click="view = 'preview'">Recipient preview</button>
-      </div>
-
-      <PackageComposeForm v-if="view === 'compose'" @sent="onSent" />
-      <SentPackagesList
-        v-else-if="view === 'sent'"
-        :focus-package-id="previewPackageId"
-        @preview="onPreview"
-        @focus-consumed="previewPackageId = undefined"
-      />
-      <RecipientPreviewTab v-else :selected-package-id="previewPackageId" />
+        <UiTabs v-model="view" :tabs="viewTabs" list-class="tab-list-spaced">
+          <template #compose>
+            <PackageComposeForm @sent="onSent" />
+          </template>
+          <template #sent>
+            <SentPackagesList
+              :focus-package-id="previewPackageId"
+              @preview="onPreview"
+              @focus-consumed="previewPackageId = undefined"
+            />
+          </template>
+          <template #preview>
+            <RecipientPreviewTab :selected-package-id="previewPackageId" />
+          </template>
+        </UiTabs>
       </template>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .link {
+    color: var(--color-accent-2);
+    text-decoration: none;
+  }
+  .page-note {
+    margin: 0 0 24px;
+    font-size: 12px;
+    color: var(--color-ink-3);
+    line-height: 1.5;
+  }
+}
+
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .link:hover {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
+  }
+}
+</style>

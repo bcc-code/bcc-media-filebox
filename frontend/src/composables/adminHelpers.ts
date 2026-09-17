@@ -56,18 +56,18 @@ export function providerColor(p: string): string {
   switch (p) {
     case 'azure':
     case 'microsoft':
-      return '#5da5ff'
+      return 'var(--color-provider-azure)'
     case 'bcc':
-      return '#9bbcff'
+      return 'var(--color-provider-bcc)'
     case 'guest':
-      return 'oklch(0.80 0.14 75)'
+      return 'var(--color-warn)'
     default:
-      return 'var(--ink-2)'
+      return 'var(--color-ink-2)'
   }
 }
 
 const palette = [
-  ['oklch(0.72 0.10 250)', 'oklch(0.62 0.12 280)'],
+  ['var(--color-accent)', 'var(--color-accent-alt)'],
   ['oklch(0.74 0.12 160)', 'oklch(0.65 0.11 200)'],
   ['oklch(0.78 0.13 80)', 'oklch(0.70 0.14 30)'],
   ['oklch(0.75 0.10 320)', 'oklch(0.65 0.12 290)'],

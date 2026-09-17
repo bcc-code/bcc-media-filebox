@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { UploadItem } from '../types'
+import UiButton from './ui/UiButton.vue'
+import UiBadge from './ui/UiBadge.vue'
 
 const props = defineProps<{
   item: UploadItem
@@ -32,85 +35,185 @@ function formatETA(item: UploadItem): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
 }
+
+// Upload status drives both the badge tint and the progress fill; keep the two
+// mappings together so a new status can't be styled inconsistently. `as const`
+// narrows the values to UiBadge's variant union, so a typo here is a build
+// error rather than a badge that quietly renders untinted.
+const statusVariant = computed(
+  () =>
+    (
+      ({
+        uploading: 'accent',
+        paused: 'warn',
+        completed: 'ok',
+        failed: 'danger',
+        pending: 'default',
+      }) as const
+    )[props.item.status] ?? 'default',
+)
+
+const fillTone = computed(
+  () =>
+    ({
+      uploading: '',
+      paused: 'warn',
+      completed: 'ok',
+      failed: 'danger',
+      pending: 'idle',
+    })[props.item.status] ?? '',
+)
 </script>
 
 <template>
-  <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-    <div class="flex items-center justify-between mb-2">
-      <div class="flex-1 min-w-0 mr-4">
-        <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-          {{ item.displayName }}
-        </p>
-        <p class="text-xs text-gray-500 dark:text-gray-400">
-          {{ formatSize(item.bytesUploaded) }} / {{ formatSize(item.bytesTotal) }}
-          <span v-if="formatSpeed(item.speed)" class="ml-2">
-            &mdash; {{ formatSpeed(item.speed) }}
-          </span>
-          <span v-if="formatETA(item)" class="ml-2">
-            &mdash; {{ formatETA(item) }} remaining
-          </span>
-        </p>
+  <div class="card upload-row">
+    <div class="upload-top">
+      <div class="upload-id">
+        <div class="fname">{{ item.displayName }}</div>
+        <div class="fmeta">
+          <span
+            >{{ formatSize(item.bytesUploaded) }} /
+            {{ formatSize(item.bytesTotal) }}</span
+          >
+          <span v-if="formatSpeed(item.speed)"
+            >&mdash; {{ formatSpeed(item.speed) }}</span
+          >
+          <span v-if="formatETA(item)"
+            >&mdash; {{ formatETA(item) }} remaining</span
+          >
+        </div>
       </div>
-      <div class="flex items-center gap-2">
-        <span
-          class="text-xs font-medium px-2 py-0.5 rounded-full"
-          :class="{
-            'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300': item.status === 'uploading',
-            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300': item.status === 'paused',
-            'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300': item.status === 'completed',
-            'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300': item.status === 'failed',
-            'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300': item.status === 'pending',
-          }"
-        >
-          {{ item.status }}
-        </span>
-      </div>
+      <UiBadge :variant="statusVariant">{{ item.status }}</UiBadge>
     </div>
 
-    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-3">
+    <div
+      class="progress"
+      role="progressbar"
+      :aria-valuenow="Math.round(item.progress)"
+      aria-valuemin="0"
+      aria-valuemax="100"
+    >
       <div
-        class="h-2 rounded-full transition-all duration-300"
-        :class="{
-          'bg-blue-500': item.status === 'uploading',
-          'bg-yellow-500': item.status === 'paused',
-          'bg-green-500': item.status === 'completed',
-          'bg-red-500': item.status === 'failed',
-          'bg-gray-400': item.status === 'pending',
-        }"
+        class="fill"
+        :class="fillTone"
         :style="{ width: `${item.progress}%` }"
       />
     </div>
 
-    <div class="flex items-center gap-2">
-      <button
+    <div class="upload-actions">
+      <UiButton
         v-if="item.status === 'uploading'"
+        size="sm"
+        variant="ghost"
         @click="emit('pause', item)"
-        class="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 cursor-pointer"
       >
         Pause
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         v-if="item.status === 'paused'"
+        size="sm"
+        variant="primary"
         @click="emit('resume', item)"
-        class="text-xs px-3 py-1 rounded bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 cursor-pointer"
       >
         Resume
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         v-if="item.status === 'failed'"
+        size="sm"
+        variant="primary"
         @click="emit('retry', item)"
-        class="text-xs px-3 py-1 rounded bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 cursor-pointer"
       >
         Retry
-      </button>
-      <button
+      </UiButton>
+      <UiButton
         v-if="item.status !== 'completed'"
+        size="sm"
+        variant="danger"
         @click="emit('cancel', item)"
-        class="text-xs px-3 py-1 rounded bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 cursor-pointer"
       >
         Cancel
-      </button>
-      <p v-if="item.error" class="text-xs text-red-500 ml-2">{{ item.error }}</p>
+      </UiButton>
+      <p v-if="item.error" class="upload-error">{{ item.error }}</p>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .progress {
+    height: 6px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--color-surface-3);
+    border: 1px solid var(--color-line);
+  }
+  .progress .fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--color-accent);
+    transition:
+      width 0.3s ease,
+      background 0.15s ease;
+  }
+  .progress .fill.ok {
+    background: var(--color-ok);
+  }
+  .progress .fill.idle {
+    background: var(--color-ink-3);
+  }
+  .progress .fill.warn {
+    background: var(--color-warn);
+  }
+  .progress .fill.danger {
+    background: var(--color-danger);
+  }
+}
+
+.upload-row {
+  padding: 14px 16px;
+}
+
+.upload-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.upload-id {
+  flex: 1;
+  min-width: 0;
+}
+.fname {
+  font-size: 13.5px;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fmeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--color-ink-3);
+}
+
+.upload-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.upload-error {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--color-danger);
+}
+</style>

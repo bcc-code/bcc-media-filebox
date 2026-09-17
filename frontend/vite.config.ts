@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -18,5 +18,21 @@ export default defineConfig({
       '/api': { target: 'http://localhost:8080', xfwd: true },
       '/auth': { target: 'http://localhost:8080', xfwd: true },
     },
+  },
+  test: {
+    // jsdom gives the DOM that headless component tests need. Layout-dependent
+    // behaviour (real focus order, scroll position) still needs a browser — see
+    // src/components/ui/__tests__/UiDialog.spec.ts for what is asserted here.
+    environment: 'jsdom',
+    globals: true,
+    include: ['src/**/*.{test,spec}.ts'],
+    setupFiles: ['src/test/setup.ts'],
+    restoreMocks: true,
+    // The toast specs are duration-driven, so they poll wall-clock time with a
+    // ceiling of their own (see UiToaster.spec.ts). Vitest's 5s default sat
+    // below that ceiling, so a loaded machine killed the test before the poller
+    // could report — "Test timed out" instead of a real assertion. Keep this
+    // above the highest in-test ceiling.
+    testTimeout: 15000,
   },
 })

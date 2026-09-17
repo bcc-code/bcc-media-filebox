@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { VerificationMethod } from '../../composables/usePackages'
+import UiRadioGroup, { type UiRadioOption } from '../ui/UiRadioGroup.vue'
+import UiInput from '../ui/UiInput.vue'
 
 defineProps<{
   modelValue: VerificationMethod
@@ -13,37 +15,48 @@ const emit = defineEmits<{
 
 // email_otp/magic_link are excluded: packageVerified can't satisfy them yet, so
 // offering them would let a sender create a package nobody can open.
-const options: { id: VerificationMethod; name: string; desc: string }[] = [
-  { id: 'none', name: 'No verification', desc: 'Anyone with the link can download.' },
-  { id: 'bcc_login', name: 'BCC login', desc: 'Recipient must sign in with a BCC account.' },
-  { id: 'password', name: 'Password', desc: 'You set a password and share it separately.' },
+const options: UiRadioOption<VerificationMethod>[] = [
+  {
+    value: 'none',
+    label: 'No verification',
+    description: 'Anyone with the link can download.',
+  },
+  {
+    value: 'bcc_login',
+    label: 'BCC login',
+    description: 'Recipient must sign in with a BCC account.',
+  },
+  {
+    value: 'password',
+    label: 'Password',
+    description: 'You set a password and share it separately.',
+  },
 ]
 </script>
 
 <template>
-  <div class="verify-opts">
-    <button
-      v-for="o in options"
-      :key="o.id"
-      type="button"
-      class="verify-card"
-      :class="{ selected: modelValue === o.id }"
-      @click="emit('update:modelValue', o.id)"
-    >
-      <span class="radio"></span>
-      <div class="vbody">
-        <div class="vname">{{ o.name }}</div>
-        <div class="vdesc">{{ o.desc }}</div>
-      </div>
-    </button>
-  </div>
+  <UiRadioGroup
+    :model-value="modelValue"
+    :options="options"
+    aria-label="Verification"
+    @update:model-value="emit('update:modelValue', $event)"
+  />
   <div v-if="modelValue === 'password'" class="pw-reveal fb-fade">
-    <input
-      class="inp"
+    <UiInput
+      :model-value="password"
       type="text"
-      :value="password"
       placeholder="Set a password to share out-of-band"
-      @input="emit('update:password', ($event.target as HTMLInputElement).value)"
+      @update:model-value="emit('update:password', $event)"
     />
   </div>
 </template>
+
+<style scoped>
+/* Colocated from send.css: these classes are used only by this
+   component. Shared primitives stay in assets/components.css — several
+   components need them, and scoped CSS cannot be shared. */
+/* ============ Header ============ */ /* ============ Page title ============ */ /* ============ Layout variant switcher ============ */ /* ============ Compose layout ============ */ /* Dropzone */ /* A compact acknowledgement only appears when this exact Send draft was restored; the full upload history is never rendered in the compose form. */ /* File list */ /* Inputs */ /* Recipient chips */ /* Two-up grid for expiry */ /* Verification radio cards */
+.pw-reveal {
+  margin-top: 10px;
+}
+</style>
