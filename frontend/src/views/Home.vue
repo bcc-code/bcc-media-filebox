@@ -6,12 +6,10 @@ import { notifyError } from '../composables/useToast'
 import UploadForm from '../components/UploadForm.vue'
 import UploadProgress from '../components/UploadProgress.vue'
 import UploadList from '../components/UploadList.vue'
-import AppLogo from '../components/AppLogo.vue'
-import UserMenu from '../components/UserMenu.vue'
+import AppHeader from '../components/AppHeader.vue'
 import TargetSelector from '../components/TargetSelector.vue'
 import type { TargetInfo } from '../types'
 import { getForm, isFormValid, type Option } from '../forms'
-import { useAuth } from '../composables/useAuth'
 
 const {
   uploads,
@@ -21,9 +19,6 @@ const {
   retryUpload,
   cancelUpload,
 } = useTusUpload()
-// Send is unavailable to guest sessions (enforced server-side too).
-const { state: authState } = useAuth()
-const canSend = computed(() => authState.provider !== 'guest')
 const uploadList = ref<InstanceType<typeof UploadList> | null>(null)
 const targets = ref<TargetInfo[]>([])
 const target = ref('')
@@ -200,18 +195,7 @@ watch(
 <template>
   <div class="upload-root">
     <div class="page-wrap">
-      <div class="app-header">
-        <router-link to="/" class="app-brand">
-          <AppLogo class="mark" />
-          <span class="name">FileBox</span>
-        </router-link>
-        <nav class="app-nav">
-          <router-link to="/" class="active">Upload</router-link>
-          <router-link v-if="canSend" to="/send">Send</router-link>
-        </nav>
-        <span class="spacer"></span>
-        <UserMenu />
-      </div>
+      <AppHeader />
 
       <h1 class="page-title">Upload files</h1>
       <p class="page-sub">

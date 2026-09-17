@@ -462,6 +462,18 @@
     font-size: 12.5px;
   }
 
+  /* Accent text link. A named primitive rather than restyling every <a> on a
+     page surface — send.css did the latter, unlayered, and recoloured the whole
+     app header along with it. */
+  .link {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  .link:hover {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
+  }
+
   .empty {
     padding: 48px 20px;
     text-align: center;

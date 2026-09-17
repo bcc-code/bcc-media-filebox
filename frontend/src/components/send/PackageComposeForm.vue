@@ -320,7 +320,11 @@ async function send() {
           role="alert"
         >
           <span>{{ serverUploadsError }} Your draft IDs are still saved.</span>
-          <button type="button" @click="restoreDraftUploads(true)">
+          <button
+            type="button"
+            class="draft-restore-retry"
+            @click="restoreDraftUploads(true)"
+          >
             Retry
           </button>
         </div>

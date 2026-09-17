@@ -11,13 +11,6 @@
 .send-root *::after {
   box-sizing: border-box;
 }
-.send-root a {
-  color: var(--color-accent);
-  text-decoration: none;
-}
-.send-root a:hover {
-  color: var(--color-accent-hover);
-}
 
 /* ============ Header ============ */
 
@@ -114,7 +107,7 @@
   border-color: color-mix(in oklch, var(--color-warn), transparent 64%);
   color: oklch(0.86 0.1 75);
 }
-.send-root .draft-restore-error button {
+.send-root .draft-restore-retry {
   flex-shrink: 0;
   padding: 2px 4px;
   background: transparent;

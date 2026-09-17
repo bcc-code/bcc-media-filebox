@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import AppLogo from '../components/AppLogo.vue'
-import UserMenu from '../components/UserMenu.vue'
+import AppHeader from '../components/AppHeader.vue'
 import PackageComposeForm from '../components/send/PackageComposeForm.vue'
 import SentPackagesList from '../components/send/SentPackagesList.vue'
 import RecipientPreviewTab from '../components/send/RecipientPreviewTab.vue'
@@ -53,18 +52,7 @@ function onPreview(packageId: string) {
 <template>
   <div class="send-root">
     <div class="page-wrap">
-      <div class="app-header">
-        <router-link to="/" class="app-brand">
-          <AppLogo class="mark" />
-          <span class="name">FileBox</span>
-        </router-link>
-        <nav class="app-nav">
-          <router-link to="/">Upload</router-link>
-          <router-link to="/send" class="active">Send</router-link>
-        </nav>
-        <span class="spacer"></span>
-        <UserMenu />
-      </div>
+      <AppHeader />
 
       <h1 class="page-title">Send files</h1>
 
@@ -74,7 +62,7 @@ function onPreview(packageId: string) {
           organisation account to send packages.
         </p>
         <p class="page-note">
-          <router-link to="/">Back to Upload</router-link>
+          <router-link to="/" class="link">Back to Upload</router-link>
         </p>
       </template>
 

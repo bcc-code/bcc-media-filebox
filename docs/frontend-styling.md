@@ -147,6 +147,29 @@ generator emits `:root { --font-sans: … }`, which is unlayered and outranks th
 covers `A a 0 space æ ø å Ā`, that every referenced woff2 exists under
 `public/fonts/`, and that the `@theme` stack still names the fallback families.
 
+## The failure mode this keeps producing
+
+`admin.css` and `send.css` are **unlayered**, and an unlayered rule beats
+`@layer components` at _any_ specificity. So a surface-wide restyle of a bare
+element silently overrides a shared primitive, on that page only:
+
+- `.admin-root button { color: inherit }` flattened `.btn-danger`'s red.
+- `.send-root a { color: var(--color-accent) }` recoloured the entire app
+  header — brand, nav links, and the text inside the active pill — on Send but
+  not Upload. It existed for exactly one link ("Back to Upload"), and the pill
+  background still came from the layered rule, so the result was a dark pill
+  with accent text and no single rule saying so.
+- Two more were sitting there unfired: `.send-root .draft-restore-error button`,
+  plus the whole `.admin-root table` family before it moved to `.card table`.
+
+`assets/__tests__/layering.spec.ts` now asserts neither surface declares
+`.<surface> <element>` for `a`, `button`, `input`, `select`, `textarea`,
+`table`, `th` or `td`. Two shapes stay legal: the `*` box-sizing reset, and a
+qualified `element.class` like `select.inp`, which refines a primitive on
+elements already carrying it instead of overriding every element of that type.
+The replacement for a blanket rule is a named primitive — `.link` now carries
+the accent text-link styling, opt-in and layered.
+
 ## Whichever way it goes
 
 - `@layer components` loses to _every_ unlayered rule — scoped component styles

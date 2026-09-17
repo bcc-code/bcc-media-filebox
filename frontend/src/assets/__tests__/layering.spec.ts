@@ -12,6 +12,10 @@ const theme = read('style.css')
 const components = read('assets/components.css')
 const dialog = read('components/ui/UiDialog.vue')
 const drawer = read('components/ui/UiDrawer.vue')
+const surfaces = {
+  'admin.css': read('assets/admin.css'),
+  'send.css': read('assets/send.css'),
+}
 
 /**
  * These assert against the CSS source rather than a rendered page, because the
@@ -37,6 +41,45 @@ const rule = (css: string, selector: string) => {
   expect(m, `.${selector} rule not found`).not.toBeNull()
   return m![1]
 }
+
+/**
+ * The page-surface stylesheets are unlayered, and an unlayered rule beats
+ * @layer components at ANY specificity. So a surface-wide restyle of a bare
+ * element silently overrides a shared primitive. This has happened twice:
+ * `.admin-root button { color: inherit }` flattened `.btn-danger`'s red, and
+ * `.send-root a { color: accent }` recoloured the whole app header — brand,
+ * nav links and the active pill — on the Send page only.
+ */
+describe.each(Object.entries(surfaces))(
+  '%s restyles no bare element',
+  (_name, css) => {
+    // Anything components.css owns. Two shapes are deliberately allowed: the
+    // `*` box-sizing reset, which sets no property a primitive competes for,
+    // and a qualified `element.class` such as `select.inp`, which refines a
+    // primitive on elements already carrying it instead of overriding every
+    // element of that type.
+    it.each([
+      'a',
+      'button',
+      'input',
+      'select',
+      'textarea',
+      'table',
+      'th',
+      'td',
+    ])('declares no `.<surface> %s` rule', (element) => {
+      const bare = new RegExp(
+        `^\\.[a-z-]+-root(\\s+[.:#\\[][^\\s{,]*)*\\s+${element}(?![-\\w.])`,
+        'm',
+      )
+      const hit = css.match(bare)
+      expect(
+        hit,
+        `${hit?.[0]} beats @layer components; give it a class instead`,
+      ).toBeNull()
+    })
+  },
+)
 
 describe('layering', () => {
   it('defines the whole scale as tokens', () => {
