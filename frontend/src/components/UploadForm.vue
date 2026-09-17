@@ -197,8 +197,6 @@ const previewName = computed(() =>
 .filename-preview .l {
   font-size: 10px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--color-ink-3);
 }
 .filename-preview .v {

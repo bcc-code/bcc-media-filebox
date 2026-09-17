@@ -10,7 +10,9 @@ const loading = ref(false)
 async function fetchUploads() {
   loading.value = true
   try {
-    const res = await fetch(`/api/uploads?user_id=${encodeURIComponent(getUserId())}`)
+    const res = await fetch(
+      `/api/uploads?user_id=${encodeURIComponent(getUserId())}`,
+    )
     records.value = await res.json()
   } catch {
     // silently fail
@@ -46,7 +48,9 @@ defineExpose({ refresh: fetchUploads })
   <div>
     <div class="list-head">
       <h2 class="section-title">Completed uploads</h2>
-      <UiButton size="sm" variant="ghost" @click="fetchUploads">Refresh</UiButton>
+      <UiButton size="sm" variant="ghost" @click="fetchUploads"
+        >Refresh</UiButton
+      >
     </div>
 
     <p v-if="loading" class="list-status">Loading…</p>
@@ -61,9 +65,15 @@ defineExpose({ refresh: fetchUploads })
           <div class="fname">{{ record.filename }}</div>
           <div class="fsize">
             {{ formatSize(record.size) }}
-            <span v-if="record.durationMs">&mdash; {{ formatDuration(record.durationMs) }}</span>
-            <span v-if="record.avgBandwidth">&mdash; avg {{ formatSize(record.avgBandwidth) }}/s</span>
-            <span v-if="record.completedAt">&mdash; {{ formatDate(record.completedAt) }}</span>
+            <span v-if="record.durationMs"
+              >&mdash; {{ formatDuration(record.durationMs) }}</span
+            >
+            <span v-if="record.avgBandwidth"
+              >&mdash; avg {{ formatSize(record.avgBandwidth) }}/s</span
+            >
+            <span v-if="record.completedAt"
+              >&mdash; {{ formatDate(record.completedAt) }}</span
+            >
           </div>
         </div>
         <span class="badge badge-ok">
@@ -77,20 +87,31 @@ defineExpose({ refresh: fetchUploads })
 
 <style scoped>
 .list-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 14px; margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 
 .section-title {
   margin: 0;
-  font-size: 14px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.08em;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--color-ink-2);
 }
 
-.list-status { margin: 0; font-size: 13px; color: var(--color-ink-3); }
+.list-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-3);
+}
 
 /* The metadata line packs several optional spans; space them consistently
    instead of relying on a margin on each one. */
-.file-item .fsize { display: flex; flex-wrap: wrap; gap: 6px; }
+.file-item .fsize {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 </style>

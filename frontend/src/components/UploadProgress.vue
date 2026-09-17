@@ -37,21 +37,27 @@ function formatETA(item: UploadItem): string {
 
 // Upload status drives both the badge tint and the progress fill; keep the two
 // mappings together so a new status can't be styled inconsistently.
-const statusBadge = computed(() => ({
-  uploading: 'badge-accent',
-  paused: 'badge-warn',
-  completed: 'badge-ok',
-  failed: 'badge-danger',
-  pending: '',
-}[props.item.status] ?? ''))
+const statusBadge = computed(
+  () =>
+    ({
+      uploading: 'badge-accent',
+      paused: 'badge-warn',
+      completed: 'badge-ok',
+      failed: 'badge-danger',
+      pending: '',
+    })[props.item.status] ?? '',
+)
 
-const fillTone = computed(() => ({
-  uploading: '',
-  paused: 'warn',
-  completed: 'ok',
-  failed: 'danger',
-  pending: 'idle',
-}[props.item.status] ?? ''))
+const fillTone = computed(
+  () =>
+    ({
+      uploading: '',
+      paused: 'warn',
+      completed: 'ok',
+      failed: 'danger',
+      pending: 'idle',
+    })[props.item.status] ?? '',
+)
 </script>
 
 <template>
@@ -60,9 +66,16 @@ const fillTone = computed(() => ({
       <div class="upload-id">
         <div class="fname">{{ item.displayName }}</div>
         <div class="fmeta">
-          <span>{{ formatSize(item.bytesUploaded) }} / {{ formatSize(item.bytesTotal) }}</span>
-          <span v-if="formatSpeed(item.speed)">&mdash; {{ formatSpeed(item.speed) }}</span>
-          <span v-if="formatETA(item)">&mdash; {{ formatETA(item) }} remaining</span>
+          <span
+            >{{ formatSize(item.bytesUploaded) }} /
+            {{ formatSize(item.bytesTotal) }}</span
+          >
+          <span v-if="formatSpeed(item.speed)"
+            >&mdash; {{ formatSpeed(item.speed) }}</span
+          >
+          <span v-if="formatETA(item)"
+            >&mdash; {{ formatETA(item) }} remaining</span
+          >
         </div>
       </div>
       <span class="badge" :class="statusBadge">{{ item.status }}</span>
@@ -75,20 +88,44 @@ const fillTone = computed(() => ({
       aria-valuemin="0"
       aria-valuemax="100"
     >
-      <div class="fill" :class="fillTone" :style="{ width: `${item.progress}%` }" />
+      <div
+        class="fill"
+        :class="fillTone"
+        :style="{ width: `${item.progress}%` }"
+      />
     </div>
 
     <div class="upload-actions">
-      <UiButton v-if="item.status === 'uploading'" size="sm" variant="ghost" @click="emit('pause', item)">
+      <UiButton
+        v-if="item.status === 'uploading'"
+        size="sm"
+        variant="ghost"
+        @click="emit('pause', item)"
+      >
         Pause
       </UiButton>
-      <UiButton v-if="item.status === 'paused'" size="sm" variant="primary" @click="emit('resume', item)">
+      <UiButton
+        v-if="item.status === 'paused'"
+        size="sm"
+        variant="primary"
+        @click="emit('resume', item)"
+      >
         Resume
       </UiButton>
-      <UiButton v-if="item.status === 'failed'" size="sm" variant="primary" @click="emit('retry', item)">
+      <UiButton
+        v-if="item.status === 'failed'"
+        size="sm"
+        variant="primary"
+        @click="emit('retry', item)"
+      >
         Retry
       </UiButton>
-      <UiButton v-if="item.status !== 'completed'" size="sm" variant="danger" @click="emit('cancel', item)">
+      <UiButton
+        v-if="item.status !== 'completed'"
+        size="sm"
+        variant="danger"
+        @click="emit('cancel', item)"
+      >
         Cancel
       </UiButton>
       <p v-if="item.error" class="upload-error">{{ item.error }}</p>
@@ -97,23 +134,48 @@ const fillTone = computed(() => ({
 </template>
 
 <style scoped>
-.upload-row { padding: 14px 16px; }
+.upload-row {
+  padding: 14px 16px;
+}
 
 .upload-top {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 16px; margin-bottom: 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
 }
 
-.upload-id { flex: 1; min-width: 0; }
+.upload-id {
+  flex: 1;
+  min-width: 0;
+}
 .fname {
-  font-size: 13.5px; color: var(--color-ink);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13.5px;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .fmeta {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  margin-top: 3px; font-size: 11.5px; color: var(--color-ink-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--color-ink-3);
 }
 
-.upload-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-.upload-error { margin: 0; font-size: 11.5px; color: var(--color-danger); }
+.upload-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.upload-error {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--color-danger);
+}
 </style>

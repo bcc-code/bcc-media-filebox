@@ -304,8 +304,6 @@ const failureRate = computed(() => {
 }
 .stat-block .l {
   font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--color-ink-3);
   margin-bottom: 6px;
 }
@@ -351,8 +349,6 @@ const failureRate = computed(() => {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--color-ink-2);
 }
 .access-grid {
@@ -368,8 +364,6 @@ const failureRate = computed(() => {
 }
 .access-block .l {
   font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--color-ink-3);
   margin-bottom: 10px;
 }

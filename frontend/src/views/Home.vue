@@ -268,8 +268,6 @@ watch(
   margin: 0 0 14px;
   font-size: 14px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--color-ink-2);
 }
 
