@@ -134,7 +134,7 @@
     background 0.12s;
 }
 .send-root .public-file .file-dl:hover {
-  color: var(--color-accent);
+  color: var(--color-accent-2);
   border-color: color-mix(in oklch, var(--color-accent), transparent 45%);
   background: color-mix(in oklch, var(--color-accent), transparent 88%);
 }

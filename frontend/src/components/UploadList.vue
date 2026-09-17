@@ -94,8 +94,9 @@ defineExpose({ refresh: fetchUploads })
 
 .section-title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--text-title-2);
+  line-height: var(--text-title-2--line-height);
+  font-weight: var(--text-title-2--font-weight);
   color: var(--color-ink-2);
 }
 

@@ -96,8 +96,9 @@ const api = computed(() => zagTabs.connect(service, normalizeProps))
     background: transparent;
     color: var(--color-ink-2);
     font-family: inherit;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: var(--text-title-3);
+    line-height: var(--text-title-3--line-height);
+    font-weight: var(--text-title-3--font-weight);
     cursor: pointer;
     transition: color 0.15s ease;
   }

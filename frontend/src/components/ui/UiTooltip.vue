@@ -68,12 +68,12 @@ const enabled = computed(() => !!props.label?.trim())
     max-width: 260px;
     padding: 6px 9px;
     border: 1px solid var(--color-line-2);
-    border-radius: 7px;
+    border-radius: var(--radius-surface);
     background: var(--color-surface-4);
     color: var(--color-ink);
     font-size: 12.5px;
     line-height: 1.4;
-    box-shadow: 0 10px 28px rgb(0 0 0 / 0.45);
+    box-shadow: var(--shadow-floating);
     animation: fb-pop 0.12s ease both;
   }
 }

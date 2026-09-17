@@ -158,7 +158,7 @@ const previewName = computed(() =>
   gap: 6px;
 }
 .field > label .req {
-  color: var(--color-accent);
+  color: var(--color-accent-2);
 }
 .field > label .opt {
   font-size: 10px;

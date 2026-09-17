@@ -189,7 +189,7 @@ function onSave() {
         <a
           href="#"
           @click.prevent="emit('goToGroups')"
-          style="color: var(--color-accent)"
+          style="color: var(--color-accent-2)"
           >Create one →</a
         >
       </div>

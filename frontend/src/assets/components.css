@@ -54,11 +54,14 @@
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--color-line-2);
-    border-radius: 8px;
+    border-radius: var(--radius-surface);
     background: var(--color-surface);
     color: var(--color-ink);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: var(--text-body-3);
+    line-height: var(--text-body-3--line-height);
+    font-weight: var(--text-body-3--font-weight);
+    letter-spacing: var(--text-body-3--letter-spacing);
     outline: none;
     transition:
       border-color 0.15s ease,
@@ -110,8 +113,10 @@
   .field > label {
     display: block;
     margin-bottom: 6px;
-    font-size: 11px;
-    font-weight: 500;
+    font-size: var(--text-caption-2);
+    line-height: var(--text-caption-2--line-height);
+    font-weight: var(--text-caption-2--font-weight);
+    letter-spacing: var(--text-caption-2--letter-spacing);
     color: var(--color-ink-3);
   }
   .field :is(input[type='checkbox'], input[type='radio']) {
@@ -128,10 +133,32 @@
 
   /* ---------- Surfaces ---------- */
   .card {
+    /* No border: the gradient-border band is the edge. Keeping both drew a
+       solid hairline with a second, lighter one just inside it. */
     background: var(--color-surface-2);
-    border: 1px solid var(--color-line);
-    border-radius: 12px;
+    border-radius: var(--radius-surface);
     overflow: hidden;
+    box-shadow: var(--shadow-resting);
+    position: relative;
+  }
+  /* The same hairline as the `gradient-border` utility. .card is applied in 21
+     templates, so the band lives in the rule rather than on every call site. */
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      to top,
+      rgb(255 255 255 / 0.05),
+      rgb(255 255 255 / 0.12)
+    );
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
   }
 
   /* ---------------------------------------------------------------------
@@ -222,7 +249,7 @@
   .name-cell .swatch.group {
     background: color-mix(in oklch, var(--color-accent), transparent 85%);
     border-color: color-mix(in oklch, var(--color-accent), transparent 60%);
-    color: var(--color-accent);
+    color: var(--color-accent-2);
   }
   .name-cell .primary {
     font-weight: 500;
@@ -310,13 +337,17 @@
 
   .page-title {
     margin: 0 0 4px;
-    font-size: 26px;
-    font-weight: 600;
-    letter-spacing: -0.4px;
+    font-size: var(--text-heading-2);
+    line-height: var(--text-heading-2--line-height);
+    font-weight: var(--text-heading-2--font-weight);
+    letter-spacing: var(--text-heading-2--letter-spacing);
   }
   .page-sub {
     margin: 0 0 6px;
-    font-size: 14.5px;
+    font-size: var(--text-body-2);
+    line-height: var(--text-body-2--line-height);
+    font-weight: var(--text-body-2--font-weight);
+
     color: var(--color-ink-2);
     line-height: 1.5;
   }
@@ -430,7 +461,7 @@
   .tab[data-selected] .count {
     border-color: transparent;
     background: color-mix(in oklch, var(--color-accent), transparent 80%);
-    color: var(--color-accent);
+    color: var(--color-accent-2);
   }
 }
 

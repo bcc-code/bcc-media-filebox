@@ -24,6 +24,121 @@ Moved rules keep their `@layer components` wrapper inside the SFC. The layer
 exists so a Tailwind utility can still override a primitive; dropping it would
 have silently made every moved rule beat utilities.
 
+## The palette comes from admin-web
+
+Ported from `bcc-media-platform/admin-web` (`app/assets/css/main.css`), which
+carries the bcc-media-play Flutter design system. What was taken:
+
+- **Colours.** Raw values sit on `:root` as `--ds-*`, exposed in `@theme` under
+  admin-web's semantic names (`surface-default`, `text-muted`,
+  `primary-default`, `semantic-error`, …) so the two apps read the same. The
+  accent is a muted blue — the hue of `#2b7fff` at 70% of its chroma and a
+  little darker, `oklch(0.56 0.145 259)` = **`#3c72c8`**. It is split across
+  admin-web's two primary tokens rather than using one value everywhere,
+  because FileBox uses the accent both as a fill and as text:
+
+  - `primary-default` `#3c72c8` — every **fill**: button backgrounds, borders,
+    focus rings, `accent-color`, and the `color-mix` tints. 3.51:1 on the
+    ground, past the 3:1 floor for non-text.
+  - `primary-contrast` `#6092e1` — the accent as **text**, the same hue lifted
+    in lightness: 5.3:1 on the ground, where the fill manages only 3.51:1. All
+    16 `color:` usages point here; fills, borders and `accent-color` stay on
+    `primary-default`. This is what the two tokens mean in admin-web — their
+    light theme _deepens_ the contrast variant against white, ours _lightens_
+    it against black.
+  - `on-primary` white — the label on a blue fill, **4.74:1**. The lower
+    lightness of the muted blue is what buys this; the fully saturated
+    `#2b7fff` managed only 3.76:1 and failed AA for 17px text.
+
+  The provider tints do not follow the accent, since Azure and BCC have to stay
+  distinguishable — BCC takes admin-web's `data-brand="bcc"` dark primary
+  (`#a0cec8`).
+  FileBox's own names are kept as **aliases onto the same values** — 537
+  references across the component CSS resolve through them, so the palette moves
+  in one place rather than in 537.
+
+- **Type scale**, 1:1: `--text-heading-1` … `--text-caption-2`, each bundling
+  size, line height, weight and tracking. In plain CSS reference all four
+  sub-properties; Tailwind emits them as real custom properties.
+- **Radii**, matching their Tailwind usage: `--radius-item` 8px (badges, list
+  rows), `--radius-surface` 12px (fields, cards, popups), and the wide button
+  radii 16/24/32px. Their badges are `rounded-lg`, not pills.
+- **Elevation and motion**: `--shadow-resting` on surfaces that sit on the page,
+  `--shadow-floating` on anything that opens over it, `--ease-out-expo` with a
+  200ms duration, and `scale(0.95)` on button press.
+- **`gradient-border` / `gradient-border-dark`** as `@utility` definitions,
+  verbatim. A 1px gradient band painted by a masked `::before`, so it needs no
+  extra element.
+
+  **The band replaces the border — an element must not carry both.** Keeping
+  both drew a solid hairline with a second, lighter one just inside it. So
+  `.card`, `.menu-content`, `.select-content`, `.dialog-panel` and
+  `.drawer-panel` dropped their `border` (and the drawer its edge border) when
+  they took the band. `.card` carries the declarations in its own rule rather
+  than the utility class, because it is applied in 21 templates — the one place
+  the block is duplicated.
+
+  `.select-trigger` has the band, and no border — see the select note below.
+
+  `gradient-border-dark` goes on the primary button, whose fill is light enough
+  that the band has to darken rather than lighten. That button keeps `.btn`'s
+  1px border — its colour equals the fill, so nothing extra shows, and dropping
+  it would shrink the button 2px against its siblings in an action row.
+
+- **Archivo**, their family, fetched from Google Fonts (OFL-1.1) and
+  self-hosted. It is a variable font, so one file per subset covers 100–900 —
+  hence `font-weight: 100 900` and `format('woff2-variations')`.
+
+Two gaps where FileBox has more structure than admin-web: their surface ladder
+is two steps plus a translucent indent, where FileBox's components need four
+(`--ds-surface-2`/`-4` fill the gaps on the same neutral); and their single
+`border-1` is too faint for an input edge, so `--ds-border-2` is a stronger
+hairline for control borders.
+
+### The select panel is raised; its trigger is a field
+
+admin-web's `DesignInput` has **no background class at all** — their text
+fields are flat and transparent — while `DesignSelect` is deliberately raised:
+`bg-surface-raise`, `shadow-resting`, the gradient band instead of a border,
+`hover:bg-surface-indent`, a popup at the same level as the trigger, and a
+highlighted row that **recesses** to `surface-indent` rather than lightening.
+
+FileBox takes half of that, on purpose:
+
+- **The panel follows admin-web.** `.select-content` is `surface-raise`
+  (`#353836`) with the band and `shadow-floating`, and
+  `.select-item[data-highlighted]` recesses to `rgb(0 0 0 / 0.5)`. Before the
+  port the popup sat a step _above_ the trigger and the highlight lightened —
+  both inverted from theirs.
+- **The trigger follows its neighbours.** It stays in the `.inp` selector
+  family, so it renders identically to the text input and the number control
+  beside it in a form — same ground, 1px border, radius, `body-3` text and
+  focus ring. Raising only the select made it read as a different kind of
+  control in a row of fields.
+
+The difference in reasoning: admin-web can raise its select because _all_ its
+fields are flat, so the raised one is the odd one out by design. FileBox's
+fields are filled, so raising one would just look inconsistent. Matching the
+panel gets the depth without that cost.
+
+`--ds-surface-indent` was added for the highlight; it was not in the original
+port, since FileBox's own ladder only steps upward.
+
+### Deliberately not ported
+
+- **Light mode and the `data-brand` variants.** admin-web is light-first with a
+  `.dark` class. FileBox is dark-only by decision; only the dark values were
+  carried over. Adding light mode means re-checking every colocated component
+  style against a light ground.
+- **CVA + utility-class components.** admin-web expresses component styling as
+  Tailwind utility strings through `cva`. FileBox uses semantic classes
+  (`.btn`, `.badge`) that the `Ui*` components own — see the colocation above.
+  Matching their architecture would mean rewriting all 17 components.
+- **Metric-matched fallback faces for Archivo.** Those are generator output and
+  none exist for it, so the sans stack falls back to `system-ui` plainly and
+  text reflows slightly when the webfont swaps in. The mono family keeps its
+  matched faces. Running the same generator over Archivo would close this.
+
 ## Two rules that decide where a rule can live
 
 Both were learned the hard way, and both now have a test.

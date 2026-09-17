@@ -77,7 +77,7 @@ defineExpose({
     >
       <div
         v-bind="api.getContentProps()"
-        class="menu-content"
+        class="menu-content gradient-border"
         :style="width ? { width } : undefined"
       >
         <div v-if="$slots.header" class="menu-header">
@@ -119,13 +119,14 @@ defineExpose({
     isolation: isolate;
   }
   .menu-content {
+    /* No border: the gradient-border band is the edge. Keeping both drew a
+       solid hairline with a second, lighter one just inside it. */
     z-index: var(--z-index-dropdown);
     min-width: 200px;
     padding: 6px;
     background: var(--color-surface-2);
-    border: 1px solid var(--color-line-2);
-    border-radius: 12px;
-    box-shadow: 0 18px 50px rgb(0 0 0 / 0.55);
+    border-radius: var(--radius-surface);
+    box-shadow: var(--shadow-floating);
     animation: fb-pop 0.15s ease both;
   }
   .menu-content:focus-visible {
@@ -137,7 +138,7 @@ defineExpose({
     gap: 8px;
     width: 100%;
     padding: 8px 12px;
-    border-radius: 6px;
+    border-radius: var(--radius-item);
     font-size: 14px;
     color: var(--color-ink);
     cursor: pointer;
@@ -168,6 +169,7 @@ defineExpose({
     padding: 10px 12px 12px;
     margin-bottom: 4px;
     border-bottom: 1px solid var(--color-line);
+    border-radius: var(--radius-item);
   }
 }
 

@@ -129,7 +129,7 @@ function submit() {
   border-radius: 13px;
   background: color-mix(in oklch, var(--color-accent), transparent 85%);
   border: 1px solid color-mix(in oklch, var(--color-accent), transparent 55%);
-  color: var(--color-accent);
+  color: var(--color-accent-2);
   display: grid;
   place-items: center;
   margin-bottom: 20px;

@@ -78,6 +78,6 @@ const options = computed<UiRadioOption<string>[]>(() =>
 [data-part='item'][data-state='checked'] .target-ic {
   background: color-mix(in oklch, var(--color-accent), transparent 82%);
   border-color: color-mix(in oklch, var(--color-accent), transparent 55%);
-  color: var(--color-accent);
+  color: var(--color-accent-2);
 }
 </style>

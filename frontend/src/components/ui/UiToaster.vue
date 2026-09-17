@@ -89,12 +89,12 @@ const api = computed(() => toast.group.connect(service, normalizeProps))
     width: var(--width, auto);
     min-width: 220px;
     padding: 11px 14px 11px 18px;
-    border-radius: 10px;
+    border-radius: var(--radius-surface);
     font-size: 13.5px;
     color: var(--color-ink);
     background: var(--color-surface-4);
     border: 1px solid var(--color-line-2);
-    box-shadow: 0 14px 40px rgb(0 0 0 / 0.5);
+    box-shadow: var(--shadow-floating);
     /* Zag animates opacity/translate off these data attributes. */
     translate: var(--x) var(--y);
     scale: var(--scale);

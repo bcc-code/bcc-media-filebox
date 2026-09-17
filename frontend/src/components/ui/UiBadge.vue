@@ -51,10 +51,12 @@ const toneStyle = computed(() =>
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 9px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: var(--radius-item);
+    font-size: var(--text-caption-1);
+    line-height: var(--text-caption-1--line-height);
+    font-weight: var(--text-caption-1--font-weight);
+    letter-spacing: var(--text-caption-1--letter-spacing);
     white-space: nowrap;
     flex-shrink: 0;
     max-width: 100%;
@@ -65,7 +67,7 @@ const toneStyle = computed(() =>
   .badge-accent {
     background: color-mix(in oklch, var(--color-accent), transparent 88%);
     border-color: color-mix(in oklch, var(--color-accent), transparent 55%);
-    color: oklch(0.8 0.1 250);
+    color: var(--color-accent-2);
   }
   .badge-ok {
     background: color-mix(in oklch, var(--color-ok), transparent 85%);
@@ -75,12 +77,12 @@ const toneStyle = computed(() =>
   .badge-warn {
     background: color-mix(in oklch, var(--color-warn), transparent 85%);
     border-color: color-mix(in oklch, var(--color-warn), transparent 55%);
-    color: oklch(0.85 0.13 75);
+    color: var(--color-warn);
   }
   .badge-danger {
     background: color-mix(in oklch, var(--color-danger), transparent 88%);
     border-color: color-mix(in oklch, var(--color-danger), transparent 60%);
-    color: oklch(0.8 0.14 25);
+    color: var(--color-danger);
   }
   .badge-dot {
     width: 6px;

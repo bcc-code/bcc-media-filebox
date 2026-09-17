@@ -102,7 +102,7 @@ function onPreview(packageId: string) {
    Shared primitives stay in assets/components.css. */
 @layer components {
   .link {
-    color: var(--color-accent);
+    color: var(--color-accent-2);
     text-decoration: none;
   }
   .page-note {

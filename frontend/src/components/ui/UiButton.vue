@@ -40,6 +40,9 @@ const props = withDefaults(
 
 const classes = computed(() => [
   'btn',
+  // admin-web puts the dark hairline on its primary button: the surface is
+  // light, so the band has to darken rather than lighten.
+  props.variant === 'primary' && 'gradient-border-dark',
   props.variant !== 'default' && `btn-${props.variant}`,
   props.size !== 'md' && `btn-${props.size}`,
   props.block && 'btn-block',
@@ -89,11 +92,12 @@ const tagProps = computed(() => {
     gap: 8px;
     /* .btn also dresses <a>/<router-link>, which arrive underlined. */
     text-decoration: none;
-    padding: 9px 14px;
-    border-radius: 8px;
+    padding: 10px 18px;
+    border-radius: var(--radius-button);
     font-family: inherit;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: var(--text-title-2);
+    line-height: var(--text-title-2--line-height);
+    font-weight: var(--text-title-2--font-weight);
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
@@ -101,9 +105,14 @@ const tagProps = computed(() => {
     background: var(--color-surface-2);
     color: var(--color-ink);
     transition:
-      border-color 0.15s ease,
-      background 0.15s ease,
-      opacity 0.15s ease;
+      border-color 0.2s var(--ease-out-expo),
+      background 0.2s var(--ease-out-expo),
+      transform 0.2s var(--ease-out-expo),
+      opacity 0.2s var(--ease-out-expo);
+  }
+  /* admin-web's press feedback. */
+  .btn:active:not(:disabled) {
+    transform: scale(0.95);
   }
   .btn:hover {
     border-color: var(--color-ink-3);
@@ -136,14 +145,18 @@ const tagProps = computed(() => {
      (0,1,0) loses to the scoped `.btn` (0,2,0) and neither size nor variant
      applies. */
   .btn-sm {
-    padding: 5px 10px;
-    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: var(--radius-button-sm);
+    font-size: var(--text-title-3);
+    line-height: var(--text-title-3--line-height);
+    font-weight: var(--text-title-3--font-weight);
   }
   .btn-lg {
-    padding: 11px 18px;
-    border-radius: 9px;
-    font-size: 14px;
-    font-weight: 600;
+    padding: 13px 22px;
+    border-radius: var(--radius-button-lg);
+    font-size: var(--text-title-2);
+    line-height: var(--text-title-2--line-height);
+    font-weight: var(--text-title-2--font-weight);
   }
   .btn-primary:hover {
     background: var(--color-accent-hover);

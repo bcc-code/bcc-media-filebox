@@ -6,57 +6,227 @@
 /* ============================================================
    FileBox design tokens — the single source of truth.
 
-   Declared in Tailwind's `@theme` so every token is available
-   two ways from one definition:
+   The palette is ported from bcc-media-platform/admin-web
+   (app/assets/css/main.css), which in turn carries the
+   bcc-media-play Flutter design system. Raw values live on
+   :root as `--ds-*`; `@theme` exposes them under admin-web's
+   semantic names so the two apps can be read side by side.
 
-     utility    <div class="bg-surface-2 text-ink border-line">
-     plain CSS  .btn { background: var(--color-surface-2) }
+   FileBox's own names (`surface-2`, `ink-3`, `accent`, …) are
+   kept as aliases onto the same values. 537 references across
+   the component CSS resolve through them, so the palette moves
+   in one place rather than in 537.
 
-   Never redeclare these values in a component or a scoped
-   stylesheet — reference the token instead, so a change here
-   reaches every surface.
+   Declared in `@theme` so every token is available two ways
+   from one definition:
+
+     utility    <div class="bg-surface-raise text-text-muted">
+     plain CSS  .btn { background: var(--color-primary-default) }
+
+   Never redeclare a value in a component stylesheet — reference
+   the token, so a change here reaches every surface.
    ============================================================ */
 
+@layer base {
+  :root {
+    /* admin-web's dark theme, verbatim where it has an equivalent.
+       FileBox is dark-only, so the light values are not carried over. */
+    /* Blue accent, a muted one: the same hue as #2b7fff at 70% of its chroma
+       and a little darker — oklch(0.56 0.145 259). Calmer, and the lower
+       lightness is what lets a white label clear AA on it (4.74:1, where the
+       fully saturated blue managed only 3.76:1).
+
+       `primary-default` is every fill; `primary-contrast` is the same accent
+       lifted so it reads as *text* on this ground (5.3:1, against the fill's
+       3.51:1 — fine for a border, short for text). That split is what the two
+       tokens mean in admin-web: their light theme deepens the contrast variant
+       against white, ours lightens it against black. */
+    --ds-primary-default: #3c72c8;
+    --ds-primary-contrast: #6092e1;
+    --ds-on-primary: #ffffff;
+
+    --ds-surface-default: #1c1f1d;
+    --ds-surface-indent: rgb(0 0 0 / 0.5);
+    --ds-surface-raise: #353836;
+
+    --ds-text-default: #ffffff;
+    --ds-text-muted: #bbc4bd;
+    --ds-text-hint: #99a39c;
+
+    --ds-border-1: rgb(255 255 255 / 0.1);
+
+    --ds-semantic-error: #ec6565;
+    --ds-semantic-success: #4dd27d;
+    --ds-semantic-warning: #e5bf4e;
+    --ds-semantic-info: #5c95f1;
+    --ds-on-error: #130d19;
+
+    --ds-focus-ring: #ffffff;
+
+    /* FileBox needs a four-step elevation ladder where admin-web has two
+       (default/raise) plus a translucent indent. These fill the gaps on the
+       same neutral, keeping the contrast steps the components rely on. */
+    --ds-surface-2: #252827;
+    --ds-surface-4: #414443;
+
+    /* A second, stronger hairline for control borders; admin-web's single
+       border-1 is too faint for an input edge on this ground. */
+    --ds-border-2: rgb(255 255 255 / 0.18);
+  }
+}
+
 @theme {
+  /* ---- admin-web's semantic names ---- */
+  --color-primary-default: var(--ds-primary-default);
+  --color-primary-contrast: var(--ds-primary-contrast);
+  --color-on-primary: var(--ds-on-primary);
+
+  --color-surface-default: var(--ds-surface-default);
+  /* A recess rather than a step up — admin-web uses it for the hovered row in a
+     menu or select, where FileBox's own ladder would lighten instead. */
+  --color-surface-indent: var(--ds-surface-indent);
+  --color-surface-raise: var(--ds-surface-raise);
+
+  --color-text-default: var(--ds-text-default);
+  --color-text-muted: var(--ds-text-muted);
+  --color-text-hint: var(--ds-text-hint);
+
+  --color-border-1: var(--ds-border-1);
+
+  --color-semantic-error: var(--ds-semantic-error);
+  --color-semantic-success: var(--ds-semantic-success);
+  --color-semantic-warning: var(--ds-semantic-warning);
+  --color-semantic-info: var(--ds-semantic-info);
+  --color-on-error: var(--ds-on-error);
+
+  --color-focus-ring: var(--ds-focus-ring);
+
+  /* ---- FileBox's names, aliased onto the same values ---- */
+
   /* Surfaces — ascending elevation. `surface` is the page ground. */
-  --color-surface: #0a1426;
-  --color-surface-2: #0f1c33;
-  --color-surface-3: #15243f;
-  --color-surface-4: #1a2a48;
+  --color-surface: var(--ds-surface-default);
+  --color-surface-2: var(--ds-surface-2);
+  --color-surface-3: var(--ds-surface-raise);
+  --color-surface-4: var(--ds-surface-4);
 
   /* Hairlines. `line` for dividers, `line-2` for control borders. */
-  --color-line: #1f2f4d;
-  --color-line-2: #2a3d61;
+  --color-line: var(--ds-border-1);
+  --color-line-2: var(--ds-border-2);
 
   /* Foreground — descending emphasis. `ink-3` is muted/meta text. */
-  --color-ink: #e7ecf5;
-  --color-ink-2: #aeb8cc;
-  --color-ink-3: #6c7896;
+  --color-ink: var(--ds-text-default);
+  --color-ink-2: var(--ds-text-muted);
+  --color-ink-3: var(--ds-text-hint);
 
   /* Brand accent. `accent-ink` is the readable-on-accent foreground. */
-  --color-accent: oklch(0.72 0.1 250);
-  --color-accent-2: oklch(0.62 0.12 250);
-  --color-accent-hover: oklch(0.78 0.1 250);
-  --color-accent-ink: #0a1426;
+  --color-accent: var(--ds-primary-default);
+  --color-accent-2: var(--ds-primary-contrast);
+  --color-accent-hover: #477ed3;
+  --color-accent-ink: var(--ds-on-primary);
 
   /* Status */
-  --color-ok: oklch(0.74 0.12 160);
-  --color-warn: oklch(0.8 0.14 75);
-  --color-danger: oklch(0.7 0.16 25);
-  --color-info: oklch(0.7 0.13 240);
+  --color-ok: var(--ds-semantic-success);
+  --color-warn: var(--ds-semantic-warning);
+  --color-danger: var(--ds-semantic-error);
+  --color-info: var(--ds-semantic-info);
 
-  /* Decorative accent stop — the second stop of avatar gradients. */
-  --color-accent-alt: oklch(0.62 0.12 280);
+  /* Decorative accent stop — the second stop of avatar gradients. A hue away
+     from the accent at the same chroma, so the gradient stays as calm. */
+  --color-accent-alt: #7f6ccd;
 
   /* Identity-provider tints (avatars, provider labels). */
-  --color-provider-azure: #5da5ff;
-  --color-provider-bcc: #9bbcff;
+  /* The two providers have to stay distinguishable, so neither follows the now
+     colourless accent. BCC takes admin-web's `data-brand="bcc"` dark primary. */
+  --color-provider-azure: var(--ds-semantic-info);
+  --color-provider-bcc: #a0cec8;
 
   /* BCC brand, from the public BCC component library (components.bcc.no):
-     --color-bcc-800 / --color-bcc-700 / --color-bcc-100. */
+     --color-bcc-800 / --color-bcc-700 / --color-bcc-100. Provider branding on
+     the sign-in button, deliberately outside the palette. */
   --color-brand-bcc: #014d49;
   --color-brand-bcc-hover: #0c625c;
   --color-brand-bcc-ink: #f0fcfa;
+
+  /* Type scale, ported 1:1 from admin-web (which mirrors the Figma / Flutter
+     design system). Each step bundles size, line height, weight and tracking;
+     in plain CSS reference all four, e.g.
+
+       font-size: var(--text-title-2);
+       line-height: var(--text-title-2--line-height);
+       font-weight: var(--text-title-2--font-weight);
+
+     Tailwind emits the sub-properties as real custom properties, so the scale
+     stays single-sourced whether it is used as a utility or in CSS. */
+  --text-heading-1: 48px;
+  --text-heading-1--line-height: 1.08;
+  --text-heading-1--font-weight: 700;
+  --text-heading-1--letter-spacing: -0.14px;
+
+  --text-heading-2: 32px;
+  --text-heading-2--line-height: 1.13;
+  --text-heading-2--font-weight: 600;
+  --text-heading-2--letter-spacing: -0.1px;
+
+  --text-heading-3: 22px;
+  --text-heading-3--line-height: 1.27;
+  --text-heading-3--font-weight: 700;
+  --text-heading-3--letter-spacing: -0.07px;
+
+  --text-title-1: 19px;
+  --text-title-1--line-height: 1.26;
+  --text-title-1--font-weight: 500;
+
+  --text-title-2: 17px;
+  --text-title-2--line-height: 1.18;
+  --text-title-2--font-weight: 500;
+
+  --text-title-3: 15px;
+  --text-title-3--line-height: 1.07;
+  --text-title-3--font-weight: 500;
+
+  --text-body-1: 18px;
+  --text-body-1--line-height: 1.11;
+  --text-body-1--font-weight: 400;
+
+  --text-body-2: 16px;
+  --text-body-2--line-height: 1.25;
+  --text-body-2--font-weight: 400;
+
+  --text-body-3: 14px;
+  --text-body-3--line-height: 1.14;
+  --text-body-3--font-weight: 400;
+  --text-body-3--letter-spacing: -0.04px;
+
+  --text-caption-1: 12px;
+  --text-caption-1--line-height: 1.33;
+  --text-caption-1--font-weight: 500;
+  --text-caption-1--letter-spacing: -0.04px;
+
+  --text-caption-2: 11px;
+  --text-caption-2--line-height: 1.27;
+  --text-caption-2--font-weight: 500;
+  --text-caption-2--letter-spacing: -0.04px;
+
+  /* Corner radii, matching admin-web's Tailwind usage: rounded-lg on badges
+     and list items, rounded-xl on fields, cards and popups, and the wide
+     button radii below. */
+  --radius-item: 8px;
+  --radius-surface: 12px;
+  --radius-button-sm: 16px;
+  --radius-button: 24px;
+  --radius-button-lg: 32px;
+
+  /* Elevation. `resting` for surfaces that sit on the page, `floating` for
+     anything that opens over it. */
+  --shadow-resting:
+    0 0 0 1px rgb(0 0 0 / 0.04), 0 0 3px rgb(0 0 0 / 0.05),
+    0 2px 6px rgb(0 0 0 / 0.05);
+  --shadow-floating:
+    0 0 0 1px rgb(0 0 0 / 0.05), 0 1px 4px rgb(0 0 0 / 0.05),
+    0 4px 12px rgb(0 0 0 / 0.05);
+
+  /* admin-web's motion curve; it pairs with a 200ms duration. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Layering. Menus and selects sit ABOVE dialogs so they still work when
      opened from inside one; toasts stay above everything. */
@@ -68,17 +238,62 @@
   --z-index-dialog: 101;
   --z-index-dropdown: 120;
 
-  /* Type. The `… fallback: …` families are metric-matched local faces from
-     the font generator (size-adjust + ascent/descent overrides) that hold the
-     line box steady while the webfont loads. They are declared in
-     assets/styles/font-{sans,mono}.css; the system stack follows them so text
-     outside the bundled subsets still lands on a real UI font. */
-  --font-sans:
-    Inter, 'Inter fallback: Arial Bold', 'Inter fallback: Arial', system-ui,
-    -apple-system, 'Segoe UI', sans-serif;
+  /* Type. Archivo is admin-web's family, served as a variable font from
+     public/fonts/. The mono family keeps its metric-matched `… fallback: …`
+     faces — local faces with size-adjust and ascent/descent overrides that hold
+     the line box steady while the webfont loads. Archivo has no such faces; see
+     assets/styles/font-sans.css. */
+  --font-sans: Archivo, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono:
     'JetBrains Mono', 'JetBrains Mono fallback: Courier New', ui-monospace,
     SFMono-Regular, Menlo, monospace;
+}
+
+/* A 1px gradient hairline on a rounded element, from admin-web. The inner box
+   is masked out so only the border band paints, which lets it sit on top of a
+   background without a second element. `gradient-border` lightens from the
+   bottom (for dark surfaces); `gradient-border-dark` darkens from the top (for
+   light ones, such as the white primary button). */
+@utility gradient-border {
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      to top,
+      rgb(255 255 255 / 0.05),
+      rgb(255 255 255 / 0.12)
+    );
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
+@utility gradient-border-dark {
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      to bottom,
+      rgb(0 0 0 / 0.05),
+      rgb(0 0 0 / 0.12)
+    );
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
 }
 
 /* The app is a dark surface end to end. Set it once on the document

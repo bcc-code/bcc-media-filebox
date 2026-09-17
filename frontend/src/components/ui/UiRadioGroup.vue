@@ -321,7 +321,7 @@ the glyph never reflows the row. */
     color: var(--color-ink-3);
   }
   .radio-card[data-state='checked'] .radio-label svg {
-    color: var(--color-accent);
+    color: var(--color-accent-2);
   }
   .radio-label svg {
     color: var(--color-ink-2);

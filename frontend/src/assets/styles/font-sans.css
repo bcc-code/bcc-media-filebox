@@ -1,132 +1,45 @@
-/* Vendored font-face declarations for Inter — generated output, kept as
-   downloaded so it can be regenerated cleanly.
+/* Vendored font-face declarations for Archivo — the family used by
+   bcc-media-platform/admin-web, whose design system this app now follows.
 
-   Two edits are applied every time this is regenerated:
+   Fetched from Google Fonts (Archivo is OFL-1.1) and self-hosted, matching how
+   the mono family is served: the woff2 files live in public/fonts/, which is
+   what the absolute `/fonts/…` URLs below resolve to. A file under src/assets/
+   is NOT served there — Vite's dev server answers with index.html and a 200,
+   so the face fails silently.
 
-   1. The generator's `:root { --font-sans: … }` block is removed. That token
-      is declared in the `@theme` block in src/style.css, which is the single
-      source of truth for it; an unlayered `:root` here would outrank @theme's
-      output and leave the token with two definitions. The family stack the
-      generator emits is reproduced there verbatim.
-   2. Both subsets are kept. Downloading one subset *replaces* this file rather
-      than adding to it, and every face carries a `unicode-range` — so keeping
-      only `latin` silently drops Ā/Ē/Č, and keeping only `latin-ext` drops the
-      entire alphabet. The browser picks per character, so order is free.
+   Archivo is a variable font, so one file per subset covers the whole 100–900
+   weight axis; `font-weight: 100 900` is what tells the browser that.
 
-   The woff2 files live in public/fonts/, which is what the absolute `/fonts/…`
-   URLs below resolve to. A file under src/assets/ is NOT served there: Vite's
-   dev server answers with index.html and a 200, so the face fails silently. */
+   Unlike the mono family there are no metric-matched fallback faces here: those
+   are generator output and none exist for Archivo. The system stack below is
+   the plain fallback, so expect a small reflow when the webfont swaps in. Run
+   the same generator over Archivo if that matters.
+
+   The token itself lives in the `@theme` block in src/style.css — never
+   declare `:root { --font-sans: … }` here, since an unlayered `:root` outranks
+   @theme's output and leaves the token defined twice. */
 
 @font-face {
-  font-family: Inter;
-  src: url('/fonts/font-sans-400-normal-latin.c09c3e27.woff2') format('woff2');
+  font-family: Archivo;
+  src: url('/fonts/font-sans-variable-latin.woff2') format('woff2-variations');
   font-display: swap;
+  font-weight: 100 900;
+  font-style: normal;
   unicode-range:
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
     U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
     U+2215, U+FEFF, U+FFFD;
-  font-weight: 400;
-  font-style: normal;
 }
 
 @font-face {
-  font-family: Inter;
-  src: url('/fonts/font-sans-700-normal-latin.32d877d0.woff2') format('woff2');
+  font-family: Archivo;
+  src: url('/fonts/font-sans-variable-latin-ext.woff2')
+    format('woff2-variations');
   font-display: swap;
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
-    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
-    U+2215, U+FEFF, U+FFFD;
-  font-weight: 700;
+  font-weight: 100 900;
   font-style: normal;
-}
-
-@font-face {
-  font-family: 'Inter fallback: Arial';
-  src: local('Arial');
-  font-display: swap;
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
-    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
-    U+2215, U+FEFF, U+FFFD;
-  font-weight: 400;
-  font-style: normal;
-  size-adjust: 107.1194%;
-  ascent-override: 90.4365%;
-  descent-override: 22.518%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: 'Inter fallback: Arial Bold';
-  src: local('Arial Bold');
-  font-display: swap;
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
-    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
-    U+2215, U+FEFF, U+FFFD;
-  font-weight: 700;
-  font-style: normal;
-  size-adjust: 99.4914%;
-  ascent-override: 97.3703%;
-  descent-override: 24.2444%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: Inter;
-  src: url('/fonts/font-sans-400-normal-latin-ext.e0c0b179.woff2')
-    format('woff2');
-  font-display: swap;
   unicode-range:
     U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
     U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
     U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-  font-weight: 400;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: Inter;
-  src: url('/fonts/font-sans-700-normal-latin-ext.6772a56f.woff2')
-    format('woff2');
-  font-display: swap;
-  unicode-range:
-    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
-    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
-    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-  font-weight: 700;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Inter fallback: Arial Bold';
-  src: local('Arial Bold');
-  font-display: swap;
-  unicode-range:
-    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
-    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
-    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-  font-weight: 700;
-  font-style: normal;
-  size-adjust: 123.3978%;
-  ascent-override: 78.5063%;
-  descent-override: 19.5474%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: 'Inter fallback: Arial';
-  src: local('Arial');
-  font-display: swap;
-  unicode-range:
-    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
-    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
-    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-  font-weight: 400;
-  font-style: normal;
-  size-adjust: 132.8587%;
-  ascent-override: 72.9158%;
-  descent-override: 18.1554%;
-  line-gap-override: 0%;
 }

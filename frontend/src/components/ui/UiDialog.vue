@@ -73,7 +73,7 @@ const api = computed(() => dialog.connect(service, normalizeProps))
       <div v-bind="api.getPositionerProps()" class="dialog-positioner">
         <div
           v-bind="api.getContentProps()"
-          class="dialog-panel"
+          class="dialog-panel gradient-border"
           :style="{ width }"
         >
           <button
@@ -143,12 +143,13 @@ const api = computed(() => dialog.connect(service, normalizeProps))
 }
 
 .dialog-panel {
+  /* No border: the gradient-border band is the edge. Keeping both drew a
+     solid hairline with a second, lighter one just inside it. */
   max-width: 100%;
   padding: 24px 24px 20px;
-  border: 1px solid var(--color-line-2);
-  border-radius: 14px;
+  border-radius: var(--radius-surface);
   background: var(--color-surface-2);
-  box-shadow: 0 30px 80px rgb(0 0 0 / 0.6);
+  box-shadow: var(--shadow-floating);
   animation: dialog-panel-in 0.18s ease both;
 }
 .dialog-panel:focus-visible {
@@ -157,15 +158,18 @@ const api = computed(() => dialog.connect(service, normalizeProps))
 
 .dialog-title {
   margin: 0 0 4px;
-  font-size: 17px;
-  font-weight: 600;
+  font-size: var(--text-title-1);
+  line-height: var(--text-title-1--line-height);
+  font-weight: var(--text-title-1--font-weight);
   color: var(--color-ink);
 }
 
 .dialog-description {
   margin: 0 0 18px;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: var(--text-body-3);
+  line-height: var(--text-body-3--line-height);
+  font-weight: var(--text-body-3--font-weight);
+  letter-spacing: var(--text-body-3--letter-spacing);
   color: var(--color-ink-2);
 }
 

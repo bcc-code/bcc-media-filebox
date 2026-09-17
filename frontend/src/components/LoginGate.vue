@@ -404,7 +404,7 @@ async function submitGuest() {
   display: inline-flex;
 }
 .provider-btn:hover .chev {
-  color: var(--color-accent);
+  color: var(--color-accent-2);
 }
 
 .provider-btn[data-tier='primary'] {

@@ -502,7 +502,7 @@ async function revokeUser(u: AdminUserDetail) {
   padding: 2px 6px;
   border-radius: 4px;
   background: color-mix(in oklch, var(--color-accent), transparent 80%);
-  color: var(--color-accent);
+  color: var(--color-accent-2);
   letter-spacing: 0.04em;
 }
 </style>

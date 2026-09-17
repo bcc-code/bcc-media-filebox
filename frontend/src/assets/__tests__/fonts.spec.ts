@@ -71,7 +71,7 @@ describe.each(Object.entries(sheets))('font-%s.css', (_kind, css) => {
 
 describe('@theme font tokens', () => {
   it.each([
-    ['--font-sans', 'Inter'],
+    ['--font-sans', 'Archivo'],
     ['--font-mono', "'JetBrains Mono'"],
   ])('names the %s family the @font-face rules define', (token, family) => {
     const m = theme.match(new RegExp(`${token}:\\s*([^;]+);`))
@@ -79,9 +79,21 @@ describe('@theme font tokens', () => {
     expect(m![1]).toContain(family.replace(/'/g, ''))
   })
 
-  it('keeps the metric-matched fallbacks in the stack', () => {
-    // Without them the line box shifts when the webfont swaps in.
-    expect(theme).toContain('Inter fallback: Arial')
+  it('keeps the mono metric-matched fallback in the stack', () => {
+    // Without it the line box shifts when the webfont swaps in. The sans
+    // family has no equivalent: those faces are generator output and none were
+    // produced for Archivo, so its stack falls back to system-ui plainly.
     expect(theme).toContain('JetBrains Mono fallback: Courier New')
+  })
+
+  it('declares a variable weight range for the sans faces', () => {
+    // Archivo ships as one variable file per subset; without the range the
+    // browser synthesises bold instead of using the weight axis.
+    const faces = sheets.sans.match(/@font-face \{[^}]*\}/g) ?? []
+    expect(faces.length).toBeGreaterThan(0)
+    for (const face of faces) {
+      expect(face).toMatch(/font-weight:\s*100 900/)
+      expect(face).toContain('woff2-variations')
+    }
   })
 })

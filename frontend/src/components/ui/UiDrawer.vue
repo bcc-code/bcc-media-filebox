@@ -64,7 +64,7 @@ const closeTriggerProps = computed(
       >
         <div
           v-bind="api.getContentProps()"
-          class="drawer-panel"
+          class="drawer-panel gradient-border"
           :data-side="side"
           :style="{ width }"
           :aria-label="label"
@@ -129,16 +129,14 @@ const closeTriggerProps = computed(
   max-width: 100%;
   height: 100%;
   background: var(--color-surface);
-  box-shadow: -30px 0 80px rgb(0 0 0 / 0.5);
+  box-shadow: var(--shadow-floating);
   /* The panel is the scroll container, so the head below can stick to it. */
   overflow-y: auto;
 }
 .drawer-panel[data-side='right'] {
-  border-left: 1px solid var(--color-line);
   animation: drawer-in-right 0.22s ease both;
 }
 .drawer-panel[data-side='left'] {
-  border-right: 1px solid var(--color-line);
   box-shadow: 30px 0 80px rgb(0 0 0 / 0.5);
   animation: drawer-in-left 0.22s ease both;
 }

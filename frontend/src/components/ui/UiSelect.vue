@@ -133,7 +133,10 @@ const api = computed(() => select.connect(service, normalizeProps))
 
     <Teleport to="body">
       <div v-bind="api.getPositionerProps()" class="select-positioner">
-        <div v-bind="api.getContentProps()" class="select-content">
+        <div
+          v-bind="api.getContentProps()"
+          class="select-content gradient-border"
+        >
           <ul v-bind="api.getListProps()" class="select-list">
             <template v-for="(entry, i) in options" :key="i">
               <li
@@ -192,6 +195,11 @@ const api = computed(() => select.connect(service, normalizeProps))
   .select-root {
     width: 100%;
   }
+  /* Layout only: the field chrome — ground, border, radius, body-3 text and the
+     focus ring — comes from the shared .inp rule, so the trigger reads as one
+     of the fields around it. admin-web raises its select instead (surface-raise
+     + band, because their text inputs are transparent); the *panel* follows
+     them, the trigger follows its neighbours here. */
   .select-trigger {
     display: flex;
     align-items: center;
@@ -229,12 +237,13 @@ const api = computed(() => select.connect(service, normalizeProps))
     isolation: isolate;
   }
   .select-content {
+    /* No border: the gradient-border band is the edge. Keeping both drew a
+       solid hairline with a second, lighter one just inside it. */
     z-index: var(--z-index-dropdown);
     padding: 6px;
-    background: var(--color-surface-2);
-    border: 1px solid var(--color-line-2);
-    border-radius: 10px;
-    box-shadow: 0 18px 50px rgb(0 0 0 / 0.55);
+    background: var(--color-surface-raise);
+    border-radius: var(--radius-surface);
+    box-shadow: var(--shadow-floating);
     animation: fb-pop 0.15s ease both;
   }
   .select-content:focus-visible {
@@ -253,24 +262,24 @@ const api = computed(() => select.connect(service, normalizeProps))
     justify-content: space-between;
     gap: 10px;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius-item);
     font-size: 13.5px;
     color: var(--color-ink);
     cursor: pointer;
     user-select: none;
   }
   .select-item[data-highlighted] {
-    background: var(--color-surface-3);
+    background: var(--color-surface-indent);
   }
   .select-item[data-state='checked'] {
-    color: var(--color-accent);
+    color: var(--color-accent-2);
   }
   .select-item[data-disabled] {
     color: var(--color-ink-3);
     cursor: not-allowed;
   }
   .select-check {
-    color: var(--color-accent);
+    color: var(--color-accent-2);
     font-size: 12px;
   }
   .select-item[data-state='unchecked'] .select-check {

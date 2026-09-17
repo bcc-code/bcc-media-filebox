@@ -324,7 +324,7 @@ function artifactKindText(artifact: PackageArtifact): string {
   border-radius: 8px;
 }
 .artifact-icon.zip {
-  color: var(--color-accent);
+  color: var(--color-accent-2);
   border-color: color-mix(in oklch, var(--color-accent), transparent 65%);
 }
 .artifact-body {
@@ -353,7 +353,7 @@ function artifactKindText(artifact: PackageArtifact): string {
   gap: 5px;
   flex-shrink: 0;
   padding: 7px 9px;
-  color: var(--color-accent);
+  color: var(--color-accent-2);
   background: color-mix(in oklch, var(--color-accent), transparent 90%);
   border: 1px solid color-mix(in oklch, var(--color-accent), transparent 62%);
   border-radius: 7px;
