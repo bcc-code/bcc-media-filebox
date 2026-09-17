@@ -11,6 +11,7 @@ const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8')
 const theme = read('style.css')
 const components = read('assets/components.css')
 const dialog = read('components/ui/UiDialog.vue')
+const drawer = read('components/ui/UiDrawer.vue')
 
 /**
  * These assert against the CSS source rather than a rendered page, because the
@@ -39,6 +40,8 @@ const rule = (css: string, selector: string) => {
 
 describe('layering', () => {
   it('defines the whole scale as tokens', () => {
+    expect(token('drawer-backdrop')).toBeGreaterThan(0)
+    expect(token('drawer')).toBeGreaterThan(0)
     expect(token('dialog-backdrop')).toBeGreaterThan(0)
     expect(token('dialog')).toBeGreaterThan(0)
     expect(token('dropdown')).toBeGreaterThan(0)
@@ -46,6 +49,17 @@ describe('layering', () => {
 
   it('stacks dialog above its backdrop', () => {
     expect(token('dialog')).toBeGreaterThan(token('dialog-backdrop'))
+  })
+
+  it('stacks a drawer above its backdrop', () => {
+    expect(token('drawer')).toBeGreaterThan(token('drawer-backdrop'))
+  })
+
+  it('stacks dialogs above drawers, so a modal opened from one lands on top', () => {
+    // No flow stacks them today — Admin.vue clears selectedUser before opening
+    // GrantModal — but a drawer is page furniture and a dialog interrupts, so
+    // the order is fixed here rather than left to whoever writes the next one.
+    expect(token('dialog-backdrop')).toBeGreaterThan(token('drawer'))
   })
 
   it('stacks dropdowns above dialogs, so a select works inside one', () => {
@@ -68,6 +82,14 @@ describe('layering', () => {
       expect(rule(components, selector)).not.toMatch(/(^|[^-])z-index:/)
     },
   )
+
+  it('wires the drawer layers to the tokens rather than bare numbers', () => {
+    expect(drawer).toContain('z-index: var(--z-index-drawer-backdrop)')
+    expect(drawer).toContain('z-index: var(--z-index-drawer)')
+    // The sticky head's `z-index: 2` is local to the panel's stacking context,
+    // so it is the one literal allowed here.
+    expect(drawer.match(/z-index:\s*\d+/g)).toEqual(['z-index: 2'])
+  })
 
   it('wires the dialog layers to the tokens rather than bare numbers', () => {
     expect(dialog).toContain('z-index: var(--z-index-dialog-backdrop)')

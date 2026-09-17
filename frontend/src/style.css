@@ -60,6 +60,10 @@
 
   /* Layering. Menus and selects sit ABOVE dialogs so they still work when
      opened from inside one; toasts stay above everything. */
+  /* A drawer is page furniture; a dialog interrupts. So a dialog opened over a
+     drawer must land on top, never behind it. */
+  --z-index-drawer-backdrop: 90;
+  --z-index-drawer: 91;
   --z-index-dialog-backdrop: 100;
   --z-index-dialog: 101;
   --z-index-dropdown: 120;

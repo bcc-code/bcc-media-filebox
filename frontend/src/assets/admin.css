@@ -312,39 +312,10 @@
   margin-top: 3px;
 }
 
-/* Drawer */
-.admin-root .drawer-bg {
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 20, 38, 0.6);
-  backdrop-filter: blur(4px);
-  z-index: 90;
-  display: flex;
-  justify-content: flex-end;
-}
-.admin-root .drawer {
-  width: min(960px, 92vw);
-  height: 100vh;
-  background: var(--color-surface);
-  border-left: 1px solid var(--color-line);
-  box-shadow: -30px 0 80px rgba(0, 0, 0, 0.5);
-  overflow-y: auto;
-}
-.admin-root .drawer-head {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  padding: 12px 18px;
-  gap: 4px;
-  background: color-mix(in oklch, var(--color-surface), transparent 10%);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--color-line);
-}
-.admin-root .drawer-body {
-  padding: 28px 32px 60px;
-}
+/* Drawer content. The shell — backdrop, panel, sticky head, body padding —
+   lives in components/ui/UiDrawer.vue; these must not redeclare it, since an
+   .admin-root-prefixed rule ties with the component's scoped one on
+   specificity and then wins on source order. */
 .admin-root .drawer-id {
   display: flex;
   align-items: center;

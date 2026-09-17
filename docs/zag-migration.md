@@ -48,6 +48,7 @@ while one that is implemented twice and lacks keyboard support buys a lot.
 | `UiEditable`    | `@zag-js/editable`      | the two click-to-edit fields in `TargetsTab`                                             | Machine owns the edit session: Escape reverts, Enter/blur commits, focus is managed. Emits `editChange` so the row stays undraggable while its text is open. `ArrangementsTab`'s `.inline-edit` inputs are _not_ editables — always-on inputs with a Save button — and were left alone.                                                                                                                                                                                                                                                                                                                       |
 | `UiTooltip`     | `@zag-js/tooltip`       | the two disabled-button reasons (`UploadsTab`, `PackageAccessRequestForm`)               | Opens on hover _and_ focus, wires `aria-describedby`, reachable on touch — a native `title` does none of that. Wrapping the trigger in a span keeps it working over a `disabled` button, which is exactly where the reason matters.                                                                                                                                                                                                                                                                                                                                                                           |
 | `UiButton`      | none                    | all 54 `class="btn …"` call sites across 22 files                                        | Not a Zag machine — a consolidation. Seven buttons had each hand-rolled `{{ busy ? 'Xing…' : 'X' }}`; the `loading` prop now owns both the label swap and the disable, so a request in flight cannot be double-fired. `.lg-btn` in `LoginGate` was a fourth button skin whose `.primary` used `--color-surface` where `.btn-primary` uses `--color-accent-ink` — equal only by accident. `href`/`to` render an `<a>`/`<router-link>` instead, so the two button-shaped links stop hand-writing the classes; a disabled link gets `aria-disabled` and leaves the tab order, since an `<a>` ignores `disabled`. |
+| `UiDrawer`      | `@zag-js/dialog`        | the hand-rolled shell in `UserDrawer.vue`                                                | Closed on `@click.self` and nothing else: no Escape, no `role`/`aria-modal`, no focus trap, no focus restore, no scroll lock — you could tab straight out of it into the page behind. Its shell CSS was `.admin-root`-prefixed, so the drawer was silently admin-only styling. Teleports into `.admin-root` rather than `<body>` because the content still depends on 15 prefixed classes plus the table element selectors; see docs/frontend-styling.md.                                                                                                                                                     |
 
 ## Next up
 
@@ -62,15 +63,9 @@ carries an `aria-label`.
 
 ### Candidates to move into `ui/`
 
-Surveyed after the primitives pass. Ranked by what moving actually buys:
+Surveyed after the primitives pass, `UiDrawer` now done. Ranked by what
+moving actually buys:
 
-- **`UiDrawer`**, extracted from `components/UserDrawer.vue` — the strongest
-  remaining candidate, and the same class of bug `UiDialog` fixed. It closes on
-  `@click.self` only: no Escape, no `role`/`aria-modal`, no focus trap, no focus
-  restore, no scroll lock. Its `.drawer-*` CSS is also still scoped under
-  `.admin-root` (`admin.css:316+`), so the drawer is silently admin-only
-  styling. `@zag-js/dialog` is the machine — a drawer is a dialog with an edge
-  transform — so this is mostly `UiDialog` with a `side` prop.
 - **`TargetSelector.vue`** (97 lines, root level) — a single-select grid of
   cards, i.e. `UiRadioGroup`'s existing `card` variant with a grid layout
   instead of a stack. It currently renders `<button>`s, so no `radiogroup` role
@@ -149,6 +144,16 @@ And four traps that are not jsdom's fault:
   `getItemHiddenInputProps`, so a per-item `disabled` must be passed to all of
   them — giving it only to `getItemProps` left the hidden input live and
   clickable while looking disabled.
+- **A synthetic KeyboardEvent needs `cancelable: true`.** Zag refuses a
+  disallowed dismissal by calling `preventDefault()` on the event, and
+  `preventDefault()` on a non-cancelable event is a silent no-op. A
+  non-cancelable Escape therefore closes a dialog _even with
+  `closeOnEscape: false`_ — the test passes either way and the guard looks
+  absent. Found by mutation-testing `UiDrawer`: the Escape mutation survived.
+- **`vue-tsc` does not catch an unresolved component.** Replacing a component's
+  import instead of adding one left `<UiButton>` rendering as a literal
+  `<uibutton>` element, through a clean `vue-tsc -b` and 282 passing tests. Only
+  the browser showed it.
 - **An in-test timeout must sit below `testTimeout`.** The toast specs are
   duration-driven, so they poll wall-clock time with a ceiling of their own.
   That ceiling was 8s against vitest's 5s default, so on a loaded machine the
