@@ -45,12 +45,7 @@ const failureRate = computed(() => {
 </script>
 
 <template>
-  <!--
-    Teleported into .admin-root, not <body>: this drawer's content leans on 15
-    classes plus the table element selectors that admin.css scopes under
-    .admin-root, so escaping that wrapper would strip its styling.
-  -->
-  <UiDrawer teleport-to=".admin-root" @close="emit('close')">
+  <UiDrawer @close="emit('close')">
     <template #head>
       <div class="crumb" style="margin-left: 8px">
         filebox / admin / users /
@@ -278,3 +273,104 @@ const failureRate = computed(() => {
     </template>
   </UiDrawer>
 </template>
+
+<style scoped>
+/* Promoted out of admin.css. These are this drawer's own content styles, so
+   they belong with the markup that uses them — and scoping them here means the
+   panel keeps its look wherever UiDrawer teleports it. */
+.avatar-xl {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-accent-ink);
+  flex-shrink: 0;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 24px;
+  margin-bottom: 28px;
+}
+.stat-block {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.stat-block .l {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-3);
+  margin-bottom: 6px;
+}
+.stat-block .n {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+.stat-block .s {
+  font-size: 11.5px;
+  color: var(--color-ink-3);
+  margin-top: 3px;
+}
+.drawer-id {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-line);
+}
+.drawer-id h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+.drawer-id-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.drawer-section {
+  margin-top: 32px;
+}
+.drawer-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+.drawer-section-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-2);
+}
+.access-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.access-block {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.access-block .l {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-3);
+  margin-bottom: 10px;
+}
+</style>

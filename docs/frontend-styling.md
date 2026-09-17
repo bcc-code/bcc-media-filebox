@@ -87,9 +87,39 @@ Neither extreme. The split that falls out of the evidence:
 4. **One-off layout uses Tailwind utilities, not a new class and not a new
    inline `style=`.** That gives the 91 inline attributes somewhere to go.
 
-Sequenced so each step stands alone: (3) first, on the drawer's own classes,
-which also lets `UiDrawer` drop `teleportTo` and default to `<body>` like
-`UiDialog`. Then (4) opportunistically. (2) needs no work.
+Sequenced so each step stands alone. (4) opportunistically; (2) needs no work.
+
+### Progress on (3)
+
+`admin.css` is down from 56 `.admin-root` rules to 24. The first slice, done:
+
+- **Promoted to `components.css`** (17 rules): the `.section-head` family, the
+  `.name-cell` family, `.inline-edit`, and the table styling. Every caller is a
+  component rather than a page, and a teleported drawer has to reach them from
+  outside `.admin-root`. The table rules hang off **`.card`** instead of being
+  bare element selectors — every `<table>` in the app already sits in a
+  `<div class="card">`, so that is opt-in by structure with no markup change,
+  and a stray table elsewhere stays unstyled.
+- **Moved into `UserDrawer.vue`'s scoped block** (15 rules): `.drawer-id*`,
+  `.drawer-section*`, `.access-*`, `.stat-grid`, `.stat-block*`, `.avatar-xl`.
+- **`UiDrawer` now teleports to `<body>` unconditionally** and `teleportTo` is
+  gone. It existed only to keep the panel inside `.admin-root`; with the CSS
+  moved, every computed style is unchanged with the panel in `<body>`.
+
+A false alarm worth recording: a name-based scan flagged 19 "shared" classes
+(`.l`, `.n`, `.s`, `.name`, `.primary`, `.sub`…) apparently reused across
+unrelated components. They are not — every one is nested under a block class
+(`.stat-card .l`, `.stat-block .l`, `.access-block .l` are three different
+rules). The names only _look_ generic because the `.admin-root` prefix made
+them safe. Scoping per component preserves that safety; deleting the prefix
+without scoping would not.
+
+The remaining 24 rules are all single-component: the `.topbar` family and the
+`.admin-root` surface/reset (Admin.vue, 11), the users-table extras
+`.stat-strip`/`.stat-card*`/`.avatar-md`/`.user-search` (UsersTab.vue, 8), and
+`.path` (TargetsTab.vue, 1). Mechanical, and none of them block anything.
+
+`send.css` — 152 prefixed rules — has not been touched.
 
 ## Whichever way it goes
 

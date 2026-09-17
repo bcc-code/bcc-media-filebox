@@ -89,96 +89,6 @@
   margin: 0 auto;
   padding: 36px 28px 80px;
 }
-.admin-root .section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  gap: 24px;
-  flex-wrap: nowrap;
-}
-.admin-root .section-head > div:first-child {
-  min-width: 0;
-}
-.admin-root .section-head h1 {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.3px;
-}
-.admin-root .section-head .sub {
-  color: var(--color-ink-2);
-  font-size: 14px;
-  line-height: 1.5;
-  max-width: 620px;
-}
-
-/* Buttons */
-
-/* Tables */
-.admin-root table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.admin-root thead th {
-  text-align: left;
-  padding: 12px 18px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-ink-3);
-  font-weight: 500;
-  border-bottom: 1px solid var(--color-line);
-  background: var(--color-surface-2);
-}
-.admin-root tbody td {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--color-line);
-  font-size: 14px;
-  vertical-align: middle;
-}
-.admin-root tbody tr:last-child td {
-  border-bottom: none;
-}
-.admin-root tbody tr:hover {
-  background: var(--color-surface-3);
-}
-.admin-root td.actions {
-  text-align: right;
-  width: 1%;
-  white-space: nowrap;
-}
-
-.admin-root .name-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.admin-root .name-cell .swatch {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  background: var(--color-surface-3);
-  border: 1px solid var(--color-line-2);
-  flex-shrink: 0;
-  color: var(--color-ink-2);
-}
-.admin-root .name-cell .swatch.group {
-  background: color-mix(in oklch, var(--color-accent), transparent 85%);
-  border-color: color-mix(in oklch, var(--color-accent), transparent 60%);
-  color: var(--color-accent);
-}
-.admin-root .name-cell .primary {
-  font-weight: 500;
-  color: var(--color-ink);
-}
-.admin-root .name-cell .secondary {
-  font-size: 12px;
-  color: var(--color-ink-3);
-  margin-top: 2px;
-}
 
 .admin-root .path {
   font-family: 'JetBrains Mono', monospace;
@@ -191,28 +101,6 @@
   display: inline-block;
 }
 
-/* Chips */
-
-/* Modal */
-
-/* Empty state */
-
-/* Inline edit */
-.admin-root .inline-edit {
-  background: var(--color-surface);
-  border: 1px solid var(--color-accent);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 14px;
-  color: var(--color-ink);
-  outline: none;
-  width: 100%;
-}
-.admin-root .inline-edit.mono {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12.5px;
-}
-
 /* User table extras */
 .admin-root .avatar-md {
   width: 34px;
@@ -221,17 +109,6 @@
   display: grid;
   place-items: center;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--color-accent-ink);
-  flex-shrink: 0;
-}
-.admin-root .avatar-xl {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
   font-weight: 600;
   color: var(--color-accent-ink);
   flex-shrink: 0;
@@ -280,95 +157,6 @@
   font-size: 12px;
   color: var(--color-ink-3);
   margin-top: 4px;
-}
-.admin-root .stat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-top: 24px;
-  margin-bottom: 28px;
-}
-.admin-root .stat-block {
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-line);
-  border-radius: 10px;
-  padding: 14px 16px;
-}
-.admin-root .stat-block .l {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-ink-3);
-  margin-bottom: 6px;
-}
-.admin-root .stat-block .n {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.3px;
-}
-.admin-root .stat-block .s {
-  font-size: 11.5px;
-  color: var(--color-ink-3);
-  margin-top: 3px;
-}
-
-/* Drawer content. The shell — backdrop, panel, sticky head, body padding —
-   lives in components/ui/UiDrawer.vue; these must not redeclare it, since an
-   .admin-root-prefixed rule ties with the component's scoped one on
-   specificity and then wins on source order. */
-.admin-root .drawer-id {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--color-line);
-}
-.admin-root .drawer-id h2 {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.3px;
-}
-.admin-root .drawer-id-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-.admin-root .drawer-section {
-  margin-top: 32px;
-}
-.admin-root .drawer-section-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 12px;
-}
-.admin-root .drawer-section-head h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-ink-2);
-}
-.admin-root .access-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-}
-.admin-root .access-block {
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-line);
-  border-radius: 10px;
-  padding: 14px 16px;
-}
-.admin-root .access-block .l {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-ink-3);
-  margin-bottom: 10px;
 }
 
 /* Member chip input */

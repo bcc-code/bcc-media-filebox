@@ -14,19 +14,12 @@ const props = withDefaults(
     open?: boolean
     /** Accessible name, for when the caller has no heading to bind `titleProps` to. */
     label?: string
-    /**
-     * Teleport target. `body` by default, so the panel escapes any transformed
-     * ancestor. Pass a selector when the panel's content depends on styles
-     * scoped to a wrapper it has to stay inside.
-     */
-    teleportTo?: string
   }>(),
   {
     side: 'right',
     width: 'min(960px, 92vw)',
     open: true,
     label: undefined,
-    teleportTo: 'body',
   },
 )
 
@@ -59,7 +52,9 @@ const closeTriggerProps = computed(
 </script>
 
 <template>
-  <Teleport :to="teleportTo">
+  <!-- Always <body>: a transformed ancestor would otherwise become the
+       containing block for the fixed-position backdrop and panel. -->
+  <Teleport to="body">
     <template v-if="api.open">
       <div v-bind="api.getBackdropProps()" class="drawer-backdrop" />
       <div

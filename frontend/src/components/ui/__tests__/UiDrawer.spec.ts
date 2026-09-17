@@ -151,17 +151,20 @@ describe('UiDrawer', () => {
     )
   })
 
-  it('teleports into the given target instead of body', async () => {
+  it('teleports to body, escaping any transformed ancestor', async () => {
     const host = document.createElement('div')
-    host.className = 'admin-root'
+    // A transform makes an element the containing block for position: fixed
+    // descendants, which is what breaks a backdrop rendered in place.
+    host.style.transform = 'translateY(0)'
     document.body.appendChild(host)
 
-    mountDrawer({ teleportTo: '.admin-root' })
+    wrapper = mount(UiDrawer, {
+      slots: { default: '<h2>Anne Solberg</h2>' },
+      attachTo: host,
+    })
     await flush()
 
-    // UserDrawer relies on this: its content is styled by .admin-root-prefixed
-    // rules, so a panel teleported to <body> would render unstyled.
-    expect(host.querySelector('.drawer-panel')).not.toBeNull()
-    expect(panel()!.closest('.admin-root')).toBe(host)
+    expect(panel()!.parentElement!.parentElement).toBe(document.body)
+    expect(host.querySelector('.drawer-panel')).toBeNull()
   })
 })
