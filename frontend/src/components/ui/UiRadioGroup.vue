@@ -25,11 +25,23 @@ const props = withDefaults(
      * by the `segmented` variant.
      */
     layout?: 'stack' | 'grid'
+    /**
+     * Selected-state glyph for the `card` variant. `check` is a filled circle
+     * with a tick — a firmer "confirmed" than the radio dot, for a choice with
+     * consequences.
+     */
+    indicator?: 'dot' | 'check'
     disabled?: boolean
     /** Accessible name for the group, when the visible label sits outside. */
     ariaLabel?: string
   }>(),
-  { variant: 'card', layout: 'stack', disabled: false, ariaLabel: undefined },
+  {
+    variant: 'card',
+    layout: 'stack',
+    indicator: 'dot',
+    disabled: false,
+    ariaLabel: undefined,
+  },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
@@ -51,6 +63,7 @@ const api = computed(() => radio.connect(service, normalizeProps))
 
 const isCard = computed(() => props.variant === 'card')
 const isGrid = computed(() => isCard.value && props.layout === 'grid')
+const isCheck = computed(() => props.indicator === 'check')
 
 /** Zag derives per-item state from these, so they must reach every getter. */
 const itemArgs = (option: UiRadioOption<T>) => ({
@@ -80,14 +93,42 @@ const itemProps = (option: UiRadioOption<T>) =>
         <slot :name="`icon-${option.value}`" />
         <span
           v-bind="api.getItemControlProps(itemArgs(option))"
-          class="radio-dot"
-        />
+          :class="isCheck ? 'radio-check' : 'radio-dot'"
+        >
+          <svg
+            v-if="isCheck"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M5 13l4 4L19 7" />
+          </svg>
+        </span>
       </span>
       <span
         v-else-if="isCard"
         v-bind="api.getItemControlProps(itemArgs(option))"
-        class="radio-dot"
-      />
+        :class="isCheck ? 'radio-check' : 'radio-dot'"
+      >
+        <svg
+          v-if="isCheck"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M5 13l4 4L19 7" />
+        </svg>
+      </span>
       <span v-bind="api.getItemTextProps(itemArgs(option))" class="radio-body">
         <span class="radio-label">
           <slot v-if="!isGrid" :name="`icon-${option.value}`" />

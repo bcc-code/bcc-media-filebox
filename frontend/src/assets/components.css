@@ -1084,6 +1084,12 @@
     flex: none;
     width: 100%;
   }
+  /* Grid cards carry more weight than a stacked list item, and hold up better
+     against a label that wraps to two lines. */
+  .radio-cards-grid .radio-label {
+    font-weight: 600;
+  }
+
   .radio-card-top {
     display: flex;
     align-items: flex-start;
@@ -1111,6 +1117,30 @@
     height: 9px;
     border-radius: 50%;
     background: var(--color-accent);
+  }
+
+  /* The `check` indicator: an empty ring until selected, then a filled accent
+     circle with a tick. The tick is hidden by colour rather than by absence, so
+     the glyph never reflows the row. */
+  .radio-check {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--color-line-2);
+    border-radius: 50%;
+    flex-shrink: 0;
+    color: transparent;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+  }
+  .radio-card[data-state='checked'] .radio-check {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    /* Same token .btn-primary uses for content sitting on accent. */
+    color: var(--color-accent-ink);
   }
 
   .radio-body {

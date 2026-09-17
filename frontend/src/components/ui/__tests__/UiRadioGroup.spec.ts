@@ -197,6 +197,54 @@ describe('UiRadioGroup', () => {
     })
   })
 
+  describe('check indicator', () => {
+    it('defaults to the radio dot', async () => {
+      mountGroup({ layout: 'grid' })
+      await flush()
+
+      expect(document.querySelectorAll('.radio-dot')).toHaveLength(3)
+      expect(document.querySelector('.radio-check')).toBeNull()
+    })
+
+    it('swaps the dot for a ticked circle on request', async () => {
+      mountGroup({ layout: 'grid', indicator: 'check' })
+      await flush()
+
+      expect(document.querySelectorAll('.radio-check')).toHaveLength(3)
+      expect(document.querySelector('.radio-dot')).toBeNull()
+      // The tick is always in the DOM and hidden by colour, so selecting does
+      // not reflow the row.
+      expect(document.querySelectorAll('.radio-check svg')).toHaveLength(3)
+    })
+
+    it('still reports state on the item, which is what colours the tick', async () => {
+      mountGroup({
+        layout: 'grid',
+        indicator: 'check',
+        modelValue: 'bcc_login',
+      })
+      await flush()
+
+      expect(checked()?.querySelector('.radio-check')).not.toBeNull()
+    })
+
+    it('works in the stacked layout too', async () => {
+      mountGroup({ indicator: 'check' })
+      await flush()
+
+      expect(document.querySelector('.radio-card-top')).toBeNull()
+      expect(document.querySelectorAll('.radio-check')).toHaveLength(3)
+    })
+
+    it('is ignored by the segmented variant, which renders no control', async () => {
+      mountGroup({ variant: 'segmented', indicator: 'check' })
+      await flush()
+
+      expect(document.querySelector('.radio-check')).toBeNull()
+      expect(document.querySelector('.radio-dot')).toBeNull()
+    })
+  })
+
   describe('segmented variant', () => {
     it('reuses the shared .seg switch and drops the dots', async () => {
       mountGroup({ variant: 'segmented' })

@@ -23,6 +23,7 @@ const options = computed<UiRadioOption<string>[]>(() =>
     :model-value="modelValue"
     :options="options"
     layout="grid"
+    indicator="check"
     aria-label="Upload target"
     @update:model-value="emit('update:modelValue', $event)"
   >

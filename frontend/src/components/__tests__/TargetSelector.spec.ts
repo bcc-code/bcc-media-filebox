@@ -88,6 +88,16 @@ describe('TargetSelector', () => {
     expect(document.querySelector('.radio-label .target-ic')).toBeNull()
   })
 
+  it('uses the ticked-circle indicator, not the radio dot', async () => {
+    mountSelector()
+    await flush()
+
+    // Picking a target decides where files land, so the selected state gets the
+    // firmer "confirmed" glyph.
+    expect(document.querySelectorAll('.radio-check')).toHaveLength(2)
+    expect(document.querySelector('.radio-dot')).toBeNull()
+  })
+
   it('reflects targets loaded after mount', async () => {
     const w = mountSelector('')
     await flush()
