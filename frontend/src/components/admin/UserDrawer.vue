@@ -11,6 +11,7 @@ import {
 } from '../../composables/adminHelpers'
 import UiButton from '../ui/UiButton.vue'
 import UiDrawer from '../ui/UiDrawer.vue'
+import UiBadge from '../ui/UiBadge.vue'
 
 const props = defineProps<{ user: AdminUserDetail }>()
 const emit = defineEmits<{
@@ -69,41 +70,18 @@ const failureRate = computed(() => {
               style="color: var(--color-ink-2); font-size: 13px"
               >{{ user.email }}</span
             >
-            <span
-              class="badge"
-              :style="{
-                color: providerColor(user.provider),
-                borderColor:
-                  'color-mix(in oklch, ' +
-                  providerColor(user.provider) +
-                  ', transparent 60%)',
-              }"
-            >
-              <span
-                class="badge-dot"
-                :style="{ background: providerColor(user.provider) }"
-              ></span>
+            <UiBadge :tone="providerColor(user.provider)" dot>
               {{ providerLabel(user.provider) }}
-            </span>
-            <span v-if="role === 'admin'" class="badge badge-accent"
-              ><span class="badge-dot"></span>Admin</span
+            </UiBadge>
+            <UiBadge v-if="role === 'admin'" variant="accent" dot
+              >Admin</UiBadge
             >
-            <span v-else-if="role === 'guest'" class="badge badge-warn"
-              ><span class="badge-dot"></span>Guest</span
+            <UiBadge v-else-if="role === 'guest'" variant="warn" dot
+              >Guest</UiBadge
             >
-            <span v-else class="badge"
-              ><span class="badge-dot"></span>Uploader</span
-            >
-            <span v-if="user.active" class="badge badge-ok"
-              ><span class="badge-dot"></span>Active</span
-            >
-            <span v-else class="badge" style="color: var(--color-ink-3)"
-              ><span
-                class="badge-dot"
-                style="background: var(--color-ink-3)"
-              ></span
-              >Dormant</span
-            >
+            <UiBadge v-else dot>Uploader</UiBadge>
+            <UiBadge v-if="user.active" variant="ok" dot>Active</UiBadge>
+            <UiBadge v-else tone="var(--color-ink-3)" dot>Dormant</UiBadge>
           </div>
         </div>
         <div style="display: flex; gap: 8px; flex-shrink: 0">
@@ -181,7 +159,7 @@ const failureRate = computed(() => {
                   }}</span>
                 </td>
                 <td>
-                  <span class="badge">{{ r.targetName || '—' }}</span>
+                  <UiBadge>{{ r.targetName || '—' }}</UiBadge>
                 </td>
                 <td style="text-align: right">
                   <span class="mono" style="font-size: 12.5px">{{
@@ -206,8 +184,8 @@ const failureRate = computed(() => {
           <div class="access-block">
             <div class="l">Groups</div>
             <div class="badges" v-if="user.groups.length">
-              <span v-for="gn in user.groups" :key="gn" class="badge">
-                <svg
+              <UiBadge v-for="gn in user.groups" :key="gn"
+                ><svg
                   width="11"
                   height="11"
                   viewBox="0 0 24 24"
@@ -219,8 +197,8 @@ const failureRate = computed(() => {
                   <circle cx="17" cy="9" r="2.5" />
                   <path d="M3 19c1-3 3.5-4.5 6-4.5s5 1.5 6 4.5" />
                 </svg>
-                {{ gn }}
-              </span>
+                {{ gn }}</UiBadge
+              >
             </div>
             <div v-else style="color: var(--color-ink-3); font-size: 13px">
               Not in any groups.
@@ -229,19 +207,18 @@ const failureRate = computed(() => {
           <div class="access-block">
             <div class="l">Direct grants</div>
             <div class="badges" v-if="user.directGrants.length">
-              <span
+              <UiBadge
                 v-for="g in user.directGrants"
                 :key="g.id"
-                class="badge badge-accent"
-              >
-                {{
+                variant="accent"
+                >{{
                   g.admin
                     ? 'Admin'
                     : g.allTargets
                       ? 'All targets'
                       : g.targetIds.map(targetName).join(', ') || 'No targets'
-                }}
-              </span>
+                }}</UiBadge
+              >
             </div>
             <div v-else style="color: var(--color-ink-3); font-size: 13px">
               None — access comes from group membership.
@@ -250,15 +227,15 @@ const failureRate = computed(() => {
           <div class="access-block">
             <div class="l">Effective targets</div>
             <div class="badges">
-              <span v-if="user.effectiveAll" class="badge badge-ok"
-                ><span class="badge-dot"></span>All targets</span
+              <UiBadge v-if="user.effectiveAll" variant="ok" dot
+                >All targets</UiBadge
               >
               <template v-else>
-                <span
+                <UiBadge
                   v-for="name in effectiveTargetNames"
                   :key="name"
-                  class="badge badge-ok"
-                  >{{ name }}</span
+                  variant="ok"
+                  >{{ name }}</UiBadge
                 >
                 <span
                   v-if="effectiveTargetNames.length === 0"

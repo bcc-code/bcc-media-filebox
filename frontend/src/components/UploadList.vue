@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import type { UploadRecord } from '../types'
 import { getUserId } from '../composables/useUserId'
 import UiButton from './ui/UiButton.vue'
+import UiBadge from './ui/UiBadge.vue'
 
 const records = ref<UploadRecord[]>([])
 const loading = ref(false)
@@ -76,10 +77,7 @@ defineExpose({ refresh: fetchUploads })
             >
           </div>
         </div>
-        <span class="badge badge-ok">
-          <span class="badge-dot" />
-          completed
-        </span>
+        <UiBadge variant="ok" dot>completed</UiBadge>
       </div>
     </div>
   </div>

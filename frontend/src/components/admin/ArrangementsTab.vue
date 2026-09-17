@@ -5,6 +5,7 @@ import SubEventImportModal from './SubEventImportModal.vue'
 import UiCollapsible from '../ui/UiCollapsible.vue'
 import { confirmAction } from '../../composables/useConfirm'
 import UiButton from '../ui/UiButton.vue'
+import UiBadge from '../ui/UiBadge.vue'
 
 const emit = defineEmits<{
   (e: 'new'): void
@@ -137,7 +138,7 @@ async function onDeleteArrangement(a: Arrangement) {
           </svg>
         </button>
         <div class="primary">{{ a.name }}</div>
-        <span class="badge mono">{{ a.code }}</span>
+        <UiBadge mono>{{ a.code }}</UiBadge>
         <span class="secondary"
           >{{ a.subEvents.length }} sub event{{
             a.subEvents.length === 1 ? '' : 's'

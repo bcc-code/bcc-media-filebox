@@ -11,6 +11,7 @@ import {
 } from '../../composables/adminHelpers'
 import UiRadioGroup, { type UiRadioOption } from '../ui/UiRadioGroup.vue'
 import UiInput from '../ui/UiInput.vue'
+import UiBadge from '../ui/UiBadge.vue'
 
 const emit = defineEmits<{ (e: 'open', u: AdminUser): void }>()
 
@@ -157,15 +158,13 @@ function role(u: AdminUser) {
               </div>
             </td>
             <td>
-              <span v-if="role(u) === 'admin'" class="badge badge-accent"
-                ><span class="badge-dot"></span>Admin</span
+              <UiBadge v-if="role(u) === 'admin'" variant="accent" dot
+                >Admin</UiBadge
               >
-              <span v-else-if="role(u) === 'guest'" class="badge badge-warn"
-                ><span class="badge-dot"></span>Guest</span
+              <UiBadge v-else-if="role(u) === 'guest'" variant="warn" dot
+                >Guest</UiBadge
               >
-              <span v-else class="badge"
-                ><span class="badge-dot"></span>Uploader</span
-              >
+              <UiBadge v-else dot>Uploader</UiBadge>
             </td>
             <td>
               <div style="font-size: 13.5px">{{ relTime(u.lastLoginAt) }}</div>
@@ -191,16 +190,8 @@ function role(u: AdminUser) {
               }}</span>
             </td>
             <td>
-              <span v-if="u.active" class="badge badge-ok"
-                ><span class="badge-dot"></span>Active</span
-              >
-              <span v-else class="badge" style="color: var(--color-ink-3)"
-                ><span
-                  class="badge-dot"
-                  style="background: var(--color-ink-3)"
-                ></span
-                >Dormant</span
-              >
+              <UiBadge v-if="u.active" variant="ok" dot>Active</UiBadge>
+              <UiBadge v-else tone="var(--color-ink-3)" dot>Dormant</UiBadge>
             </td>
             <td class="actions">
               <svg

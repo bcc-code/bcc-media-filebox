@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { UploadItem } from '../types'
 import UiButton from './ui/UiButton.vue'
+import UiBadge from './ui/UiBadge.vue'
 
 const props = defineProps<{
   item: UploadItem
@@ -36,16 +37,20 @@ function formatETA(item: UploadItem): string {
 }
 
 // Upload status drives both the badge tint and the progress fill; keep the two
-// mappings together so a new status can't be styled inconsistently.
-const statusBadge = computed(
+// mappings together so a new status can't be styled inconsistently. `as const`
+// narrows the values to UiBadge's variant union, so a typo here is a build
+// error rather than a badge that quietly renders untinted.
+const statusVariant = computed(
   () =>
-    ({
-      uploading: 'badge-accent',
-      paused: 'badge-warn',
-      completed: 'badge-ok',
-      failed: 'badge-danger',
-      pending: '',
-    })[props.item.status] ?? '',
+    (
+      ({
+        uploading: 'accent',
+        paused: 'warn',
+        completed: 'ok',
+        failed: 'danger',
+        pending: 'default',
+      }) as const
+    )[props.item.status] ?? 'default',
 )
 
 const fillTone = computed(
@@ -78,7 +83,7 @@ const fillTone = computed(
           >
         </div>
       </div>
-      <span class="badge" :class="statusBadge">{{ item.status }}</span>
+      <UiBadge :variant="statusVariant">{{ item.status }}</UiBadge>
     </div>
 
     <div
@@ -138,11 +143,6 @@ const fillTone = computed(
    wrapper is kept so precedence against Tailwind utilities is unchanged.
    Shared primitives stay in assets/components.css. */
 @layer components {
-  .badge-danger {
-    background: color-mix(in oklch, var(--color-danger), transparent 84%);
-    border-color: color-mix(in oklch, var(--color-danger), transparent 45%);
-    color: oklch(0.85 0.1 25);
-  }
   .progress {
     height: 6px;
     border-radius: 999px;
@@ -163,6 +163,12 @@ const fillTone = computed(
   }
   .progress .fill.idle {
     background: var(--color-ink-3);
+  }
+  .progress .fill.warn {
+    background: var(--color-warn);
+  }
+  .progress .fill.danger {
+    background: var(--color-danger);
   }
 }
 
@@ -209,14 +215,5 @@ const fillTone = computed(
   margin: 0;
   font-size: 11.5px;
   color: var(--color-danger);
-}
-/* The remaining two state tints. The family was split across this file and
-   components.css at equal specificity, so which one won depended on bundle
-   order. */
-.progress .fill.warn {
-  background: var(--color-warn);
-}
-.progress .fill.danger {
-  background: var(--color-danger);
 }
 </style>

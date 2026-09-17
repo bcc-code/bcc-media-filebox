@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useAdmin, type Grant } from '../../composables/useAdmin'
 import { confirmAction } from '../../composables/useConfirm'
 import UiButton from '../ui/UiButton.vue'
+import UiBadge from '../ui/UiBadge.vue'
 
 const emit = defineEmits<{ (e: 'new'): void; (e: 'edit', g: Grant): void }>()
 const { grants, targets, groups, deleteGrant } = useAdmin()
@@ -132,27 +133,24 @@ const sortedGrants = computed(() =>
               </div>
             </td>
             <td>
-              <span class="badge badge-accent" v-if="g.admin"
-                ><span class="badge-dot"></span>Admin</span
-              >
-              <span class="badge" v-else style="color: var(--color-ink-3)"
-                >Uploader</span
+              <UiBadge v-if="g.admin" variant="accent" dot>Admin</UiBadge>
+              <UiBadge v-else style="color: var(--color-ink-3)"
+                >Uploader</UiBadge
               >
             </td>
             <td>
               <div class="badges">
-                <span v-if="g.admin || g.allTargets" class="badge badge-ok"
-                  ><span class="badge-dot"></span>All targets</span
+                <UiBadge v-if="g.admin || g.allTargets" variant="ok" dot
+                  >All targets</UiBadge
                 >
                 <template v-else>
-                  <span v-for="tid in g.targetIds" :key="tid" class="badge">{{
+                  <UiBadge v-for="tid in g.targetIds" :key="tid">{{
                     targetName(tid)
-                  }}</span>
-                  <span
+                  }}</UiBadge>
+                  <UiBadge
                     v-if="g.targetIds.length === 0"
-                    class="badge"
                     style="color: var(--color-ink-3)"
-                    >No targets</span
+                    >No targets</UiBadge
                   >
                 </template>
               </div>

@@ -2,6 +2,7 @@
 import { useAdmin, type Project } from '../../composables/useAdmin'
 import { confirmAction } from '../../composables/useConfirm'
 import UiButton from '../ui/UiButton.vue'
+import UiBadge from '../ui/UiBadge.vue'
 
 const emit = defineEmits<{ (e: 'new'): void; (e: 'edit', p: Project): void }>()
 const { projects, deleteProject } = useAdmin()
@@ -81,7 +82,7 @@ async function onDelete(p: Project) {
               </div>
             </td>
             <td>
-              <span class="badge mono">{{ p.code }}</span>
+              <UiBadge mono>{{ p.code }}</UiBadge>
             </td>
             <td class="actions">
               <UiButton size="sm" variant="ghost" @click="emit('edit', p)">

@@ -32,43 +32,6 @@
 
   /* ---------- Badge ----------
      Read-only status pill. Was `.chip` in Admin and `.chip-sm` in Send. */
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 9px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 500;
-    white-space: nowrap;
-    flex-shrink: 0;
-    max-width: 100%;
-    background: var(--color-surface-3);
-    border: 1px solid var(--color-line-2);
-    color: var(--color-ink-2);
-  }
-  .badge-accent {
-    background: color-mix(in oklch, var(--color-accent), transparent 88%);
-    border-color: color-mix(in oklch, var(--color-accent), transparent 55%);
-    color: oklch(0.8 0.1 250);
-  }
-  .badge-ok {
-    background: color-mix(in oklch, var(--color-ok), transparent 85%);
-    border-color: color-mix(in oklch, var(--color-ok), transparent 60%);
-    color: var(--color-ok);
-  }
-  .badge-warn {
-    background: color-mix(in oklch, var(--color-warn), transparent 85%);
-    border-color: color-mix(in oklch, var(--color-warn), transparent 55%);
-    color: oklch(0.85 0.13 75);
-  }
-  .badge-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    flex-shrink: 0;
-  }
 
   /* Row of badges */
   .badges {

@@ -4,6 +4,7 @@ import { useAdmin, type Target } from '../../composables/useAdmin'
 import { confirmAction } from '../../composables/useConfirm'
 import UiEditable from '../ui/UiEditable.vue'
 import UiButton from '../ui/UiButton.vue'
+import UiBadge from '../ui/UiBadge.vue'
 
 const emit = defineEmits<{
   (e: 'new'): void
@@ -213,14 +214,13 @@ function onDragEnd() {
               />
             </td>
             <td>
-              <span
-                class="badge"
+              <UiBadge
                 v-if="countGrantsForTarget(t.id) === 0"
                 style="color: var(--color-ink-3)"
-                >No one</span
+                >No one</UiBadge
               >
-              <span v-else class="badge badge-ok"
-                >{{ countGrantsForTarget(t.id) }} principals</span
+              <UiBadge v-else variant="ok"
+                >{{ countGrantsForTarget(t.id) }} principals</UiBadge
               >
             </td>
             <td class="actions">

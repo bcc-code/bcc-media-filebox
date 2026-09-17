@@ -2,6 +2,7 @@
 import { useAdmin, type Group } from '../../composables/useAdmin'
 import { confirmAction } from '../../composables/useConfirm'
 import UiButton from '../ui/UiButton.vue'
+import UiBadge from '../ui/UiBadge.vue'
 
 const emit = defineEmits<{ (e: 'new'): void; (e: 'edit', g: Group): void }>()
 const { groups, grants, deleteGroup } = useAdmin()
@@ -92,12 +93,8 @@ async function onDelete(gr: Group) {
               </div>
             </td>
             <td>
-              <span v-if="gr.kind === 'builtin'" class="badge"
-                ><span class="badge-dot"></span>Built-in</span
-              >
-              <span v-else class="badge badge-accent"
-                ><span class="badge-dot"></span>Custom</span
-              >
+              <UiBadge v-if="gr.kind === 'builtin'" dot>Built-in</UiBadge>
+              <UiBadge v-else variant="accent" dot>Custom</UiBadge>
             </td>
             <td>
               <span
@@ -116,17 +113,16 @@ async function onDelete(gr: Group) {
               </span>
             </td>
             <td>
-              <span
+              <UiBadge
                 v-if="countGrantsForGroup(gr.name) === 0"
-                class="badge"
                 style="color: var(--color-ink-3)"
-                >No grants</span
+                >No grants</UiBadge
               >
-              <span v-else class="badge badge-ok"
+              <UiBadge v-else variant="ok"
                 >{{ countGrantsForGroup(gr.name) }}
                 {{
                   countGrantsForGroup(gr.name) === 1 ? 'grant' : 'grants'
-                }}</span
+                }}</UiBadge
               >
             </td>
             <td class="actions">
