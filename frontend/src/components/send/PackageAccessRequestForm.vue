@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import type { AccessRequestReason } from '../../composables/usePackages'
 import UiTooltip from '../ui/UiTooltip.vue'
 import UiButton from '../ui/UiButton.vue'
+import UiInput from '../ui/UiInput.vue'
+import UiTextarea from '../ui/UiTextarea.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -109,23 +111,22 @@ function submit() {
       }}, say what you need, and we'll pass the request on to {{ who }}.
     </p>
 
-    <input
+    <UiInput
       v-model="email"
-      class="inp"
       type="email"
       autocomplete="email"
       placeholder="your@email.com"
       :disabled="submitting"
       @keydown.enter="submit"
     />
-    <textarea
+    <UiTextarea
       v-model="message"
-      class="inp req-msg"
+      class="req-msg"
       rows="3"
       maxlength="1000"
       placeholder="Optional — what you need, e.g. a few more days or another download"
       :disabled="submitting"
-    ></textarea>
+    />
 
     <div v-if="error" class="verify-error">{{ error }}</div>
 

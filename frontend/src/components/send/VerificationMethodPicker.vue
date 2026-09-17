@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { VerificationMethod } from '../../composables/usePackages'
 import UiRadioGroup, { type UiRadioOption } from '../ui/UiRadioGroup.vue'
+import UiInput from '../ui/UiInput.vue'
 
 defineProps<{
   modelValue: VerificationMethod
@@ -41,14 +42,11 @@ const options: UiRadioOption<VerificationMethod>[] = [
     @update:model-value="emit('update:modelValue', $event)"
   />
   <div v-if="modelValue === 'password'" class="pw-reveal fb-fade">
-    <input
-      class="inp"
+    <UiInput
+      :model-value="password"
       type="text"
-      :value="password"
       placeholder="Set a password to share out-of-band"
-      @input="
-        emit('update:password', ($event.target as HTMLInputElement).value)
-      "
+      @update:model-value="emit('update:password', $event)"
     />
   </div>
 </template>

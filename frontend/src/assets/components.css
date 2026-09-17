@@ -191,11 +191,14 @@
     flex-wrap: wrap;
     gap: 7px;
     align-items: center;
-    padding: 8px 10px;
-    min-height: 44px;
-    background: var(--color-surface-2);
+    /* Matches .inp exactly — same background token, radius and text inset — so
+       a stacked form does not show one field on a different surface. The
+       vertical padding is smaller because the chips inside carry their own. */
+    padding: 8px 12px;
+    min-height: 42px;
+    background: var(--color-surface);
     border: 1px solid var(--color-line-2);
-    border-radius: 9px;
+    border-radius: 8px;
     transition:
       border-color 0.15s ease,
       box-shadow 0.15s ease;
@@ -209,7 +212,9 @@
     flex: 1;
     min-width: 140px;
     width: auto;
-    padding: 4px 2px;
+    /* 2px keeps an empty control at .inp's 42px: 8+8 outer + 2+2 here + a
+       20.25px line + 2px border. A chip row is taller, which is correct. */
+    padding: 2px 0;
     border: none;
     border-radius: 0;
     background: transparent;
@@ -321,6 +326,19 @@
     border-color: var(--color-accent);
     box-shadow: 0 0 0 3px
       color-mix(in oklch, var(--color-accent), transparent 88%);
+  }
+
+  /* Textarea affordances. These lived in send.css as `.send-root textarea.inp`,
+     which meant a textarea on any other surface lost them. */
+  textarea.inp {
+    resize: vertical;
+    min-height: 74px;
+    line-height: 1.5;
+  }
+
+  .inp-invalid,
+  .inp-invalid:focus {
+    border-color: var(--color-danger);
   }
 
   .field {

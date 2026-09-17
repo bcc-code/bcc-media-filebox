@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import type { VerificationMethod } from '../../composables/usePackages'
 import UiButton from '../ui/UiButton.vue'
+import UiInput from '../ui/UiInput.vue'
 
 const props = defineProps<{
   verificationMethod: VerificationMethod
@@ -74,9 +75,9 @@ function submit() {
       This package is password-protected. Enter the password you were given to
       continue.
     </p>
-    <input
+    <UiInput
       v-model="password"
-      class="inp pw-verify"
+      class="pw-verify"
       type="password"
       placeholder="Enter password"
       :disabled="submitting"
