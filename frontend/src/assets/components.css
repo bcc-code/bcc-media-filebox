@@ -597,25 +597,33 @@
   }
   .app-nav {
     display: flex;
-    gap: 4px;
+    /* No background to separate the items, so the gap has to. */
+    gap: 20px;
   }
+  /* The same underline treatment as the page-level .tab strip, so the app has
+     one "where am I" language instead of a pill up here and an underline down
+     there. Two things differ on purpose: the padding is tighter (the header
+     aligns to a 30px wordmark, not a 46px tab strip), and there is no rule
+     under the row — that is what keeps the header distinguishable from a page
+     tab strip where the two stack, as on /send. */
   .app-nav a {
-    padding: 7px 14px;
-    border-radius: 8px;
+    padding: 3px 1px 7px;
+    border-bottom: 2px solid transparent;
     font-size: 14px;
     font-weight: 500;
-    color: var(--color-ink-3);
+    /* ink-3 was 4.18:1 here — under the 4.5:1 AA floor — which read as
+       disabled rather than clickable. ink-2 is 9.23:1. */
+    color: var(--color-ink-2);
     transition:
       color 0.15s,
-      background 0.15s;
+      border-color 0.15s;
   }
   .app-nav a:hover {
-    color: var(--color-ink-2);
-    background: var(--color-surface-2);
+    color: var(--color-ink);
   }
   .app-nav a.active {
     color: var(--color-ink);
-    background: var(--color-surface-3);
+    border-bottom-color: var(--color-accent);
   }
   .spacer {
     flex: 1;
@@ -1110,7 +1118,7 @@
     border: none;
     border-bottom: 2px solid transparent;
     background: transparent;
-    color: var(--color-ink-3);
+    color: var(--color-ink-2);
     font-family: inherit;
     font-size: 14px;
     font-weight: 500;
