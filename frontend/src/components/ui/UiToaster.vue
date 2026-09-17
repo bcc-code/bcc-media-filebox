@@ -75,3 +75,81 @@ const api = computed(() => toast.group.connect(service, normalizeProps))
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .toast {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    width: var(--width, auto);
+    min-width: 220px;
+    padding: 11px 14px 11px 18px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    color: var(--color-ink);
+    background: var(--color-surface-4);
+    border: 1px solid var(--color-line-2);
+    box-shadow: 0 14px 40px rgb(0 0 0 / 0.5);
+    /* Zag animates opacity/translate off these data attributes. */
+    translate: var(--x) var(--y);
+    scale: var(--scale);
+    z-index: var(--z-index);
+    height: var(--height);
+    opacity: var(--opacity);
+    will-change: translate, opacity, scale;
+    transition:
+      translate 0.3s ease,
+      scale 0.3s ease,
+      opacity 0.2s ease;
+  }
+  .toast[data-state='closed'] {
+    opacity: 0;
+  }
+  .toast-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-ok);
+    flex-shrink: 0;
+  }
+  .toast[data-type='error'] .toast-dot {
+    background: var(--color-danger);
+  }
+  .toast[data-type='warning'] .toast-dot {
+    background: var(--color-warn);
+  }
+  .toast[data-type='info'] .toast-dot {
+    background: var(--color-accent);
+  }
+  .toast-title {
+    font-weight: 500;
+  }
+  .toast-description {
+    grid-column: 2;
+    font-size: 12.5px;
+    color: var(--color-ink-2);
+  }
+  .toast-close {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-ink-3);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .toast-close:hover {
+    background: var(--color-surface-3);
+    color: var(--color-ink);
+  }
+}
+</style>

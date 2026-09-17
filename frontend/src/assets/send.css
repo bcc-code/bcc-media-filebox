@@ -34,217 +34,16 @@
 /* Two-up grid for expiry */
 
 /* Verification radio cards */
-.send-root .pw-reveal {
-  margin-top: 10px;
-}
 
 /* Toggle */
 
 /* Summary card (split layout) */
-.send-root .summary {
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-line-2);
-  border-radius: 14px;
-  padding: 18px 18px 16px;
-  position: sticky;
-  top: 24px;
-}
-.send-root .summary h3 {
-  margin: 0 0 14px;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.1px;
-}
 
 /* ============ Sent packages ============ */
-.send-root .pkg-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.send-root .pkg-card {
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-line);
-  border-radius: 13px;
-  padding: 16px 18px;
-}
-.send-root .pkg-card.gone {
-  opacity: 0.55;
-}
-.send-root .pkg-gone-note {
-  font-size: 12px;
-  color: var(--color-ink-3);
-}
-.send-root .pkg-top {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-.send-root .pkg-ic {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--color-surface-3);
-  border: 1px solid var(--color-line-2);
-  color: var(--color-ink-2);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-.send-root .pkg-main {
-  flex: 1;
-  min-width: 0;
-}
-.send-root .pkg-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-ink);
-}
-.send-root .pkg-recips {
-  font-size: 12.5px;
-  color: var(--color-ink-2);
-  margin-top: 3px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.send-root .pkg-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 8px;
-  margin-top: 12px;
-  font-size: 12px;
-  color: var(--color-ink-3);
-  font-family: 'JetBrains Mono', monospace;
-}
-.send-root .pkg-meta .mk {
-  color: var(--color-ink-2);
-}
-.send-root .pkg-meta .warn {
-  color: oklch(0.85 0.13 75);
-  font-weight: 600;
-}
-.send-root .pkg-meta > span:not(:first-child)::before {
-  content: '|';
-  margin-right: 8px;
-  color: var(--color-line-2);
-}
-.send-root .pkg-badges {
-  display: flex;
-  gap: 7px;
-  flex-shrink: 0;
-  align-items: center;
-}
-.send-root .pkg-foot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--color-line);
-}
-.send-root .pkg-foot .spacer {
-  flex: 1;
-}
 /* On is the state the author chose, so it reads as active rather than as the
    default; off falls back to the plain button. */
 
-.send-root .pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 11px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-.send-root .pill .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.send-root .pill.active {
-  background: color-mix(in oklch, var(--color-ok), transparent 80%);
-  color: oklch(0.82 0.11 160);
-  border: 1px solid color-mix(in oklch, var(--color-ok), transparent 60%);
-}
-.send-root .pill.expired {
-  background: var(--color-surface-3);
-  color: var(--color-ink-3);
-  border: 1px solid var(--color-line-2);
-}
-.send-root .pill.revoked {
-  background: color-mix(in oklch, var(--color-danger), transparent 80%);
-  color: oklch(0.82 0.13 25);
-  border: 1px solid color-mix(in oklch, var(--color-danger), transparent 58%);
-}
-.send-root .pill.deleted {
-  background: var(--color-surface-3);
-  color: var(--color-ink-3);
-  border: 1px solid var(--color-line-2);
-}
-.send-root .pill.preparing {
-  background: color-mix(in oklch, var(--color-info), transparent 82%);
-  color: oklch(0.82 0.1 240);
-  border: 1px solid color-mix(in oklch, var(--color-info), transparent 58%);
-}
-.send-root .pill.failed {
-  background: color-mix(in oklch, var(--color-danger), transparent 80%);
-  color: oklch(0.84 0.11 25);
-  border: 1px solid color-mix(in oklch, var(--color-danger), transparent 58%);
-}
-
-.send-root .pkg-preparation {
-  margin-top: 13px;
-  padding: 12px 13px;
-  border: 1px solid color-mix(in oklch, var(--color-info), transparent 65%);
-  background: color-mix(in oklch, var(--color-info), transparent 92%);
-  border-radius: 10px;
-}
-.send-root .pkg-preparation.failed {
-  border-color: color-mix(in oklch, var(--color-danger), transparent 62%);
-  background: color-mix(in oklch, var(--color-danger), transparent 91%);
-}
-.send-root .pkg-preparation-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-ink);
-}
-.send-root .pkg-preparation.failed .pkg-preparation-head {
-  color: oklch(0.86 0.1 25);
-}
-.send-root .pkg-preparation-meta {
-  margin-top: 7px;
-  font-size: 11.5px;
-  color: var(--color-ink-3);
-  line-height: 1.45;
-}
-
 /* ============ Recipient preview (sender-side tab) ============ */
-.send-root .preview-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-line-2);
-  border-radius: 11px;
-  padding: 12px 16px;
-  margin-bottom: 22px;
-}
-.send-root .preview-bar .pl {
-  font-size: 12.5px;
-  color: var(--color-ink-3);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
 .send-root .preview-bar .spacer {
   flex: 1;
 }
@@ -296,16 +95,6 @@
   letter-spacing: -0.3px;
   margin: 6px 0 0;
 }
-.send-root .public-msg {
-  margin-top: 16px;
-  padding: 13px 15px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-line);
-  border-radius: 10px;
-  font-size: 13.5px;
-  color: var(--color-ink-2);
-  line-height: 1.55;
-}
 .send-root .public-section {
   margin-top: 22px;
 }
@@ -324,52 +113,9 @@
 .send-root .public-section .public-files {
   margin-top: 8px;
 }
-.send-root .public-files {
-  margin-top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-.send-root .source-manifest {
-  max-height: 270px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: 5px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-line-2) transparent;
-}
-.send-root .public-file {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 9px 4px;
-  border-bottom: 1px solid var(--color-line);
-}
-.send-root .public-file:last-child {
-  border-bottom: none;
-}
 .send-root .public-file .fic {
   color: var(--color-ink-3);
   flex-shrink: 0;
-}
-.send-root .public-file .fn {
-  flex: 1;
-  min-width: 0;
-  font-size: 13.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.send-root .public-file .fs {
-  font-size: 12px;
-  color: var(--color-ink-3);
-  font-family: 'JetBrains Mono', monospace;
-  flex-shrink: 0;
-}
-.send-root .public-files-empty {
-  padding: 14px 4px;
-  color: var(--color-ink-3);
-  font-size: 12.5px;
 }
 .send-root .public-file .file-dl {
   flex-shrink: 0;
@@ -401,14 +147,6 @@
   border-color: var(--color-line-2);
   background: var(--color-surface-3);
 }
-.send-root .public-total {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12.5px;
-  color: var(--color-ink-3);
-  margin-top: 14px;
-  padding-top: 4px;
-}
 .send-root .public-note {
   text-align: center;
   font-size: 12px;
@@ -418,28 +156,6 @@
 }
 
 /* Async package preparation and server-produced download artifacts. */
-.send-root .preparation-state {
-  margin-top: 22px;
-  padding: 15px;
-  background: color-mix(in oklch, var(--color-info), transparent 92%);
-  border: 1px solid color-mix(in oklch, var(--color-info), transparent 64%);
-  border-radius: 11px;
-}
-.send-root .preparation-state.failed {
-  background: color-mix(in oklch, var(--color-danger), transparent 91%);
-  border-color: color-mix(in oklch, var(--color-danger), transparent 60%);
-}
-.send-root .preparation-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--color-ink);
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.send-root .preparation-state.failed .preparation-heading {
-  color: oklch(0.86 0.1 25);
-}
 .send-root .preparation-track {
   height: 7px;
   margin-top: 10px;
@@ -455,122 +171,8 @@
   border-radius: inherit;
   transition: width 0.35s ease;
 }
-.send-root .preparation-meta {
-  margin-top: 7px;
-  color: var(--color-ink-3);
-  font-size: 11.5px;
-  font-family: 'JetBrains Mono', monospace;
-}
-.send-root .preparation-state p {
-  margin: 9px 0 0;
-  color: var(--color-ink-2);
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-.send-root .downloads-section {
-  padding-top: 20px;
-  border-top: 1px solid var(--color-line);
-}
-.send-root .artifact-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-}
-.send-root .artifact-row {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 11px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-line);
-  border-radius: 10px;
-}
-.send-root .artifact-icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  color: var(--color-ink-2);
-  background: var(--color-surface-3);
-  border: 1px solid var(--color-line-2);
-  border-radius: 8px;
-}
-.send-root .artifact-icon.zip {
-  color: var(--color-accent);
-  border-color: color-mix(in oklch, var(--color-accent), transparent 65%);
-}
-.send-root .artifact-body {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
-}
-.send-root .artifact-name {
-  overflow: hidden;
-  color: var(--color-ink);
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.send-root .artifact-meta {
-  color: var(--color-ink-3);
-  font-size: 10.5px;
-  line-height: 1.4;
-}
-.send-root .artifact-dl {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  flex-shrink: 0;
-  padding: 7px 9px;
-  color: var(--color-accent);
-  background: color-mix(in oklch, var(--color-accent), transparent 90%);
-  border: 1px solid color-mix(in oklch, var(--color-accent), transparent 62%);
-  border-radius: 7px;
-  font-size: 11.5px;
-  font-weight: 600;
-  transition:
-    background 0.12s,
-    border-color 0.12s;
-}
-.send-root .artifact-dl:hover {
-  background: color-mix(in oklch, var(--color-accent), transparent 84%);
-  border-color: color-mix(in oklch, var(--color-accent), transparent 42%);
-}
-.send-root .artifact-dl.inert {
-  color: var(--color-ink-3);
-  background: var(--color-surface-3);
-  border-color: var(--color-line-2);
-  cursor: default;
-  opacity: 0.65;
-}
-.send-root .download-limit-note {
-  margin-top: 12px;
-  padding: 10px 12px;
-  color: oklch(0.86 0.11 75);
-  background: color-mix(in oklch, var(--color-warn), transparent 90%);
-  border: 1px solid color-mix(in oklch, var(--color-warn), transparent 62%);
-  border-radius: 9px;
-  font-size: 12px;
-  line-height: 1.5;
-}
 
 /* Verify screen */
-.send-root .verify-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 13px;
-  background: color-mix(in oklch, var(--color-accent), transparent 85%);
-  border: 1px solid color-mix(in oklch, var(--color-accent), transparent 55%);
-  color: var(--color-accent);
-  display: grid;
-  place-items: center;
-  margin-bottom: 20px;
-}
 .send-root .verify-h {
   font-size: 21px;
   font-weight: 600;
@@ -595,189 +197,20 @@
   padding: 9px 12px;
   margin-top: 12px;
 }
-.send-root .pw-verify {
-  margin-top: 4px;
-}
 
 /* Terminal states (expired / revoked / not found) on the real recipient page */
-.send-root .terminal-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 13px;
-  background: var(--color-surface-3);
-  border: 1px solid var(--color-line-2);
-  color: var(--color-ink-3);
-  display: grid;
-  place-items: center;
-  margin-bottom: 20px;
-}
 
 /* Access request form, shown under a terminal state so a stuck recipient has
    somewhere to go. Left-aligned inside the otherwise centred terminal card. */
-.send-root .req-box {
-  margin-top: 26px;
-  padding-top: 24px;
-  border-top: 1px solid var(--color-line);
-  text-align: left;
-}
-.send-root .req-h {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-ink);
-}
-.send-root .req-p {
-  font-size: 13px;
-  color: var(--color-ink-2);
-  margin: 7px 0 16px;
-  line-height: 1.55;
-}
-.send-root .req-msg {
-  margin-top: 8px;
-  min-height: 62px;
-}
-.send-root .req-note {
-  text-align: center;
-  font-size: 11.5px;
-  color: var(--color-ink-3);
-  margin: 12px 0 0;
-  line-height: 1.5;
-}
 /* Why the submit is disabled, in place of the reassurance line — brighter, so
    it reads as an instruction rather than fine print. */
-.send-root .req-note.blocked {
-  color: var(--color-ink-2);
-}
-.send-root .req-done {
-  display: flex;
-  gap: 13px;
-  align-items: flex-start;
-  margin-top: 26px;
-  padding-top: 24px;
-  border-top: 1px solid var(--color-line);
-  text-align: left;
-}
-.send-root .req-done-ic {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  background: color-mix(in oklch, var(--color-ok), transparent 82%);
-  border: 1px solid color-mix(in oklch, var(--color-ok), transparent 58%);
-  color: oklch(0.82 0.11 160);
-}
-.send-root .req-done-h {
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--color-ink);
-}
-.send-root .req-done-p {
-  font-size: 13px;
-  color: var(--color-ink-2);
-  margin: 5px 0 0;
-  line-height: 1.55;
-}
 
 /* Pending access requests and the extend form, on the author's package card */
-.send-root .pkg-asks {
-  margin-top: 14px;
-  padding-top: 13px;
-  border-top: 1px solid var(--color-line);
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-.send-root .ask-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-.send-root .ask-body {
-  flex: 1;
-  min-width: 0;
-}
-.send-root .ask-line {
-  font-size: 12.5px;
-  color: var(--color-ink-2);
-  line-height: 1.5;
-}
-.send-root .ask-line .ask-who {
-  color: var(--color-ink);
-  font-weight: 500;
-  word-break: break-all;
-}
-.send-root .ask-line .ask-kind {
-  color: oklch(0.85 0.13 75);
-}
-.send-root .ask-line .ask-when {
-  color: var(--color-ink-3);
-}
-.send-root .ask-msg {
-  margin: 6px 0 0;
-  padding: 9px 11px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  font-size: 12.5px;
-  color: var(--color-ink-2);
-  line-height: 1.5;
-  white-space: pre-wrap;
-}
-.send-root .ask-x {
-  background: transparent;
-  border: none;
-  color: var(--color-ink-3);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-.send-root .ask-x:hover {
-  color: var(--color-ink);
-  background: var(--color-surface-3);
-}
 .send-root .ask-hint {
   margin: 2px 0 0;
   font-size: 11.5px;
   color: var(--color-ink-3);
   line-height: 1.5;
-}
-
-.send-root .pkg-extend {
-  margin-top: 14px;
-  padding: 14px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-line-2);
-  border-radius: 11px;
-}
-.send-root .ex-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.send-root .ex-f {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.send-root .ex-lab {
-  font-size: 11.5px;
-  color: var(--color-ink-3);
-}
-.send-root .ex-note {
-  margin: 11px 0 0;
-  font-size: 11.5px;
-  color: var(--color-ink-3);
-  line-height: 1.5;
-}
-.send-root .ex-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
 }
 
 @media (max-width: 600px) {
@@ -786,24 +219,5 @@
   }
   .send-root .public-card {
     padding: 24px 18px;
-  }
-  .send-root .artifact-row {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-  .send-root .artifact-dl {
-    width: 100%;
-    margin-top: 2px;
-  }
-  .send-root .pkg-top {
-    flex-wrap: wrap;
-  }
-  .send-root .pkg-badges {
-    width: 100%;
-    padding-left: 54px;
-    flex-wrap: wrap;
-  }
-  .send-root .pkg-foot {
-    flex-wrap: wrap;
   }
 }

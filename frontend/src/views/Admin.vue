@@ -468,3 +468,41 @@ async function revokeUser(u: AdminUserDetail) {
     />
   </div>
 </template>
+
+<style scoped>
+/* Colocated from admin.css: the admin topbar is rendered only here. Note that
+   a class handed to a child through a prop (panel-class, list-class) cannot
+   live here — it lands on the child's element and carries the child's scope. */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--color-line);
+  background: color-mix(in oklch, var(--color-surface), transparent 10%);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+}
+.topbar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.topbar .me {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-ink-2);
+}
+.topbar .me .role {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--color-accent), transparent 80%);
+  color: var(--color-accent);
+  letter-spacing: 0.04em;
+}
+</style>

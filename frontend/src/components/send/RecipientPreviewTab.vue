@@ -150,3 +150,28 @@ function signInBcc() {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from send.css: these classes are used only by this
+   component. Shared primitives stay in assets/components.css — several
+   components need them, and scoped CSS cannot be shared. */
+/* ============ Recipient preview (sender-side tab) ============ */
+.preview-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line-2);
+  border-radius: 11px;
+  padding: 12px 16px;
+  margin-bottom: 22px;
+}
+.preview-bar .pl {
+  font-size: 12.5px;
+  color: var(--color-ink-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+</style>

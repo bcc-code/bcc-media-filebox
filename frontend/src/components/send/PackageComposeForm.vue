@@ -738,4 +738,20 @@ async function send() {
     display: none;
   }
 }
+/* The summary rail. SubEventImportModal has its own .summary at the same
+   specificity, so leaving this global let bundle order decide which won. */
+.summary h3 {
+  margin: 0 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+}
+.summary {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line-2);
+  border-radius: 14px;
+  padding: 18px 18px 16px;
+  position: sticky;
+  top: 24px;
+}
 </style>

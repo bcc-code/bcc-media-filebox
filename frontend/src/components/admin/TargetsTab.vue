@@ -242,6 +242,10 @@ function onDragEnd() {
 </template>
 
 <style scoped>
+/* Colocated from admin.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+
 .drag-handle {
   cursor: grab;
   color: var(--color-ink-3);

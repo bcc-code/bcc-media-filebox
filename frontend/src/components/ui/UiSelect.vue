@@ -183,3 +183,106 @@ const api = computed(() => select.connect(service, normalizeProps))
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .select-root {
+    width: 100%;
+  }
+  .select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .select-trigger[data-disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .select-invalid {
+    border-color: var(--color-danger);
+  }
+  .select-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .select-placeholder {
+    color: var(--color-ink-3);
+  }
+  .select-indicator {
+    display: grid;
+    place-items: center;
+    color: var(--color-ink-3);
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+  }
+  .select-trigger[data-state='open'] .select-indicator {
+    transform: rotate(180deg);
+  }
+  .select-positioner {
+    isolation: isolate;
+  }
+  .select-content {
+    z-index: var(--z-index-dropdown);
+    padding: 6px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line-2);
+    border-radius: 10px;
+    box-shadow: 0 18px 50px rgb(0 0 0 / 0.55);
+    animation: fb-pop 0.15s ease both;
+  }
+  .select-content:focus-visible {
+    outline: none;
+  }
+  .select-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  .select-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    color: var(--color-ink);
+    cursor: pointer;
+    user-select: none;
+  }
+  .select-item[data-highlighted] {
+    background: var(--color-surface-3);
+  }
+  .select-item[data-state='checked'] {
+    color: var(--color-accent);
+  }
+  .select-item[data-disabled] {
+    color: var(--color-ink-3);
+    cursor: not-allowed;
+  }
+  .select-check {
+    color: var(--color-accent);
+    font-size: 12px;
+  }
+  .select-item[data-state='unchecked'] .select-check {
+    visibility: hidden;
+  }
+  .select-group-label {
+    padding: 8px 10px 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-ink-3);
+  }
+}
+</style>

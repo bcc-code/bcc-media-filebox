@@ -117,3 +117,24 @@ function submit() {
     </p>
   </template>
 </template>
+
+<style scoped>
+/* Colocated from send.css: these classes are used only by this
+   component. Shared primitives stay in assets/components.css — several
+   components need them, and scoped CSS cannot be shared. */
+/* Verify screen */
+.verify-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 13px;
+  background: color-mix(in oklch, var(--color-accent), transparent 85%);
+  border: 1px solid color-mix(in oklch, var(--color-accent), transparent 55%);
+  color: var(--color-accent);
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+}
+.pw-verify {
+  margin-top: 4px;
+}
+</style>

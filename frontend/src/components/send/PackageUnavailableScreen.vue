@@ -23,3 +23,21 @@ defineProps<{ heading: string; message?: string }>()
     <p v-if="message" class="verify-p">{{ message }}</p>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from send.css: these classes are used only by this
+   component. Shared primitives stay in assets/components.css — several
+   components need them, and scoped CSS cannot be shared. */
+/* Terminal states (expired / revoked / not found) on the real recipient page */
+.terminal-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 13px;
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-line-2);
+  color: var(--color-ink-3);
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+}
+</style>

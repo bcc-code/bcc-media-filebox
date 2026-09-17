@@ -250,3 +250,160 @@ function artifactKindText(artifact: PackageArtifact): string {
     >
   </div>
 </template>
+
+<style scoped>
+/* Colocated from send.css: these classes are used only by this
+   component. Shared primitives stay in assets/components.css — several
+   components need them, and scoped CSS cannot be shared. */
+.public-msg {
+  margin-top: 16px;
+  padding: 13px 15px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: var(--color-ink-2);
+  line-height: 1.55;
+}
+/* Async package preparation and server-produced download artifacts. */
+.preparation-state {
+  margin-top: 22px;
+  padding: 15px;
+  background: color-mix(in oklch, var(--color-info), transparent 92%);
+  border: 1px solid color-mix(in oklch, var(--color-info), transparent 64%);
+  border-radius: 11px;
+}
+.preparation-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.preparation-meta {
+  margin-top: 7px;
+  color: var(--color-ink-3);
+  font-size: 11.5px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.preparation-state p {
+  margin: 9px 0 0;
+  color: var(--color-ink-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.downloads-section {
+  padding-top: 20px;
+  border-top: 1px solid var(--color-line);
+}
+.artifact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.artifact-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+}
+.artifact-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--color-ink-2);
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-line-2);
+  border-radius: 8px;
+}
+.artifact-icon.zip {
+  color: var(--color-accent);
+  border-color: color-mix(in oklch, var(--color-accent), transparent 65%);
+}
+.artifact-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.artifact-name {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.artifact-meta {
+  color: var(--color-ink-3);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+.artifact-dl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 7px 9px;
+  color: var(--color-accent);
+  background: color-mix(in oklch, var(--color-accent), transparent 90%);
+  border: 1px solid color-mix(in oklch, var(--color-accent), transparent 62%);
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.artifact-dl:hover {
+  background: color-mix(in oklch, var(--color-accent), transparent 84%);
+  border-color: color-mix(in oklch, var(--color-accent), transparent 42%);
+}
+.artifact-dl.inert {
+  color: var(--color-ink-3);
+  background: var(--color-surface-3);
+  border-color: var(--color-line-2);
+  cursor: default;
+  opacity: 0.65;
+}
+.download-limit-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  color: oklch(0.86 0.11 75);
+  background: color-mix(in oklch, var(--color-warn), transparent 90%);
+  border: 1px solid color-mix(in oklch, var(--color-warn), transparent 62%);
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Its own responsive override. This has to live beside the base rule: left
+   in send.css it tied on specificity with the scoped rule here and the winner
+   came down to bundle order. */
+@media (max-width: 600px) {
+  .artifact-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .artifact-dl {
+    width: 100%;
+    margin-top: 2px;
+  }
+}
+/* Failed-state modifiers of the scoped .preparation-state above. */
+.preparation-state.failed .preparation-heading {
+  color: oklch(0.86 0.1 25);
+}
+.preparation-state.failed {
+  background: color-mix(in oklch, var(--color-danger), transparent 91%);
+  border-color: color-mix(in oklch, var(--color-danger), transparent 60%);
+}
+</style>

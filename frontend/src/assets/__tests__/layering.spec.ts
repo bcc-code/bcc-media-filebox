@@ -10,6 +10,13 @@ const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8')
 
 const theme = read('style.css')
 const components = read('assets/components.css')
+// These moved out of components.css into the component that owns them, so the
+// z-index invariant is now asserted against the component's own style block.
+const floating: Record<string, string> = {
+  menu: read('components/ui/UiMenu.vue'),
+  select: read('components/ui/UiSelect.vue'),
+  tooltip: read('components/ui/UiTooltip.vue'),
+}
 const dialog = read('components/ui/UiDialog.vue')
 const drawer = read('components/ui/UiDrawer.vue')
 const surfaces = {
@@ -109,20 +116,32 @@ describe('layering', () => {
     expect(token('dropdown')).toBeGreaterThan(token('dialog'))
   })
 
-  it.each(['menu-content', 'select-content', 'tooltip-content'])(
-    'declares the z-index on .%s, where popper reads it',
-    (selector) => {
-      expect(rule(components, selector)).toContain(
+  it.each(['menu', 'select', 'tooltip'])(
+    'declares the z-index on .%s-content, where popper reads it',
+    (part) => {
+      expect(rule(floating[part], `${part}-content`)).toContain(
         'z-index: var(--z-index-dropdown)',
       )
     },
   )
 
-  it.each(['menu-positioner', 'select-positioner', 'tooltip-positioner'])(
-    'declares no z-index on .%s, where it would be overridden inline',
-    (selector) => {
+  it.each(['menu', 'select', 'tooltip'])(
+    'declares no z-index on .%s-positioner, where it would be overridden inline',
+    (part) => {
       // Must not match `z-index:` while still allowing `--z-index:`.
-      expect(rule(components, selector)).not.toMatch(/(^|[^-])z-index:/)
+      expect(rule(floating[part], `${part}-positioner`)).not.toMatch(
+        /(^|[^-])z-index:/,
+      )
+    },
+  )
+
+  it.each(['menu', 'select', 'tooltip'])(
+    'keeps .%s-* out of components.css now that it is colocated',
+    (part) => {
+      // Two definitions of a floating surface's z-index is how the original
+      // bug got in. One home only.
+      expect(components).not.toContain(`.${part}-content`)
+      expect(components).not.toContain(`.${part}-positioner`)
     },
   )
 

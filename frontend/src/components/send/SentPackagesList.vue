@@ -162,3 +162,15 @@ onUnmounted(stopPreparationPolling)
     </UiButton>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from send.css: these classes are used only by this
+   component. Shared primitives stay in assets/components.css — several
+   components need them, and scoped CSS cannot be shared. */
+/* ============ Sent packages ============ */
+.pkg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+</style>

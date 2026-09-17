@@ -99,3 +99,51 @@ const api = computed(() => fileUpload.connect(service, normalizeProps))
     <input v-bind="api.getHiddenInputProps()" />
   </div>
 </template>
+
+<style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .dropzone {
+    border: 1.5px dashed var(--color-line-2);
+    border-radius: 14px;
+    padding: 40px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
+  }
+  .dropzone:hover {
+    border-color: color-mix(in oklch, var(--color-accent), transparent 40%);
+    background: color-mix(in oklch, var(--color-accent), transparent 96%);
+  }
+  .dropzone .ic {
+    color: var(--color-ink-2);
+    margin-bottom: 12px;
+  }
+  .dropzone:disabled,
+  .dropzone.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: var(--color-line);
+    background: transparent;
+  }
+  .dropzone:disabled:hover,
+  .dropzone.disabled:hover {
+    border-color: var(--color-line);
+    background: transparent;
+  }
+
+  /* Same scope as .dropzone: as a global rule this tied on specificity with
+     the scoped base and the winner came down to bundle order. */
+  .dropzone.dragover {
+    border-color: var(--color-accent);
+    background: color-mix(in oklch, var(--color-accent), transparent 90%);
+  }
+}
+</style>

@@ -95,3 +95,31 @@ function onPreview(packageId: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .link {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  .page-note {
+    margin: 0 0 24px;
+    font-size: 12px;
+    color: var(--color-ink-3);
+    line-height: 1.5;
+  }
+}
+
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .link:hover {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
+  }
+}
+</style>

@@ -229,3 +229,46 @@ function role(u: AdminUser) {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from admin.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+.avatar-md {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent-ink);
+  flex-shrink: 0;
+}
+.user-search {
+  width: 220px;
+  padding: 8px 12px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line-2);
+  border-radius: 8px;
+  color: var(--color-ink);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.user-search:focus {
+  border-color: var(--color-accent);
+}
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+</style>

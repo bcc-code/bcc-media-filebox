@@ -51,3 +51,30 @@ const enabled = computed(() => !!props.label?.trim())
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .tooltip-trigger {
+    display: inline-flex;
+  }
+  .tooltip-positioner {
+    isolation: isolate;
+  }
+  .tooltip-content {
+    z-index: var(--z-index-dropdown);
+    max-width: 260px;
+    padding: 6px 9px;
+    border: 1px solid var(--color-line-2);
+    border-radius: 7px;
+    background: var(--color-surface-4);
+    color: var(--color-ink);
+    font-size: 12.5px;
+    line-height: 1.4;
+    box-shadow: 0 10px 28px rgb(0 0 0 / 0.45);
+    animation: fb-pop 0.12s ease both;
+  }
+}
+</style>

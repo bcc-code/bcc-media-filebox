@@ -50,3 +50,13 @@ const options: UiRadioOption<VerificationMethod>[] = [
     />
   </div>
 </template>
+
+<style scoped>
+/* Colocated from send.css: these classes are used only by this
+   component. Shared primitives stay in assets/components.css — several
+   components need them, and scoped CSS cannot be shared. */
+/* ============ Header ============ */ /* ============ Page title ============ */ /* ============ Layout variant switcher ============ */ /* ============ Compose layout ============ */ /* Dropzone */ /* A compact acknowledgement only appears when this exact Send draft was restored; the full upload history is never rendered in the compose form. */ /* File list */ /* Inputs */ /* Recipient chips */ /* Two-up grid for expiry */ /* Verification radio cards */
+.pw-reveal {
+  margin-top: 10px;
+}
+</style>

@@ -70,10 +70,41 @@ const items = computed<UiMenuEntry[]>(() => {
 </template>
 
 <style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .user-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 10px 4px 4px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--color-ink);
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .user-trigger:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-line);
+  }
+}
+
 /* Hide the name on narrow screens; the avatar carries the affordance. */
 @media (max-width: 560px) {
   .user-trigger .name {
     display: none;
+  }
+
+  /* Same scope as .user-trigger, for the same specificity-tie reason. */
+  .user-trigger.open {
+    background: var(--color-surface-2);
+    border-color: var(--color-line-2);
   }
 }
 </style>

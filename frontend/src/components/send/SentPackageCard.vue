@@ -525,3 +525,283 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from send.css: these classes are used only by this
+   component. Shared primitives stay in assets/components.css — several
+   components need them, and scoped CSS cannot be shared. */
+.pkg-card {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+  border-radius: 13px;
+  padding: 16px 18px;
+}
+.pkg-gone-note {
+  font-size: 12px;
+  color: var(--color-ink-3);
+}
+.pkg-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.pkg-ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-line-2);
+  color: var(--color-ink-2);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.pkg-main {
+  flex: 1;
+  min-width: 0;
+}
+.pkg-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.pkg-recips {
+  font-size: 12.5px;
+  color: var(--color-ink-2);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pkg-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--color-ink-3);
+  font-family: 'JetBrains Mono', monospace;
+}
+.pkg-meta .mk {
+  color: var(--color-ink-2);
+}
+.pkg-meta .warn {
+  color: oklch(0.85 0.13 75);
+  font-weight: 600;
+}
+.pkg-meta > span:not(:first-child)::before {
+  content: '|';
+  margin-right: 8px;
+  color: var(--color-line-2);
+}
+.pkg-badges {
+  display: flex;
+  gap: 7px;
+  flex-shrink: 0;
+  align-items: center;
+}
+.pkg-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-line);
+}
+/* On is the state the author chose, so it reads as active rather than as the default; off falls back to the plain button. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pill.revoked {
+  background: color-mix(in oklch, var(--color-danger), transparent 80%);
+  color: oklch(0.82 0.13 25);
+  border: 1px solid color-mix(in oklch, var(--color-danger), transparent 58%);
+}
+.pill.deleted {
+  background: var(--color-surface-3);
+  color: var(--color-ink-3);
+  border: 1px solid var(--color-line-2);
+}
+.pkg-preparation {
+  margin-top: 13px;
+  padding: 12px 13px;
+  border: 1px solid color-mix(in oklch, var(--color-info), transparent 65%);
+  background: color-mix(in oklch, var(--color-info), transparent 92%);
+  border-radius: 10px;
+}
+.pkg-preparation-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.pkg-preparation-meta {
+  margin-top: 7px;
+  font-size: 11.5px;
+  color: var(--color-ink-3);
+  line-height: 1.45;
+}
+/* Pending access requests and the extend form, on the author's package card */
+.pkg-asks {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--color-line);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.ask-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ask-body {
+  flex: 1;
+  min-width: 0;
+}
+.ask-line {
+  font-size: 12.5px;
+  color: var(--color-ink-2);
+  line-height: 1.5;
+}
+.ask-line .ask-who {
+  color: var(--color-ink);
+  font-weight: 500;
+  word-break: break-all;
+}
+.ask-line .ask-kind {
+  color: oklch(0.85 0.13 75);
+}
+.ask-line .ask-when {
+  color: var(--color-ink-3);
+}
+.ask-msg {
+  margin: 6px 0 0;
+  padding: 9px 11px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--color-ink-2);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.ask-x {
+  background: transparent;
+  border: none;
+  color: var(--color-ink-3);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.ask-x:hover {
+  color: var(--color-ink);
+  background: var(--color-surface-3);
+}
+.pkg-extend {
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-2);
+  border-radius: 11px;
+}
+.ex-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.ex-f {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ex-lab {
+  font-size: 11.5px;
+  color: var(--color-ink-3);
+}
+.ex-note {
+  margin: 11px 0 0;
+  font-size: 11.5px;
+  color: var(--color-ink-3);
+  line-height: 1.5;
+}
+.ex-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Its own responsive override. This has to live beside the base rule: left
+   in send.css it tied on specificity with the scoped rule here and the winner
+   came down to bundle order. */
+@media (max-width: 600px) {
+  .pkg-top {
+    flex-wrap: wrap;
+  }
+  .pkg-badges {
+    width: 100%;
+    padding-left: 54px;
+    flex-wrap: wrap;
+  }
+  .pkg-foot {
+    flex-wrap: wrap;
+  }
+}
+/* State modifiers for this card. They stayed in send.css because each one
+   mixes in a shared modifier class (.gone, .active, .failed, .spacer), but
+   every element they target is rendered here — and left global they tied
+   with the scoped base rules. */
+.pkg-card.gone {
+  opacity: 0.55;
+}
+.pkg-foot .spacer {
+  flex: 1;
+}
+.pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.pill.active {
+  background: color-mix(in oklch, var(--color-ok), transparent 80%);
+  color: oklch(0.82 0.11 160);
+  border: 1px solid color-mix(in oklch, var(--color-ok), transparent 60%);
+}
+.pill.expired {
+  background: var(--color-surface-3);
+  color: var(--color-ink-3);
+  border: 1px solid var(--color-line-2);
+}
+.pill.preparing {
+  background: color-mix(in oklch, var(--color-info), transparent 82%);
+  color: oklch(0.82 0.1 240);
+  border: 1px solid color-mix(in oklch, var(--color-info), transparent 58%);
+}
+.pill.failed {
+  background: color-mix(in oklch, var(--color-danger), transparent 80%);
+  color: oklch(0.84 0.11 25);
+  border: 1px solid color-mix(in oklch, var(--color-danger), transparent 58%);
+}
+.pkg-preparation.failed .pkg-preparation-head {
+  color: oklch(0.86 0.1 25);
+}
+.pkg-preparation.failed {
+  border-color: color-mix(in oklch, var(--color-danger), transparent 62%);
+  background: color-mix(in oklch, var(--color-danger), transparent 91%);
+}
+</style>

@@ -152,3 +152,73 @@ function submit() {
     </p>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from send.css: these classes are used only by this
+   component. Shared primitives stay in assets/components.css — several
+   components need them, and scoped CSS cannot be shared. */
+/* Access request form, shown under a terminal state so a stuck recipient has somewhere to go. Left-aligned inside the otherwise centred terminal card. */
+.req-box {
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-line);
+  text-align: left;
+}
+.req-h {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.req-p {
+  font-size: 13px;
+  color: var(--color-ink-2);
+  margin: 7px 0 16px;
+  line-height: 1.55;
+}
+.req-msg {
+  margin-top: 8px;
+  min-height: 62px;
+}
+.req-note {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--color-ink-3);
+  margin: 12px 0 0;
+  line-height: 1.5;
+}
+.req-done {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-line);
+  text-align: left;
+}
+.req-done-ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklch, var(--color-ok), transparent 82%);
+  border: 1px solid color-mix(in oklch, var(--color-ok), transparent 58%);
+  color: oklch(0.82 0.11 160);
+}
+.req-done-h {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.req-done-p {
+  font-size: 13px;
+  color: var(--color-ink-2);
+  margin: 5px 0 0;
+  line-height: 1.55;
+}
+/* Modifier of the scoped .req-note above — same scope, or it ties and loses. */
+.req-note.blocked {
+  color: var(--color-ink-2);
+}
+</style>

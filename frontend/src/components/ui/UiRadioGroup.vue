@@ -142,3 +142,197 @@ const itemProps = (option: UiRadioOption<T>) =>
     </label>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .seg {
+    display: flex;
+    gap: 0;
+    padding: 3px;
+    border: 1px solid var(--color-line-2);
+    border-radius: 8px;
+    background: var(--color-surface);
+  }
+  .seg button,
+  .seg .seg-item {
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-ink-2);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .seg .seg-item:has(:focus-visible) {
+    outline: 2px solid color-mix(in oklch, var(--color-accent), transparent 50%);
+    outline-offset: -2px;
+  }
+  .seg .seg-item[data-disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+/* ============================================================ Radio group — stacked labelled cards, or the compact `.seg` switch above. Zag drives selection from data-state, so the same rules cover pointer and keyboard. ============================================================ */
+@layer components {
+  .radio-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .radio-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 15px;
+    border: 1.5px solid var(--color-line);
+    border-radius: 11px;
+    background: var(--color-surface-2);
+    color: var(--color-ink);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      border-color 0.15s,
+      background 0.15s;
+  }
+  .radio-card:hover {
+    border-color: var(--color-ink-3);
+    background: var(--color-surface-3);
+  }
+  .radio-card[data-state='checked'] {
+    border-color: var(--color-accent);
+    background: color-mix(in oklch, var(--color-accent), transparent 90%);
+  }
+  .radio-card:has(:focus-visible) {
+    outline: 2px solid color-mix(in oklch, var(--color-accent), transparent 50%);
+    outline-offset: 2px;
+  }
+  .radio-card[data-disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Grid cards: a tile of choices rather than a stacked list. */
+  .radio-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .radio-cards-grid .radio-card {
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+  }
+  /* The label owns its own line here, so the body must not share a flex row. */
+  .radio-cards-grid .radio-body {
+    flex: none;
+    width: 100%;
+  }
+  /* Grid cards carry more weight than a stacked list item, and hold up better
+against a label that wraps to two lines. */
+  .radio-cards-grid .radio-label {
+    font-weight: 600;
+  }
+
+  .radio-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .radio-dot {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border: 1.5px solid var(--color-line-2);
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: border-color 0.15s;
+  }
+  .radio-card[data-state='checked'] .radio-dot {
+    border-color: var(--color-accent);
+  }
+  .radio-card[data-state='checked'] .radio-dot::after {
+    content: '';
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  /* The `check` indicator: an empty ring until selected, then a filled accent
+circle with a tick. The tick is hidden by colour rather than by absence, so
+the glyph never reflows the row. */
+  .radio-check {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--color-line-2);
+    border-radius: 50%;
+    flex-shrink: 0;
+    color: transparent;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+  }
+  .radio-card[data-state='checked'] .radio-check {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    /* Same token .btn-primary uses for content sitting on accent. */
+    color: var(--color-accent-ink);
+  }
+
+  .radio-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .radio-description {
+    display: block;
+    margin-top: 3px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--color-ink-3);
+  }
+  .radio-card[data-state='checked'] .radio-label svg {
+    color: var(--color-accent);
+  }
+  .radio-label svg {
+    color: var(--color-ink-2);
+  }
+
+  /* Checked state for the segmented variant. Left in components.css it was
+     (0,3,0) — exactly the same as the scoped `.seg .seg-item` above — so which
+     rule won came down to bundle order. */
+  .seg .seg-item[data-state='checked'] {
+    background: var(--color-surface-3);
+    color: var(--color-ink);
+  }
+}
+</style>

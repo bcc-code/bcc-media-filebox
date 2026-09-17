@@ -134,6 +134,38 @@ const fillTone = computed(
 </template>
 
 <style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .badge-danger {
+    background: color-mix(in oklch, var(--color-danger), transparent 84%);
+    border-color: color-mix(in oklch, var(--color-danger), transparent 45%);
+    color: oklch(0.85 0.1 25);
+  }
+  .progress {
+    height: 6px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--color-surface-3);
+    border: 1px solid var(--color-line);
+  }
+  .progress .fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--color-accent);
+    transition:
+      width 0.3s ease,
+      background 0.15s ease;
+  }
+  .progress .fill.ok {
+    background: var(--color-ok);
+  }
+  .progress .fill.idle {
+    background: var(--color-ink-3);
+  }
+}
+
 .upload-row {
   padding: 14px 16px;
 }
@@ -177,5 +209,14 @@ const fillTone = computed(
   margin: 0;
   font-size: 11.5px;
   color: var(--color-danger);
+}
+/* The remaining two state tints. The family was split across this file and
+   components.css at equal specificity, so which one won depended on bundle
+   order. */
+.progress .fill.warn {
+  background: var(--color-warn);
+}
+.progress .fill.danger {
+  background: var(--color-danger);
 }
 </style>

@@ -26,109 +26,9 @@
     font-family: var(--font-mono);
   }
 
-  /* ---------- Buttons ----------
-     Base is the dense scale used across tables and toolbars.
-     Scale with .btn-sm / .btn-lg; colour with .btn-primary /
-     .btn-ghost / .btn-danger; shape with .btn-icon / .btn-block. */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    /* .btn also dresses <a>/<router-link>, which arrive underlined. */
-    text-decoration: none;
-    padding: 9px 14px;
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    border: 1px solid var(--color-line-2);
-    background: var(--color-surface-2);
-    color: var(--color-ink);
-    transition:
-      border-color 0.15s ease,
-      background 0.15s ease,
-      opacity 0.15s ease;
-  }
-  .btn:hover {
-    border-color: var(--color-ink-3);
-    background: var(--color-surface-3);
-  }
-
   /* Scales */
-  .btn-sm {
-    padding: 5px 10px;
-    font-size: 12px;
-  }
-  .btn-lg {
-    padding: 11px 18px;
-    border-radius: 9px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  /* Shapes */
-  .btn-icon {
-    padding: 6px;
-    width: 30px;
-    height: 30px;
-  }
-  .btn-block {
-    width: 100%;
-  }
 
   /* Colours */
-  .btn-primary {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-    color: var(--color-accent-ink);
-    font-weight: 600;
-  }
-  .btn-primary:hover {
-    background: var(--color-accent-hover);
-    border-color: var(--color-accent-hover);
-  }
-
-  .btn-ghost {
-    background: transparent;
-  }
-  .btn-ghost:hover {
-    background: var(--color-surface-2);
-  }
-
-  .btn-danger {
-    background: transparent;
-    color: var(--color-danger);
-    border-color: color-mix(in oklch, var(--color-danger), transparent 70%);
-  }
-  .btn-danger:hover {
-    background: color-mix(in oklch, var(--color-danger), transparent 88%);
-    border-color: var(--color-danger);
-  }
-
-  /* Accent-tinted toggle-on state (e.g. notifications enabled) */
-  .btn-active {
-    color: oklch(0.8 0.1 250);
-    border-color: color-mix(in oklch, var(--color-accent), transparent 55%);
-    background: color-mix(in oklch, var(--color-accent), transparent 88%);
-  }
-
-  /* One disabled treatment for every variant */
-  .btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-  .btn:disabled:hover {
-    border-color: var(--color-line-2);
-    background: var(--color-surface-2);
-  }
-  .btn-primary:disabled:hover {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-  }
 
   /* ---------- Badge ----------
      Read-only status pill. Was `.chip` in Admin and `.chip-sm` in Send. */
@@ -162,11 +62,6 @@
     border-color: color-mix(in oklch, var(--color-warn), transparent 55%);
     color: oklch(0.85 0.13 75);
   }
-  .badge-danger {
-    background: color-mix(in oklch, var(--color-danger), transparent 84%);
-    border-color: color-mix(in oklch, var(--color-danger), transparent 45%);
-    color: oklch(0.85 0.1 25);
-  }
   .badge-dot {
     width: 6px;
     height: 6px;
@@ -181,101 +76,6 @@
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
-  }
-
-  /* ---------- Token input ----------
-     Editable list of removable values (recipients, group members).
-     Was `.member-input`/`.member-chip` in Admin, `.chips`/`.chip` in Send. */
-  .token-input {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    align-items: center;
-    /* Matches .inp exactly — same background token, radius and text inset — so
-       a stacked form does not show one field on a different surface. The
-       vertical padding is smaller because the chips inside carry their own. */
-    padding: 8px 12px;
-    min-height: 42px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-line-2);
-    border-radius: 8px;
-    transition:
-      border-color 0.15s ease,
-      box-shadow 0.15s ease;
-  }
-  .token-input:focus-within {
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px
-      color-mix(in oklch, var(--color-accent), transparent 88%);
-  }
-  .token-input input {
-    flex: 1;
-    min-width: 140px;
-    width: auto;
-    /* 2px keeps an empty control at .inp's 42px: 8+8 outer + 2+2 here + a
-       20.25px line + 2px border. A chip row is taller, which is correct. */
-    padding: 2px 0;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    outline: none;
-    font-family: inherit;
-    font-size: 13.5px;
-    color: var(--color-ink);
-  }
-  .token-input input::placeholder {
-    color: var(--color-ink-3);
-  }
-
-  .token {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 4px 3px 10px;
-    border-radius: 6px;
-    font-family: var(--font-mono);
-    font-size: 12.5px;
-    background: var(--color-surface-4);
-    border: 1px solid var(--color-line-2);
-    color: var(--color-ink);
-  }
-  /* Zag's editable tags swap the chip for an input on double-click; size it
-     like the chip so the row does not jump. */
-  .token-edit {
-    width: auto;
-    min-width: 80px;
-    padding: 3px 8px;
-    border: 1px solid var(--color-accent);
-    border-radius: 6px;
-    background: var(--color-surface);
-    color: var(--color-ink);
-    font-family: var(--font-mono);
-    font-size: 12.5px;
-    outline: none;
-  }
-
-  .token-invalid {
-    background: color-mix(in oklch, var(--color-danger), transparent 84%);
-    border-color: color-mix(in oklch, var(--color-danger), transparent 45%);
-    color: oklch(0.85 0.1 25);
-  }
-  /* Remove affordance — `.token button` so both `<button class="x">`
-     and a bare button work without a second class. */
-  .token button {
-    display: grid;
-    place-items: center;
-    padding: 0 4px;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--color-ink-3);
-    font-size: 14px;
-    line-height: 1;
-    cursor: pointer;
-  }
-  .token button:hover {
-    color: var(--color-danger);
-    background: color-mix(in oklch, var(--color-danger), transparent 85%);
   }
 
   /* ---------- Text inputs ----------
@@ -478,18 +278,6 @@
     font-size: 12.5px;
   }
 
-  /* Accent text link. A named primitive rather than restyling every <a> on a
-     page surface — send.css did the latter, unlayered, and recoloured the whole
-     app header along with it. */
-  .link {
-    color: var(--color-accent);
-    text-decoration: none;
-  }
-  .link:hover {
-    color: var(--color-accent-hover);
-    text-decoration: underline;
-  }
-
   .empty {
     padding: 48px 20px;
     text-align: center;
@@ -497,84 +285,6 @@
     font-size: 13.5px;
     border: 1px dashed var(--color-line-2);
     border-radius: 12px;
-  }
-
-  /* ---------- Toast ---------- */
-  /* Zag's toast group owns placement, stacking and the enter/exit transforms
-     via inline styles and CSS vars; these rules only describe how one toast
-     looks. Position/transform must not be set here or the stack breaks. */
-  .toast {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 10px;
-    width: var(--width, auto);
-    min-width: 220px;
-    padding: 11px 14px 11px 18px;
-    border-radius: 10px;
-    font-size: 13.5px;
-    color: var(--color-ink);
-    background: var(--color-surface-4);
-    border: 1px solid var(--color-line-2);
-    box-shadow: 0 14px 40px rgb(0 0 0 / 0.5);
-    /* Zag animates opacity/translate off these data attributes. */
-    translate: var(--x) var(--y);
-    scale: var(--scale);
-    z-index: var(--z-index);
-    height: var(--height);
-    opacity: var(--opacity);
-    will-change: translate, opacity, scale;
-    transition:
-      translate 0.3s ease,
-      scale 0.3s ease,
-      opacity 0.2s ease;
-  }
-  .toast[data-state='closed'] {
-    opacity: 0;
-  }
-
-  .toast-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--color-ok);
-    flex-shrink: 0;
-  }
-  .toast[data-type='error'] .toast-dot {
-    background: var(--color-danger);
-  }
-  .toast[data-type='warning'] .toast-dot {
-    background: var(--color-warn);
-  }
-  .toast[data-type='info'] .toast-dot {
-    background: var(--color-accent);
-  }
-
-  .toast-title {
-    font-weight: 500;
-  }
-  .toast-description {
-    grid-column: 2;
-    font-size: 12.5px;
-    color: var(--color-ink-2);
-  }
-
-  .toast-close {
-    display: grid;
-    place-items: center;
-    width: 22px;
-    height: 22px;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--color-ink-3);
-    font-size: 16px;
-    line-height: 1;
-    cursor: pointer;
-  }
-  .toast-close:hover {
-    background: var(--color-surface-3);
-    color: var(--color-ink);
   }
 }
 
@@ -590,84 +300,8 @@
     margin: 0 auto;
     padding: 36px 24px 90px;
   }
-  .app-header {
-    display: flex;
-    align-items: center;
-    gap: 22px;
-    margin-bottom: 30px;
-    position: relative;
-  }
-  .app-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    color: var(--color-ink);
-  }
-  .app-brand .mark {
-    width: 30px;
-    height: 30px;
-    color: var(--color-ink);
-  }
-  .app-brand .name {
-    font-size: 21px;
-    font-weight: 600;
-    letter-spacing: -0.3px;
-  }
-  .app-nav {
-    display: flex;
-    /* No background to separate the items, so the gap has to. */
-    gap: 20px;
-  }
-  /* The same underline treatment as the page-level .tab strip, so the app has
-     one "where am I" language instead of a pill up here and an underline down
-     there. Two things differ on purpose: the padding is tighter (the header
-     aligns to a 30px wordmark, not a 46px tab strip), and there is no rule
-     under the row — that is what keeps the header distinguishable from a page
-     tab strip where the two stack, as on /send. */
-  .app-nav a {
-    padding: 3px 1px 7px;
-    border-bottom: 2px solid transparent;
-    font-size: 14px;
-    font-weight: 500;
-    /* ink-3 was 4.18:1 here — under the 4.5:1 AA floor — which read as
-       disabled rather than clickable. ink-2 is 9.23:1. */
-    color: var(--color-ink-2);
-    transition:
-      color 0.15s,
-      border-color 0.15s;
-  }
-  .app-nav a:hover {
-    color: var(--color-ink);
-  }
-  .app-nav a.active {
-    color: var(--color-ink);
-    border-bottom-color: var(--color-accent);
-  }
   .spacer {
     flex: 1;
-  }
-  .user-trigger {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 4px 10px 4px 4px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    cursor: pointer;
-    font-size: 14px;
-    color: var(--color-ink);
-    transition:
-      background 0.15s ease,
-      border-color 0.15s ease;
-  }
-  .user-trigger:hover {
-    background: var(--color-surface-2);
-    border-color: var(--color-line);
-  }
-  .user-trigger.open {
-    background: var(--color-surface-2);
-    border-color: var(--color-line-2);
   }
   .user-trigger .avatar {
     width: 28px;
@@ -685,74 +319,6 @@
   .user-trigger .avatar.guest {
     background: var(--color-surface-4);
     color: var(--color-ink-2);
-  }
-
-  /* Floating menu surface. Zag's popper positions the ancestor, so the panel
-     itself only describes its own look. */
-  /* Intentionally no z-index here: Zag's popper sets `z-index: var(--z-index)`
-     inline on the positioner and fills that var from the *content* element's
-     computed z-index, so a rule on the positioner would never apply. */
-  .menu-positioner {
-    isolation: isolate;
-  }
-
-  .menu-content {
-    z-index: var(--z-index-dropdown);
-    min-width: 200px;
-    padding: 6px;
-    background: var(--color-surface-2);
-    border: 1px solid var(--color-line-2);
-    border-radius: 12px;
-    box-shadow: 0 18px 50px rgb(0 0 0 / 0.55);
-    animation: fb-pop 0.15s ease both;
-  }
-  .menu-content:focus-visible {
-    outline: none;
-  }
-
-  .menu-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 14px;
-    color: var(--color-ink);
-    cursor: pointer;
-    user-select: none;
-  }
-  /* Zag drives highlight from keyboard *and* pointer, so styling the data
-     attribute keeps arrow keys and hover visually identical. */
-  .menu-item[data-highlighted] {
-    background: var(--color-surface-3);
-  }
-  .menu-item[data-disabled] {
-    color: var(--color-ink-3);
-    cursor: not-allowed;
-  }
-  .menu-item[data-disabled][data-highlighted] {
-    background: transparent;
-  }
-  .menu-item-danger {
-    color: var(--color-danger);
-  }
-  .menu-item-danger[data-highlighted] {
-    background: color-mix(in oklch, var(--color-danger), transparent 88%);
-  }
-
-  .menu-separator {
-    height: 1px;
-    margin: 4px 0;
-    background: var(--color-line);
-  }
-
-  /* Non-interactive block at the top of a menu — identity, context, counts.
-     Deliberately not a menu item, so it is never a focus stop. */
-  .menu-header {
-    padding: 10px 12px 12px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid var(--color-line);
   }
   .menu-header .n {
     font-size: 14px;
@@ -789,13 +355,6 @@
   .page-sub + .field {
     margin-top: 22px;
   }
-
-  .page-note {
-    margin: 0 0 24px;
-    font-size: 12px;
-    color: var(--color-ink-3);
-    line-height: 1.5;
-  }
 }
 
 /* ============================================================
@@ -804,31 +363,6 @@
    ============================================================ */
 
 @layer components {
-  .dropzone {
-    border: 1.5px dashed var(--color-line-2);
-    border-radius: 14px;
-    padding: 40px 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    cursor: pointer;
-    transition:
-      border-color 0.15s ease,
-      background 0.15s ease;
-  }
-  .dropzone:hover {
-    border-color: color-mix(in oklch, var(--color-accent), transparent 40%);
-    background: color-mix(in oklch, var(--color-accent), transparent 96%);
-  }
-  .dropzone.dragover {
-    border-color: var(--color-accent);
-    background: color-mix(in oklch, var(--color-accent), transparent 90%);
-  }
-  .dropzone .ic {
-    color: var(--color-ink-2);
-    margin-bottom: 12px;
-  }
   .dropzone .t {
     font-size: 16px;
     color: var(--color-ink);
@@ -894,20 +428,6 @@
     color: var(--color-danger);
     background: color-mix(in oklch, var(--color-danger), transparent 85%);
   }
-
-  /* Disabled intake: the target's required fields aren't filled in yet. */
-  .dropzone:disabled,
-  .dropzone.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    border-color: var(--color-line);
-    background: transparent;
-  }
-  .dropzone:disabled:hover,
-  .dropzone.disabled:hover {
-    border-color: var(--color-line);
-    background: transparent;
-  }
 }
 
 /* ============================================================
@@ -915,195 +435,12 @@
    ============================================================ */
 
 @layer components {
-  .progress {
-    height: 6px;
-    border-radius: 999px;
-    overflow: hidden;
-    background: var(--color-surface-3);
-    border: 1px solid var(--color-line);
-  }
-  .progress .fill {
-    height: 100%;
-    border-radius: 999px;
-    background: var(--color-accent);
-    transition:
-      width 0.3s ease,
-      background 0.15s ease;
-  }
-  .progress .fill.warn {
-    background: var(--color-warn);
-  }
-  .progress .fill.ok {
-    background: var(--color-ok);
-  }
-  .progress .fill.danger {
-    background: var(--color-danger);
-  }
-  .progress .fill.idle {
-    background: var(--color-ink-3);
-  }
-}
-
-/* ============================================================
-   Segmented control — a row of mutually exclusive options.
-   ============================================================ */
-
-@layer components {
-  .seg {
-    display: flex;
-    gap: 0;
-    padding: 3px;
-    border: 1px solid var(--color-line-2);
-    border-radius: 8px;
-    background: var(--color-surface);
-  }
-  /* `button` for plain switches, `.seg-item` for UiRadioGroup's labels. */
-  .seg button,
-  .seg .seg-item {
-    display: inline-flex;
-    flex: 1;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 7px 10px;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--color-ink-2);
-    font-family: inherit;
-    font-size: 13px;
-    cursor: pointer;
-    user-select: none;
-  }
-  /* Zag marks the chosen item with data-state; .active is the plain-button form. */
-  .seg button.active,
-  .seg .seg-item[data-state='checked'] {
-    background: var(--color-surface-3);
-    color: var(--color-ink);
-  }
-  .seg .seg-item:has(:focus-visible) {
-    outline: 2px solid color-mix(in oklch, var(--color-accent), transparent 50%);
-    outline-offset: -2px;
-  }
-  .seg .seg-item[data-disabled] {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
 }
 
 /* ============================================================
    Select — trigger reuses the field-control look above; this
    adds the layout, the popup list and the option rows.
    ============================================================ */
-
-@layer components {
-  .select-root {
-    width: 100%;
-  }
-
-  .select-trigger {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    text-align: left;
-    cursor: pointer;
-  }
-  .select-trigger[data-disabled] {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  .select-invalid {
-    border-color: var(--color-danger);
-  }
-
-  .select-value {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .select-placeholder {
-    color: var(--color-ink-3);
-  }
-
-  .select-indicator {
-    display: grid;
-    place-items: center;
-    color: var(--color-ink-3);
-    flex-shrink: 0;
-    transition: transform 0.15s ease;
-  }
-  .select-trigger[data-state='open'] .select-indicator {
-    transform: rotate(180deg);
-  }
-
-  /* See .menu-positioner — the z-index belongs on .select-content. */
-  .select-positioner {
-    isolation: isolate;
-  }
-
-  .select-content {
-    z-index: var(--z-index-dropdown);
-    padding: 6px;
-    background: var(--color-surface-2);
-    border: 1px solid var(--color-line-2);
-    border-radius: 10px;
-    box-shadow: 0 18px 50px rgb(0 0 0 / 0.55);
-    animation: fb-pop 0.15s ease both;
-  }
-  .select-content:focus-visible {
-    outline: none;
-  }
-
-  .select-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    max-height: 280px;
-    overflow-y: auto;
-  }
-
-  .select-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 8px 10px;
-    border-radius: 6px;
-    font-size: 13.5px;
-    color: var(--color-ink);
-    cursor: pointer;
-    user-select: none;
-  }
-  /* Zag drives highlight from keyboard and pointer alike. */
-  .select-item[data-highlighted] {
-    background: var(--color-surface-3);
-  }
-  .select-item[data-state='checked'] {
-    color: var(--color-accent);
-  }
-  .select-item[data-disabled] {
-    color: var(--color-ink-3);
-    cursor: not-allowed;
-  }
-
-  .select-check {
-    color: var(--color-accent);
-    font-size: 12px;
-  }
-  .select-item[data-state='unchecked'] .select-check {
-    visibility: hidden;
-  }
-
-  .select-group-label {
-    padding: 8px 10px 4px;
-    font-size: 10.5px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--color-ink-3);
-  }
-}
 
 /* ============================================================
    Tabs — one underline bar for both the Admin and Send surfaces.
@@ -1112,50 +449,6 @@
    ============================================================ */
 
 @layer components {
-  .tab-list {
-    display: flex;
-    gap: 2px;
-    border-bottom: 1px solid var(--color-line);
-  }
-  /* Admin's bar spans the viewport under the topbar. */
-  .tab-list-inset {
-    padding: 0 28px;
-    background: var(--color-surface);
-  }
-  /* Send's sits inside the page wrap, above its panel. */
-  .tab-list-spaced {
-    margin-bottom: 26px;
-  }
-
-  .tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 13px 14px;
-    margin-bottom: -1px;
-    border: none;
-    border-bottom: 2px solid transparent;
-    background: transparent;
-    color: var(--color-ink-2);
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: color 0.15s ease;
-  }
-  .tab:hover {
-    color: var(--color-ink-2);
-  }
-  .tab[data-selected] {
-    color: var(--color-ink);
-    border-bottom-color: var(--color-accent);
-  }
-  .tab:focus-visible {
-    outline: none;
-    color: var(--color-ink);
-    background: var(--color-surface-2);
-  }
-
   .tab .count {
     padding: 1px 7px;
     border: 1px solid var(--color-line-2);
@@ -1172,250 +465,13 @@
 }
 
 /* ============================================================
-   Radio group — stacked labelled cards, or the compact `.seg`
-   switch above. Zag drives selection from data-state, so the
-   same rules cover pointer and keyboard.
-   ============================================================ */
-
-@layer components {
-  .radio-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .radio-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 13px 15px;
-    border: 1.5px solid var(--color-line);
-    border-radius: 11px;
-    background: var(--color-surface-2);
-    color: var(--color-ink);
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition:
-      border-color 0.15s,
-      background 0.15s;
-  }
-  .radio-card:hover {
-    border-color: var(--color-ink-3);
-    background: var(--color-surface-3);
-  }
-  .radio-card[data-state='checked'] {
-    border-color: var(--color-accent);
-    background: color-mix(in oklch, var(--color-accent), transparent 90%);
-  }
-  .radio-card:has(:focus-visible) {
-    outline: 2px solid color-mix(in oklch, var(--color-accent), transparent 50%);
-    outline-offset: 2px;
-  }
-  .radio-card[data-disabled] {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* Grid cards: a tile of choices rather than a stacked list. */
-  .radio-cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
-  }
-  .radio-cards-grid .radio-card {
-    flex-direction: column;
-    gap: 12px;
-    padding: 14px;
-  }
-  /* The label owns its own line here, so the body must not share a flex row. */
-  .radio-cards-grid .radio-body {
-    flex: none;
-    width: 100%;
-  }
-  /* Grid cards carry more weight than a stacked list item, and hold up better
-     against a label that wraps to two lines. */
-  .radio-cards-grid .radio-label {
-    font-weight: 600;
-  }
-
-  .radio-card-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    width: 100%;
-  }
-
-  .radio-dot {
-    display: grid;
-    place-items: center;
-    width: 18px;
-    height: 18px;
-    margin-top: 1px;
-    border: 1.5px solid var(--color-line-2);
-    border-radius: 50%;
-    flex-shrink: 0;
-    transition: border-color 0.15s;
-  }
-  .radio-card[data-state='checked'] .radio-dot {
-    border-color: var(--color-accent);
-  }
-  .radio-card[data-state='checked'] .radio-dot::after {
-    content: '';
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: var(--color-accent);
-  }
-
-  /* The `check` indicator: an empty ring until selected, then a filled accent
-     circle with a tick. The tick is hidden by colour rather than by absence, so
-     the glyph never reflows the row. */
-  .radio-check {
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border: 2px solid var(--color-line-2);
-    border-radius: 50%;
-    flex-shrink: 0;
-    color: transparent;
-    transition:
-      background 0.15s,
-      border-color 0.15s,
-      color 0.15s;
-  }
-  .radio-card[data-state='checked'] .radio-check {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-    /* Same token .btn-primary uses for content sitting on accent. */
-    color: var(--color-accent-ink);
-  }
-
-  .radio-body {
-    flex: 1;
-    min-width: 0;
-  }
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 500;
-  }
-  .radio-description {
-    display: block;
-    margin-top: 3px;
-    font-size: 12.5px;
-    line-height: 1.45;
-    color: var(--color-ink-3);
-  }
-  .radio-card[data-state='checked'] .radio-label svg {
-    color: var(--color-accent);
-  }
-  .radio-label svg {
-    color: var(--color-ink-2);
-  }
-}
-
-/* ============================================================
    Number input — the shared field look plus inline steppers.
    ============================================================ */
-
-@layer components {
-  .num-root {
-    width: 100%;
-  }
-
-  /* Inherits border/background/padding from the .inp rules above. */
-  .num-control {
-    display: flex;
-    align-items: stretch;
-    overflow: hidden;
-  }
-
-  .num-input {
-    flex: 1;
-    min-width: 0;
-    /* The control owns the chrome; the inner field is bare. */
-    border: none;
-    background: transparent;
-    color: var(--color-ink);
-    font-family: inherit;
-    font-size: 13.5px;
-    outline: none;
-  }
-  .num-input::placeholder {
-    color: var(--color-ink-3);
-  }
-  /* Hide the native spinners — the steppers replace them. */
-  .num-input::-webkit-inner-spin-button,
-  .num-input::-webkit-outer-spin-button {
-    appearance: none;
-    margin: 0;
-  }
-
-  .num-steppers {
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    margin: -6px -8px -6px 6px;
-    border-left: 1px solid var(--color-line);
-  }
-
-  .num-step {
-    display: grid;
-    place-items: center;
-    flex: 1;
-    width: 26px;
-    border: none;
-    background: transparent;
-    color: var(--color-ink-3);
-    cursor: pointer;
-  }
-  .num-step:hover {
-    background: var(--color-surface-3);
-    color: var(--color-ink);
-  }
-  .num-step[data-disabled] {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  .num-step:first-child {
-    border-bottom: 1px solid var(--color-line);
-  }
-}
 
 /* ============================================================
    Tooltip — replaces native `title`, which is unstyled, slow,
    and unreachable on touch.
    ============================================================ */
-
-@layer components {
-  .tooltip-trigger {
-    display: inline-flex;
-  }
-
-  /* No z-index here — Zag's popper fills its inline `z-index: var(--z-index)`
-     from the content's computed value. See assets/__tests__/layering.spec.ts. */
-  .tooltip-positioner {
-    isolation: isolate;
-  }
-
-  .tooltip-content {
-    z-index: var(--z-index-dropdown);
-    max-width: 260px;
-    padding: 6px 9px;
-    border: 1px solid var(--color-line-2);
-    border-radius: 7px;
-    background: var(--color-surface-4);
-    color: var(--color-ink);
-    font-size: 12.5px;
-    line-height: 1.4;
-    box-shadow: 0 10px 28px rgb(0 0 0 / 0.45);
-    animation: fb-pop 0.12s ease both;
-  }
-}
 
 /* Keyframes live outside @layer — layered keyframes are not addressable. */
 @keyframes fb-fade {

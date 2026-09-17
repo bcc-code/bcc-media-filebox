@@ -57,3 +57,60 @@ function fmtBytes(bytes: number): string {
     </div>
   </section>
 </template>
+
+<style scoped>
+/* Colocated from send.css: these classes are used only by this
+   component. Shared primitives stay in assets/components.css — several
+   components need them, and scoped CSS cannot be shared. */
+.public-files {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.source-manifest {
+  max-height: 270px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 5px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) transparent;
+}
+.public-file {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--color-line);
+}
+.public-file:last-child {
+  border-bottom: none;
+}
+.public-file .fn {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.public-file .fs {
+  font-size: 12px;
+  color: var(--color-ink-3);
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+.public-files-empty {
+  padding: 14px 4px;
+  color: var(--color-ink-3);
+  font-size: 12.5px;
+}
+.public-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--color-ink-3);
+  margin-top: 14px;
+  padding-top: 4px;
+}
+</style>

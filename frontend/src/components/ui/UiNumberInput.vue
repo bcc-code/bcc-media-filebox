@@ -106,3 +106,66 @@ const api = computed(() => numberInput.connect(service, normalizeProps))
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Colocated from components.css: used only by this component. The @layer
+   wrapper is kept so precedence against Tailwind utilities is unchanged.
+   Shared primitives stay in assets/components.css. */
+@layer components {
+  .num-root {
+    width: 100%;
+  }
+  .num-control {
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+  }
+  .num-input {
+    flex: 1;
+    min-width: 0;
+    /* The control owns the chrome; the inner field is bare. */
+    border: none;
+    background: transparent;
+    color: var(--color-ink);
+    font-family: inherit;
+    font-size: 13.5px;
+    outline: none;
+  }
+  .num-input::placeholder {
+    color: var(--color-ink-3);
+  }
+  .num-input::-webkit-inner-spin-button,
+  .num-input::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+  .num-steppers {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    margin: -6px -8px -6px 6px;
+    border-left: 1px solid var(--color-line);
+  }
+  .num-step {
+    display: grid;
+    place-items: center;
+    flex: 1;
+    width: 26px;
+    border: none;
+    background: transparent;
+    color: var(--color-ink-3);
+    cursor: pointer;
+  }
+  .num-step:hover {
+    background: var(--color-surface-3);
+    color: var(--color-ink);
+  }
+  .num-step[data-disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .num-step:first-child {
+    border-bottom: 1px solid var(--color-line);
+  }
+}
+</style>
