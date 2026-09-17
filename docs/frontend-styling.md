@@ -4,122 +4,74 @@ Open question, written down after the `UiDrawer` extraction forced a design
 compromise. No decision made yet — this records the evidence so the decision
 can be made once.
 
-## Where styling lives today
+## Where styling lives
 
-Five mechanisms, all active at the same time:
+Decided and done: **tokens global, shared primitives global, everything
+component-specific in the component**.
 
-| Mechanism                                            | Size                                      | Role                                                                                                                     |
-| ---------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `style.css` — Tailwind v4 `@theme`                   | 101 lines                                 | The token source. Generates both `--color-*` vars and utilities.                                                         |
-| `assets/components.css` — `@layer components`        | 1248 lines                                | Shared primitives: `.btn`, `.inp`, `.card`, `.badge`, `.tab-list`…                                                       |
-| `assets/admin.css` / `assets/send.css` — page-scoped | 378 + 1027 lines; 56 + 152 prefixed rules | Page-specific styling, hand-scoped by an `.admin-root` / page-class prefix.                                              |
-| `<style scoped>` in a component                      | 14 components                             | Layout local to one component. The newest shared components (`UiDialog`, `UiMenu`, `UiDrawer`) put _all_ their CSS here. |
-| Inline `style=` in templates                         | 91 attributes                             | One-off nudges — margins, widths, a colour.                                                                              |
+| Home                                   | Holds                                                                                                                       | Size     |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `style.css` — Tailwind `@theme`        | The tokens. Never redeclare one elsewhere.                                                                                  | 101      |
+| `assets/components.css`                | Primitives more than one component applies: `.inp`, `.card`, `.badge`, `.field`, `.section-head`, the `.card table` family. | 506      |
+| `assets/send.css` / `assets/admin.css` | The page surface itself, plus classes handed across a component boundary (see below).                                       | 223 / 88 |
+| `<style scoped>` in 38 components      | Everything used by exactly one component.                                                                                   | —        |
 
-Tailwind is installed and is already the token source, but its **utilities are
-used in only 5 places**. So "we use Tailwind" is true of the tokens and false of
-everything else.
+`assets/` went from 2856 lines to 918. `UiSelect` owns its 19 rules, `UiMenu`
+11, `UiToaster` 10, `UiNumberInput` 10, `UiButton` 16; `SentPackageCard` 44,
+`PackageDownloadScreen` 19.
 
-## What the UiDrawer work exposed
+Moved rules keep their `@layer components` wrapper inside the SFC. The layer
+exists so a Tailwind utility can still override a primitive; dropping it would
+have silently made every moved rule beat utilities.
 
-Three concrete costs, all traceable to the page-scoped prefix scheme:
+## Two rules that decide where a rule can live
 
-1. **It dictated an architectural choice.** `UiDialog` teleports to `<body>`.
-   `UiDrawer` cannot: the drawer's content depends on 15 classes plus 6
-   element-selector rule groups (`.admin-root table`, `.admin-root thead th`, …)
-   that only match inside `.admin-root`. Teleporting to `<body>` would render it
-   unstyled, so `UiDrawer` needed a `teleportTo` prop and `UserDrawer` passes
-   `.admin-root`. A styling decision reached into the component API.
+Both were learned the hard way, and both now have a test.
 
-2. **Prefixed rules beat scoped ones.** `.admin-root .drawer-head` and a
-   component's scoped `.drawer-head[data-v-x]` are both specificity (0,2,0), so
-   the winner is whichever comes later in the bundle. The old shell rules had to
-   be _deleted_, not merely overridden. Same family as the earlier
-   `.btn-danger` bug, where an unlayered `.admin-root button { color: inherit }`
-   outranked all of `@layer components`.
+### 1. A class handed to a child cannot be styled by the parent
 
-3. **A component cannot style its own slot content.** Scoped CSS matches only
-   elements carrying that component's `data-v` attribute, and slot content
-   carries the _caller's_. So `UiDrawer` owns the backdrop, panel, sticky head
-   and body padding, while `.drawer-id` / `.drawer-section` had to stay with
-   `UserDrawer`. **This is the constraint that decides the question below** — it
-   is a property of scoped CSS, not something a convention can fix.
+`panel-class="page"`, `preview-class="path"`, `list-class="tab-list-inset"` —
+the class is applied to the **child's** element and carries the child's scope
+id, so the parent's `<style scoped>` never matches it. Four rules were
+colocated into a parent that could no longer reach them and the admin page lost
+all its content padding. Such classes stay global, or move into the component
+that renders the element. Guarded by `assets/__tests__/scoping.spec.ts`.
 
-## The two options
+### 2. Scoping raises specificity, so a class family cannot be split
 
-**A. Move CSS into each `.vue` file.** Retire `admin.css` / `send.css`; each
-component carries its own `<style scoped>`.
+`<style scoped>` appends a `[data-v-x]` attribute to every selector. Move the
+base rule into a component and leave its variants global, and the base starts
+outranking its own variants:
 
-- Deletes the prefix scheme, which is the thing actually causing trouble, and
-  matches what the newest components already do.
-- Cannot be total, because of constraint 3: any component that takes a slot
-  needs its content's classes to live somewhere the caller can reach. A global
-  sheet for shared layout survives either way.
-- Risk: the same card/table styling copy-pasted into N components, with no
-  single place to change it — which is how the four style regimes started.
+- `.btn` scoped (0,2,0) beat `.btn-sm` and `.btn-primary` (0,1,0) — **every
+  button lost its size and variant.** The modifiers were left behind because
+  `UiButton` composes them (`` `btn-${variant}` ``), so the names never appear
+  as literals for a search to find.
+- `.app-nav a` scoped (0,2,1) tied with `.app-nav a.active` (0,2,1) — the
+  active nav item's colour and underline came down to bundle order. Same for
+  `.app-brand .mark` / `.app-brand .name`.
+- Found by the guard afterwards, none of them yet visible: `.seg .seg-item[data-state='checked']`,
+  `.progress .fill.warn`/`.danger`, `.summary`, `.req-note.blocked`,
+  `.preparation-state.failed`, `.pkg-card.gone`, the `.pill.*` states,
+  `.dropzone.dragover`, `.user-trigger.open`.
 
-**B. Go 100% Tailwind utilities.** Markup carries utilities; no component
-stylesheets.
+`assets/__tests__/css-ownership.spec.ts` asserts two things: no global rule
+whose subject is a scoped rule's subject **plus extra classes** at equal or
+lower specificity (that superset condition is what separates a real conflict
+from `.field .hint` vs `.field > label`, which target different descendants),
+and no dynamically-built family (`` `x-${…}` ``) with modifiers in a global
+sheet.
 
-- One mechanism. No specificity ladder, no `@layer` ordering surprises, no dead
-  rules, and nothing to keep in sync.
-- Solves constraint 3 cleanly: utilities are written at the call site, so a
-  caller styles its own slot content naturally.
-- But it is a rewrite, not a migration: 2754 lines of CSS against 5 current
-  utility usages. And repeated patterns need a discipline — `@apply` puts us
-  back in the layering question, so the honest answer is a component per
-  pattern, which is what `.btn` → `UiButton` already did.
-- The 91 inline `style=` attributes are hand-rolled utilities already, so those
-  convert almost for free.
+## What is left
 
-## Leaning
-
-Neither extreme. The split that falls out of the evidence:
-
-1. **Tokens stay in `@theme`.** Already true, and it serves both options.
-2. **Shared primitives stay semantic and global** (`components.css`). `.btn` was
-   used 54 times before it became `UiButton`; that reuse is what made the
-   consolidation mechanical. A design contract wants a name.
-3. **Everything page-specific moves into the component that renders it.** The
-   `.admin-root` / page-prefix scheme buys nothing that scoping does not buy
-   better, and it costs the three things above. **This is the highest-value
-   step: 208 prefixed rules, and it is what caused today's compromise.**
-4. **One-off layout uses Tailwind utilities, not a new class and not a new
-   inline `style=`.** That gives the 91 inline attributes somewhere to go.
-
-Sequenced so each step stands alone. (4) opportunistically; (2) needs no work.
-
-### Progress on (3)
-
-`admin.css` is down from 56 `.admin-root` rules to 24. The first slice, done:
-
-- **Promoted to `components.css`** (17 rules): the `.section-head` family, the
-  `.name-cell` family, `.inline-edit`, and the table styling. Every caller is a
-  component rather than a page, and a teleported drawer has to reach them from
-  outside `.admin-root`. The table rules hang off **`.card`** instead of being
-  bare element selectors — every `<table>` in the app already sits in a
-  `<div class="card">`, so that is opt-in by structure with no markup change,
-  and a stray table elsewhere stays unstyled.
-- **Moved into `UserDrawer.vue`'s scoped block** (15 rules): `.drawer-id*`,
-  `.drawer-section*`, `.access-*`, `.stat-grid`, `.stat-block*`, `.avatar-xl`.
-- **`UiDrawer` now teleports to `<body>` unconditionally** and `teleportTo` is
-  gone. It existed only to keep the panel inside `.admin-root`; with the CSS
-  moved, every computed style is unchanged with the panel in `<body>`.
-
-A false alarm worth recording: a name-based scan flagged 19 "shared" classes
-(`.l`, `.n`, `.s`, `.name`, `.primary`, `.sub`…) apparently reused across
-unrelated components. They are not — every one is nested under a block class
-(`.stat-card .l`, `.stat-block .l`, `.access-block .l` are three different
-rules). The names only _look_ generic because the `.admin-root` prefix made
-them safe. Scoping per component preserves that safety; deleting the prefix
-without scoping would not.
-
-The remaining 24 rules are all single-component: the `.topbar` family and the
-`.admin-root` surface/reset (Admin.vue, 11), the users-table extras
-`.stat-strip`/`.stat-card*`/`.avatar-md`/`.user-search` (UsersTab.vue, 8), and
-`.path` (TargetsTab.vue, 1). Mechanical, and none of them block anything.
-
-`send.css` — 152 prefixed rules — has not been touched.
+- `send.css` (223) and `admin.css` (88) still hold the surface wrappers, the
+  boundary-crossing classes, and rules mixing classes owned by different
+  components — `.pkg-card.gone` style splits that are safe today because the
+  global selector is more specific, but worth tidying when those components are
+  next touched.
+- `.inp` stays in `components.css` until the 23 raw `<input>`s in `admin/*`
+  move to `UiInput`/`UiTextarea`; both components need it, and scoped CSS
+  cannot be shared.
 
 ## Self-hosted fonts
 
@@ -147,28 +99,18 @@ generator emits `:root { --font-sans: … }`, which is unlayered and outranks th
 covers `A a 0 space æ ø å Ā`, that every referenced woff2 exists under
 `public/fonts/`, and that the `@theme` stack still names the fallback families.
 
-## The failure mode this keeps producing
+## Page surfaces are unlayered, and that beats the component layer
 
-`admin.css` and `send.css` are **unlayered**, and an unlayered rule beats
-`@layer components` at _any_ specificity. So a surface-wide restyle of a bare
-element silently overrides a shared primitive, on that page only:
-
-- `.admin-root button { color: inherit }` flattened `.btn-danger`'s red.
-- `.send-root a { color: var(--color-accent) }` recoloured the entire app
-  header — brand, nav links, and the text inside the active pill — on Send but
-  not Upload. It existed for exactly one link ("Back to Upload"), and the pill
-  background still came from the layered rule, so the result was a dark pill
-  with accent text and no single rule saying so.
-- Two more were sitting there unfired: `.send-root .draft-restore-error button`,
-  plus the whole `.admin-root table` family before it moved to `.card table`.
-
-`assets/__tests__/layering.spec.ts` now asserts neither surface declares
-`.<surface> <element>` for `a`, `button`, `input`, `select`, `textarea`,
-`table`, `th` or `td`. Two shapes stay legal: the `*` box-sizing reset, and a
-qualified `element.class` like `select.inp`, which refines a primitive on
-elements already carrying it instead of overriding every element of that type.
-The replacement for a blanket rule is a named primitive — `.link` now carries
-the accent text-link styling, opt-in and layered.
+`admin.css` and `send.css` are not in `@layer components`, and an unlayered
+rule beats a layered one at _any_ specificity. So a surface-wide restyle of a
+bare element silently overrides a shared primitive, on that page only:
+`.admin-root button { color: inherit }` flattened `.btn-danger`'s red, and
+`.send-root a { color: accent }` recoloured the whole app header on Send but not
+Upload. `assets/__tests__/layering.spec.ts` now forbids `.<surface> <element>`
+for `a`, `button`, `input`, `select`, `textarea`, `table`, `th`, `td`; a
+qualified `element.class` like `select.inp` stays legal, as does the `*`
+box-sizing reset. The replacement for a blanket rule is a named primitive —
+`.link` carries the accent text-link styling.
 
 ## Whichever way it goes
 

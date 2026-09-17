@@ -10,6 +10,7 @@ import {
   avatarBg,
 } from '../../composables/adminHelpers'
 import UiRadioGroup, { type UiRadioOption } from '../ui/UiRadioGroup.vue'
+import UiInput from '../ui/UiInput.vue'
 
 const emit = defineEmits<{ (e: 'open', u: AdminUser): void }>()
 
@@ -81,7 +82,12 @@ function role(u: AdminUser) {
           variant="segmented"
           aria-label="Filter users"
         />
-        <input v-model="userQuery" class="user-search" placeholder="Search…" />
+        <UiInput
+          v-model="userQuery"
+          class="user-search"
+          placeholder="Search…"
+          aria-label="Search users"
+        />
       </div>
     </div>
 
@@ -245,19 +251,9 @@ function role(u: AdminUser) {
   color: var(--color-accent-ink);
   flex-shrink: 0;
 }
+/* Everything else comes from .inp; only the fixed width is local. */
 .user-search {
   width: 220px;
-  padding: 8px 12px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-line-2);
-  border-radius: 8px;
-  color: var(--color-ink);
-  font-size: 13px;
-  outline: none;
-  transition: border-color 0.15s ease;
-}
-.user-search:focus {
-  border-color: var(--color-accent);
 }
 .stat-strip {
   display: grid;
