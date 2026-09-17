@@ -233,6 +233,13 @@
     width: 1%;
     white-space: nowrap;
   }
+  /* The buttons are inline-flex and Vue's compiler condenses the whitespace
+     between elements, so nothing separates them without this. Margin rather
+     than `display: flex` on the cell, which would drop it out of table layout.
+     6px matches .arr-actions, the one action row that already had a gap. */
+  .card td.actions > * + * {
+    margin-left: 6px;
+  }
   .name-cell {
     display: flex;
     align-items: center;
