@@ -121,6 +121,32 @@ The remaining 24 rules are all single-component: the `.topbar` family and the
 
 `send.css` — 152 prefixed rules — has not been touched.
 
+## Self-hosted fonts
+
+Wired up, and then silently not working for a while: only the `latin-ext`
+subset had been downloaded, so every `@font-face` carried a `unicode-range`
+starting at `U+0100` and the browser skipped all of them for ordinary text.
+FileBox rendered in `system-ui` — which on a Mac is SF Pro, so it looked
+deliberate. Both subsets are now present, 8 faces per family (Inter and
+JetBrains Mono, weights 400/700, each with a metric-matched Arial/Courier
+fallback).
+
+Two traps, both of which produce no error at all:
+
+- **Downloading a subset replaces the stylesheet, it does not extend it.** Only
+  the newly downloaded subset's faces survive, so `latin` alone drops Ā/Ē/Č and
+  `latin-ext` alone drops the entire alphabet. Keep both sets of faces.
+- **The woff2 files must be in `public/fonts/`.** The `url('/fonts/…')` paths
+  are absolute. A file under `src/assets/` is not served there — Vite's dev
+  server answers the request with `index.html` and a **200**, so the face is
+  discarded as an invalid font with nothing logged.
+
+`assets/__tests__/fonts.spec.ts` guards both, plus the `:root` clash (the
+generator emits `:root { --font-sans: … }`, which is unlayered and outranks the
+`@theme` token, leaving it defined twice). It asserts that some `unicode-range`
+covers `A a 0 space æ ø å Ā`, that every referenced woff2 exists under
+`public/fonts/`, and that the `@theme` stack still names the fallback families.
+
 ## Whichever way it goes
 
 - `@layer components` loses to _every_ unlayered rule — scoped component styles
