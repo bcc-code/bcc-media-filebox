@@ -61,9 +61,7 @@ async function onRetrigger(id: string) {
       </UiButton>
     </div>
 
-    <div v-if="adminUploads.length === 0" class="empty">
-      No uploads yet.
-    </div>
+    <div v-if="adminUploads.length === 0" class="empty">No uploads yet.</div>
 
     <div v-else class="card">
       <table>

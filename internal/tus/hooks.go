@@ -781,7 +781,7 @@ func (ep *EventProcessor) renameUpload(id, filename, targetDir string) string {
 		dst, err = crossDeviceMove(src, targetDir, filename)
 	}
 	if err != nil {
-		log.Printf("error moving upload %s into %s: %v", id, targetDir, err)
+		log.Printf("error moving upload %s into %s as %q: %v", id, targetDir, filename, err)
 		return ""
 	}
 	log.Printf("upload saved: %s", dst)
@@ -789,13 +789,12 @@ func (ep *EventProcessor) renameUpload(id, filename, targetDir string) string {
 }
 
 // moveUploadNoReplace atomically moves src to the first unoccupied destination
-// name. renameNoReplace is implemented with the host OS's exclusive-rename
-// primitive, so checking a candidate and claiming it cannot race with another
-// process.
+// name. claimPath publishes through an exclusive primitive, so checking a
+// candidate and claiming it cannot race with another process.
 func moveUploadNoReplace(src, targetDir, filename string) (string, error) {
 	for suffix := 0; ; suffix++ {
 		dst := uploadCollisionPath(targetDir, filename, suffix)
-		err := renameNoReplace(src, dst)
+		err := claimPath(src, dst)
 		if err == nil {
 			return dst, nil
 		}
