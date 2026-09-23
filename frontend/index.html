@@ -6,6 +6,14 @@
     <link rel="icon" type="image/svg+xml" media="(prefers-color-scheme: dark)" href="/favicon-light.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FileBox</title>
+    <!-- Pin Tailwind's layer order before any stylesheet loads. Cascade layers
+         are ordered by first appearance, and a production build links shared
+         component chunks (UiButton's `@layer components`) ahead of index.css.
+         Without this, `base` — preflight's margin/padding/border reset — lands
+         after `components` and strips every component's spacing. -->
+    <style>
+      @layer properties, theme, base, components, utilities;
+    </style>
   </head>
   <body>
     <div id="app"></div>
