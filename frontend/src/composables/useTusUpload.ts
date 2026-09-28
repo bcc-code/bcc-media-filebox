@@ -3,6 +3,7 @@ import * as tus from 'tus-js-client'
 import { ulid } from 'ulid'
 import type { UploadItem, UploadRecord } from '../types'
 import { getUserId } from './useUserId'
+import { transliterate } from '../transliterate'
 
 let idCounter = 0
 let detectedParallelUploads: number | null = null
@@ -14,28 +15,6 @@ const SPEED_WINDOW_MS = 30_000
 const STALL_RESET_MS = 5_000
 // Don't publish a rate from a window shorter than this — too noisy.
 const MIN_SPEED_SPAN_MS = 1_000
-
-// Letters with no Unicode decomposition to a base letter, so stripping combining
-// marks alone wouldn't reach ASCII. Keep in sync with SanitizeFilename in
-// internal/tus/hooks.go.
-const LETTER_FOLDS: Record<string, string> = {
-  æ: 'ae', Æ: 'AE',
-  ø: 'o', Ø: 'O',
-  ß: 'ss', ẞ: 'SS',
-  œ: 'oe', Œ: 'OE',
-  đ: 'd', Đ: 'D',
-  ð: 'd', Ð: 'D',
-  þ: 'th', Þ: 'TH',
-  ł: 'l', Ł: 'L',
-  ı: 'i',
-}
-
-// Folds letters to their ASCII base: LETTER_FOLDS first, then NFD
-// decomposition with the combining marks dropped (å→a, ü→u, é→e).
-function transliterate(name: string): string {
-  const folded = Array.from(name, (ch) => LETTER_FOLDS[ch] ?? ch).join('')
-  return folded.normalize('NFD').replace(/\p{Mn}/gu, '')
-}
 
 export function sanitizeFilename(name: string): { name: string; error: string | null } {
   if (name === '' || name === '.' || name === '..') {

@@ -15,15 +15,14 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"unicode"
 
 	db "filebox/internal/db/gen"
 	"filebox/internal/forms"
 	"filebox/internal/objectstore"
+	"filebox/internal/translit"
 	"filebox/internal/webhook"
 
 	"github.com/tus/tusd/v2/pkg/handler"
-	"golang.org/x/text/unicode/norm"
 )
 
 type EventProcessor struct {
@@ -975,7 +974,7 @@ func SanitizeFilename(name string) (string, error) {
 	if name == "" || name == "." || name == ".." {
 		return "", fmt.Errorf("invalid filename %q", name)
 	}
-	name = transliterate(name)
+	name = translit.ASCII(name)
 	lastDot := strings.LastIndex(name, ".")
 	if lastDot == 0 {
 		// The only dot is the leading one; not an extension separator.
@@ -997,35 +996,6 @@ func SanitizeFilename(name string) (string, error) {
 		}
 	}
 	return b.String(), nil
-}
-
-// letterFolds covers letters that have no Unicode decomposition to a base
-// letter, so stripping combining marks alone wouldn't reach ASCII. Keep in sync
-// with frontend/src/composables/useTusUpload.ts.
-var letterFolds = strings.NewReplacer(
-	"æ", "ae", "Æ", "AE",
-	"ø", "o", "Ø", "O",
-	"ß", "ss", "ẞ", "SS",
-	"œ", "oe", "Œ", "OE",
-	"đ", "d", "Đ", "D",
-	"ð", "d", "Ð", "D",
-	"þ", "th", "Þ", "TH",
-	"ł", "l", "Ł", "L",
-	"ı", "i",
-)
-
-// transliterate folds letters to their ASCII base: letterFolds first, then
-// NFD decomposition with the combining marks dropped (å→a, ü→u, é→e).
-func transliterate(name string) string {
-	decomposed := norm.NFD.String(letterFolds.Replace(name))
-	var b strings.Builder
-	b.Grow(len(decomposed))
-	for _, r := range decomposed {
-		if !unicode.Is(unicode.Mn, r) {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
 }
 
 func computeFileSHA256(path string) (string, error) {

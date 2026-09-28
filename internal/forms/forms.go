@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"filebox/internal/translit"
 )
 
 type FieldType string
@@ -245,12 +247,13 @@ func optionCode(field Field, raw string) string {
 	return slug(raw)
 }
 
-// slug keeps [A-Za-z0-9-], turns runs of anything else into a single "_", and
-// trims leading/trailing underscores.
+// slug folds accented and Nordic letters to ASCII, keeps [A-Za-z0-9-], turns
+// runs of anything else into a single "_", and trims leading/trailing
+// underscores.
 func slug(s string) string {
 	var b strings.Builder
 	prevUnderscore := false
-	for _, r := range s {
+	for _, r := range translit.ASCII(s) {
 		switch {
 		case r >= 'A' && r <= 'Z', r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
 			b.WriteRune(r)

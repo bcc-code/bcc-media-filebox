@@ -8,6 +8,8 @@
 // backend is authoritative for the final filename; buildFilename here only
 // drives the live preview.
 
+import { transliterate } from '../transliterate'
+
 export type FieldType = 'text' | 'number' | 'select'
 
 export interface Option {
@@ -140,10 +142,11 @@ export function formKeys(): string[] {
   return Object.keys(registry).sort()
 }
 
-// slug mirrors the backend slug(): keep [A-Za-z0-9-], collapse anything else to
-// a single "_", trim leading/trailing underscores.
+// slug mirrors the backend slug(): fold accented and Nordic letters to ASCII,
+// keep [A-Za-z0-9-], collapse anything else to a single "_", trim
+// leading/trailing underscores.
 function slug(s: string): string {
-  return s
+  return transliterate(s)
     .replace(/[^A-Za-z0-9-]+/g, '_')
     .replace(/^_+|_+$/g, '')
 }

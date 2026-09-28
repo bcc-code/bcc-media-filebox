@@ -88,3 +88,14 @@ func TestKeysSorted(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildFilenameTransliterates(t *testing.T) {
+	f, _ := Get("masters")
+	got := BuildFilename(f, map[string]string{
+		"project": "PROJ",
+		"title":   "- Norwegian: å ø æ",
+	}, ".mov")
+	if want := "PROJ_-_Norwegian_a_o_ae.mov"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

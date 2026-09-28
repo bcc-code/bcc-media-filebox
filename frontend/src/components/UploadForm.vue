@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { buildFilename, type Form, type Option } from '../forms'
 import UiSelect, { type UiSelectOption } from './ui/UiSelect.vue'
-import UiBadge from './ui/UiBadge.vue'
 
 const props = defineProps<{
   form: Form
@@ -65,7 +64,6 @@ const previewName = computed(() =>
 <template>
   <div class="card form-card">
     <div class="form-head">
-      <UiBadge variant="accent" dot>{{ form.label }}</UiBadge>
       <span class="form-desc">{{ form.description }}</span>
     </div>
 
