@@ -15,11 +15,33 @@ const STALL_RESET_MS = 5_000
 // Don't publish a rate from a window shorter than this — too noisy.
 const MIN_SPEED_SPAN_MS = 1_000
 
-function sanitizeFilename(name: string): { name: string; error: string | null } {
+// Letters with no Unicode decomposition to a base letter, so stripping combining
+// marks alone wouldn't reach ASCII. Keep in sync with SanitizeFilename in
+// internal/tus/hooks.go.
+const LETTER_FOLDS: Record<string, string> = {
+  æ: 'ae', Æ: 'AE',
+  ø: 'o', Ø: 'O',
+  ß: 'ss', ẞ: 'SS',
+  œ: 'oe', Œ: 'OE',
+  đ: 'd', Đ: 'D',
+  ð: 'd', Ð: 'D',
+  þ: 'th', Þ: 'TH',
+  ł: 'l', Ł: 'L',
+  ı: 'i',
+}
+
+// Folds letters to their ASCII base: LETTER_FOLDS first, then NFD
+// decomposition with the combining marks dropped (å→a, ü→u, é→e).
+function transliterate(name: string): string {
+  const folded = Array.from(name, (ch) => LETTER_FOLDS[ch] ?? ch).join('')
+  return folded.normalize('NFD').replace(/\p{Mn}/gu, '')
+}
+
+export function sanitizeFilename(name: string): { name: string; error: string | null } {
   if (name === '' || name === '.' || name === '..') {
     return { name: '', error: 'Invalid filename' }
   }
-  const chars = Array.from(name)
+  const chars = Array.from(transliterate(name))
   let lastDot = -1
   // Start at index 1 so a leading dot is never treated as an extension separator.
   for (let i = chars.length - 1; i >= 1; i--) {
