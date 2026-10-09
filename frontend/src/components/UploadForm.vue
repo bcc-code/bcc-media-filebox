@@ -10,6 +10,8 @@ const props = defineProps<{
   dynamicOptions?: Record<string, Option[]>
   // Autocomplete suggestions for free-text fields (keyed by field key).
   suggestions?: Record<string, string[]>
+  // Extension of the picked file, when known; otherwise a placeholder is shown.
+  ext?: string
 }>()
 
 const emit = defineEmits<{
@@ -57,7 +59,7 @@ function tooShort(field: { minLength?: number }, value: string): boolean {
 // Live preview of the derived filename. The backend re-derives it
 // authoritatively on upload; this is purely informational.
 const previewName = computed(() =>
-  buildFilename(props.form, props.modelValue, '.ext'),
+  buildFilename(props.form, props.modelValue, props.ext ?? '.ext'),
 )
 </script>
 

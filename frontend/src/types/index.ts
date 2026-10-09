@@ -8,7 +8,11 @@ export interface UploadItem {
   // Restored Send-draft entries already live on the server, so the browser no
   // longer has (or needs) their original File object.
   file: File | null
+  // Sanitized client name; sent as the tus `filename` metadata.
   displayName: string
+  // Name the file is expected to be stored under (differs from displayName for
+  // form targets, whose name is built from the form fields).
+  savedName: string
   tusUpload: import('tus-js-client').Upload | null
   status: 'pending' | 'uploading' | 'paused' | 'completed' | 'failed'
   progress: number

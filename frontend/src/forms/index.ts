@@ -9,6 +9,7 @@
 // drives the live preview.
 
 import { transliterate } from '../transliterate'
+import { sanitizeFilename } from '../composables/useTusUpload'
 
 export type FieldType = 'text' | 'number' | 'select'
 
@@ -169,6 +170,27 @@ export function buildFilename(form: Form, values: Record<string, string>, ext: s
   const parts = tokens.map((t) => codeByKey[t]).filter((v) => v)
   const base = parts.join('_') || 'upload'
   return base + ext
+}
+
+// fileExt mirrors Go's filepath.Ext: everything from the last "." on, or ""
+// when there is none.
+export function fileExt(name: string): string {
+  const i = name.lastIndexOf('.')
+  return i === -1 ? '' : name.slice(i)
+}
+
+// expectedFilename predicts the name a picked file will be stored under: the
+// sanitized client name, or for a form target the template-built name carrying
+// the sanitized name's extension (as internal/tus/hooks.go does). The server
+// may still add a " (n)" suffix on collision.
+export function expectedFilename(
+  file: File,
+  form: Form | null,
+  values: Record<string, string>,
+): { name: string; error: string | null } {
+  const { name, error } = sanitizeFilename(file.name)
+  if (error) return { name: file.name, error }
+  return { name: form ? buildFilename(form, values, fileExt(name)) : name, error: null }
 }
 
 // isFormValid reports whether all required fields have a non-empty value and

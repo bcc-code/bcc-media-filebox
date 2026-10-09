@@ -174,13 +174,21 @@ async function detectParallelUploads(): Promise<number> {
 export function useTusUpload() {
   const uploads = ref<UploadItem[]>([])
 
-  function addFiles(files: FileList | File[], target: string, formData?: Record<string, string>) {
+  // nameFor predicts the stored name when it differs from the sanitized client
+  // name (form targets); it only affects what the UI shows.
+  function addFiles(
+    files: FileList | File[],
+    target: string,
+    formData?: Record<string, string>,
+    nameFor?: (file: File) => string,
+  ) {
     for (const file of files) {
       const { name: displayName, error: reason } = sanitizeFilename(file.name)
       const item = reactive<UploadItem>({
         id: `upload-${++idCounter}`,
         file,
         displayName: reason ? file.name : displayName,
+        savedName: reason ? file.name : (nameFor?.(file) ?? displayName),
         tusUpload: null,
         status: reason ? 'failed' : 'pending',
         progress: 0,
@@ -312,6 +320,7 @@ export function useTusUpload() {
         id: `server-${record.id}`,
         file: null,
         displayName: record.filename,
+        savedName: record.filename,
         tusUpload: null,
         status: 'completed',
         progress: 100,
