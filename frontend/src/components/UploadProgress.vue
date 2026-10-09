@@ -69,7 +69,14 @@ const fillTone = computed(
   <div class="card upload-row">
     <div class="upload-top">
       <div class="upload-id">
-        <div class="fname">{{ item.displayName }}</div>
+        <div class="fname" :title="item.savedName">{{ item.savedName }}</div>
+        <div
+          v-if="item.file && item.file.name !== item.savedName"
+          class="forig"
+          :title="item.file.name"
+        >
+          {{ item.file.name }}
+        </div>
         <div class="fmeta">
           <span
             >{{ formatSize(item.bytesUploaded) }} /
@@ -191,6 +198,14 @@ const fillTone = computed(
 .fname {
   font-size: 13.5px;
   color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.forig {
+  margin-top: 1px;
+  font-size: 11.5px;
+  color: var(--color-ink-3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

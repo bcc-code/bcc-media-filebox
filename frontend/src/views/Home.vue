@@ -6,10 +6,18 @@ import { notifyError } from '../composables/useToast'
 import UploadForm from '../components/UploadForm.vue'
 import UploadProgress from '../components/UploadProgress.vue'
 import UploadList from '../components/UploadList.vue'
+import StagedFiles from '../components/StagedFiles.vue'
 import AppHeader from '../components/AppHeader.vue'
 import TargetSelector from '../components/TargetSelector.vue'
 import type { TargetInfo } from '../types'
-import { getForm, isFormValid, type Option } from '../forms'
+import {
+  expectedFilename,
+  fileExt,
+  getForm,
+  isFormValid,
+  type Option,
+} from '../forms'
+import { sanitizeFilename } from '../composables/useTusUpload'
 
 const {
   uploads,
@@ -165,18 +173,55 @@ watch(
   },
 )
 
-// For form targets the picker is gated until required fields are valid.
-const canUpload = computed(
+// Picked files wait here until the user presses Upload, so they can check
+// the size and the name each will be stored under first.
+const staged = ref<File[]>([])
+
+// For form targets, Upload is gated until required fields are valid.
+const formValid = computed(
   () => !activeForm.value || isFormValid(activeForm.value, currentValues.value),
 )
 
-function onFiles(files: File[]) {
-  if (!canUpload.value) return
+const maxFiles = computed(() => activeForm.value?.maxFiles ?? 0)
+
+const blockedReason = computed(() => {
+  if (!formValid.value) return 'Fill in the required fields above first.'
+  if (maxFiles.value && staged.value.length > maxFiles.value)
+    return maxFiles.value === 1
+      ? 'This target takes a single file — remove the others.'
+      : `This target takes at most ${maxFiles.value} files.`
+  return ''
+})
+
+// With a single staged file the form preview can show its real extension.
+const previewExt = computed(() =>
+  staged.value.length === 1
+    ? fileExt(sanitizeFilename(staged.value[0].name).name)
+    : undefined,
+)
+
+function onPicked(files: File[]) {
+  // A single-file target swaps the pick rather than refusing the second one.
+  staged.value = maxFiles.value === 1 ? files : [...staged.value, ...files]
+}
+
+function removeStaged(index: number) {
+  staged.value = staged.value.filter((_, i) => i !== index)
+}
+
+function upload(files: File[]) {
+  if (blockedReason.value) return
+  staged.value = []
   const form = activeForm.value
   // Snapshot the values so resetting the form below can't race the upload's
   // metadata, which is read asynchronously when the tus upload starts.
   const snapshot = { ...currentValues.value }
-  addFiles(files, target.value, form ? snapshot : undefined)
+  addFiles(
+    files,
+    target.value,
+    form ? snapshot : undefined,
+    form ? (f) => expectedFilename(f, form, snapshot).name : undefined,
+  )
   if (form?.resetFields?.length) {
     const next = { ...snapshot }
     for (const k of form.resetFields) delete next[k]
@@ -199,7 +244,8 @@ watch(
 
       <h1 class="page-title">Upload files</h1>
       <p class="page-sub">
-        Pick a target, fill in what it needs, then drop your files.
+        Pick a target, fill in what it needs, add your files, then press
+        Upload.
       </p>
 
       <div class="field">
@@ -213,19 +259,26 @@ watch(
           :model-value="currentValues"
           :dynamic-options="dynamicOptions"
           :suggestions="suggestions"
+          :ext="previewExt"
           @update:model-value="setValues"
         />
-        <p v-if="!canUpload" class="form-gate-note">
-          Fill in the required fields above before uploading.
-        </p>
       </div>
 
       <UiFileUpload
-        :max-files="activeForm?.maxFiles ?? 0"
-        :disabled="!canUpload"
+        :max-files="maxFiles"
         hint="Supports files up to 300 GB with resumable upload"
-        @files="onFiles"
+        @files="onPicked"
         @reject="notifyError"
+      />
+
+      <StagedFiles
+        :files="staged"
+        :form="activeForm"
+        :values="currentValues"
+        :blocked-reason="blockedReason"
+        @remove="removeStaged"
+        @clear="staged = []"
+        @upload="upload"
       />
 
       <div v-if="uploads.length > 0" class="upload-section">
@@ -276,11 +329,5 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.form-gate-note {
-  margin: 10px 0 0;
-  font-size: 13px;
-  color: var(--color-warn);
 }
 </style>

@@ -12,6 +12,7 @@ import UiTagsInput from '../ui/UiTagsInput.vue'
 import VerificationMethodPicker from './VerificationMethodPicker.vue'
 import UiSelect from '../ui/UiSelect.vue'
 import UiFileUpload from '../ui/UiFileUpload.vue'
+import StagedFiles from '../StagedFiles.vue'
 import UiNumberInput from '../ui/UiNumberInput.vue'
 import { notifyError } from '../../composables/useToast'
 import UiButton from '../ui/UiButton.vue'
@@ -116,6 +117,14 @@ const maxDownloadsValid = computed(
 const completedUploads = computed(() =>
   uploads.value.filter((u) => u.status === 'completed' && u.uploadId),
 )
+// Picked files wait here until the user presses Upload.
+const staged = ref<File[]>([])
+
+function uploadStaged(files: File[]) {
+  staged.value = []
+  addFiles(files, SEND_TARGET)
+}
+
 const stillUploading = computed(() =>
   uploads.value.some((u) => u.status === 'uploading' || u.status === 'pending'),
 )
@@ -218,6 +227,7 @@ const canSend = computed(
   () =>
     completedUploads.value.length > 0 &&
     !stillUploading.value &&
+    staged.value.length === 0 &&
     name.value.trim().length > 0 &&
     badRecipients.value.length === 0 &&
     maxDownloadsValid.value &&
@@ -233,6 +243,8 @@ const blockReason = computed(() => {
   if (unresolvedDraftUploadIds.value.length) {
     return `Wait for ${unresolvedDraftUploadIds.value.length} saved upload${unresolvedDraftUploadIds.value.length === 1 ? '' : 's'} to become available, or forget the missing selection.`
   }
+  if (staged.value.length)
+    return 'Press Upload on the picked files, or clear them.'
   if (uploads.value.length === 0) return 'Add at least one file.'
   if (stillUploading.value) return 'Wait for files to finish uploading.'
   if (completedUploads.value.length === 0)
@@ -299,8 +311,14 @@ async function send() {
         <UiFileUpload
           label="Drag &amp; drop files, or click to browse"
           hint="Add as many as you like — they'll be sent as one package"
-          @files="(files) => addFiles(files, SEND_TARGET)"
+          @files="(files) => (staged = [...staged, ...files])"
           @reject="notifyError"
+        />
+        <StagedFiles
+          :files="staged"
+          @remove="(i) => (staged = staged.filter((_, j) => j !== i))"
+          @clear="staged = []"
+          @upload="uploadStaged"
         />
         <div
           v-if="restoringDraft || restoredUploadCount"
