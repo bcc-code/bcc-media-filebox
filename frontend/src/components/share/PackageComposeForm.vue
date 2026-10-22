@@ -441,6 +441,13 @@ async function share() {
             aria-label="Max downloads per item"
           />
         </div>
+        <!-- The hard ceiling on the expiry above, so it sits where someone is
+             choosing a date rather than in the page header. 90 days runs from
+             package creation (maxPackageLifetimeDays), not from upload. -->
+        <p class="block-note">
+          Files are deleted 90 days after a package is created, and expiry
+          can't be extended past that.
+        </p>
       </div>
 
       <!-- Verification -->
@@ -577,6 +584,12 @@ async function share() {
   flex-direction: column;
   gap: 18px;
   min-width: 0;
+}
+.block-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-ink-3);
+  line-height: 1.5;
 }
 .block-label {
   font-size: 13.5px;

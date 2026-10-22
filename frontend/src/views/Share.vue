@@ -83,12 +83,6 @@ function onPreview(packageId: string) {
           Handing material in instead?
           <router-link to="/" class="link">Upload to BCC Media</router-link>.
         </p>
-        <!-- 90 days runs from package creation (maxPackageLifetimeDays),
-             not from when the files were uploaded. -->
-        <p class="page-note">
-          Files are deleted 90 days after a package is created, and it can't be
-          renewed past that.
-        </p>
 
         <UiTabs v-model="view" :tabs="viewTabs" list-class="tab-list-spaced">
           <template #compose>

@@ -228,12 +228,29 @@ with "Where should this go?" or "What is this for?" — "target" is ours, not th
 | | Before | After |
 | --- | --- | --- |
 | Nav / titles | Upload · Send | Upload to BCC Media · Share with people |
-| Upload intro | "Pick a target, fill in what it needs…" | "Your files go to BCC Media, where the team can use and archive them…" |
+| Upload intro | "Pick a target, fill in what it needs…" | "Hand material in to BCC Media, where the team can use and archive it." |
 | Upload field | "Target" | "Where should this go?" |
-| Share intro | "Bundle files into a single package…" | "For getting files to specific people, inside or outside BCC Media…" |
+| Share intro | "Bundle files into a single package…" | "Send material to specific people. They get an email with a secure download link." |
 
-Plus: "Nobody receives a download link — this is a hand-in" on Upload, a Share → Upload
-cross-link, and `flex-wrap` on the header so longer labels don't overflow narrow windows.
+Plus: a Share → Upload cross-link, and `flex-wrap` on the header so longer labels don't
+overflow narrow windows.
+
+Upload briefly carried a note saying nobody receives a download link. Dropped: it states an
+absence, which only lands for someone who already knows Share exists, and this branch
+deliberately doesn't route that person anywhere. The title and subtitle already name BCC Media
+as the destination, which is the same information stated positively.
+
+Share's intro went through "for getting files to people outside BCC Media" before landing here.
+That phrasing repeats the "externally" mistake this document already rejected for the tab label:
+Share reaches internal recipients just as often, and what actually separates it from Upload is
+that there is a *named recipient*, not where that recipient sits. Its "nothing is filed into the
+archive" clause came off for the same reason the Upload note did.
+
+The retention line stays, but not in the header: it moved into the compose form's Expiration
+block, directly under the expiry picker. It is the ceiling on the choice being made there, so
+that is where someone needs it — and the header is down to one small line (the Upload
+cross-link) instead of two competing ones. It also now says 90 days from *package creation*,
+which is what `maxPackageLifetimeDays` measures, not from upload.
 
 Three decisions worth keeping:
 
