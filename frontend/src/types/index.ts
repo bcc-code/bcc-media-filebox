@@ -5,7 +5,7 @@ export interface TargetInfo {
 
 export interface UploadItem {
   id: string
-  // Restored Send-draft entries already live on the server, so the browser no
+  // Restored Share-draft entries already live on the server, so the browser no
   // longer has (or needs) their original File object.
   file: File | null
   // Sanitized client name; sent as the tus `filename` metadata.
@@ -21,7 +21,7 @@ export interface UploadItem {
   speed: number
   error: string | null
   // Server-assigned upload ID, set once the tus upload completes. Needed to
-  // reference this file elsewhere (e.g. bundling it into a Send package).
+  // reference this file elsewhere (e.g. bundling it into a Share package).
   uploadId: string | null
   // True when this row was reconstructed from GET /api/uploads rather than
   // selected from the browser during the current component lifetime.

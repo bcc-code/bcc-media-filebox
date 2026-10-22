@@ -308,7 +308,7 @@ export function useTusUpload() {
     })
   }
 
-  // Reconstruct a completed upload after the Send form was unmounted or the
+  // Reconstruct a completed upload after the Share form was unmounted or the
   // browser reloaded. Identity is the server upload ID: filename and size are
   // not safe deduplication keys because two distinct files may share both.
   function addServerUpload(record: UploadRecord): boolean {

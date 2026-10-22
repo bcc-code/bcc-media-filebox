@@ -3,12 +3,12 @@
    the @theme block in src/style.css. Reference var(--color-*) here — never
    redeclare a token value, or this surface will silently drift. */
 
-.send-root {
+.share-root {
   min-height: 100vh;
 }
-.send-root *,
-.send-root *::before,
-.send-root *::after {
+.share-root *,
+.share-root *::before,
+.share-root *::after {
   box-sizing: border-box;
 }
 
@@ -44,12 +44,12 @@
    default; off falls back to the plain button. */
 
 /* ============ Recipient preview (sender-side tab) ============ */
-.send-root .preview-bar .spacer {
+.share-root .preview-bar .spacer {
   flex: 1;
 }
 
 /* ============ Public recipient screens (shared with the real /s/:id page) ============ */
-.send-root .public-stage {
+.share-root .public-stage {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: 16px;
@@ -57,7 +57,7 @@
   display: grid;
   place-items: center;
 }
-.send-root .public-card {
+.share-root .public-card {
   width: 100%;
   max-width: 560px;
   background: var(--color-surface-2);
@@ -66,39 +66,39 @@
   padding: 30px 30px 28px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
 }
-.send-root .public-brand {
+.share-root .public-brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 22px;
 }
-.send-root .public-brand .mark {
+.share-root .public-brand .mark {
   width: 26px;
   height: 26px;
   color: var(--color-ink);
 }
-.send-root .public-brand .name {
+.share-root .public-brand .name {
   font-size: 16px;
   font-weight: 600;
 }
-.send-root .public-from {
+.share-root .public-from {
   font-size: 13.5px;
   color: var(--color-ink-2);
 }
-.send-root .public-from strong {
+.share-root .public-from strong {
   color: var(--color-ink);
   font-weight: 600;
 }
-.send-root .public-pkgname {
+.share-root .public-pkgname {
   font-size: 23px;
   font-weight: 600;
   letter-spacing: -0.3px;
   margin: 6px 0 0;
 }
-.send-root .public-section {
+.share-root .public-section {
   margin-top: 22px;
 }
-.send-root .public-section-head {
+.share-root .public-section-head {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -106,18 +106,18 @@
   font-size: 12px;
   font-weight: 600;
 }
-.send-root .public-section-head > span:last-child {
+.share-root .public-section-head > span:last-child {
   color: var(--color-ink-3);
   font-family: 'JetBrains Mono', monospace;
 }
-.send-root .public-section .public-files {
+.share-root .public-section .public-files {
   margin-top: 8px;
 }
-.send-root .public-file .fic {
+.share-root .public-file .fic {
   color: var(--color-ink-3);
   flex-shrink: 0;
 }
-.send-root .public-file .file-dl {
+.share-root .public-file .file-dl {
   flex-shrink: 0;
   width: 30px;
   height: 30px;
@@ -133,21 +133,21 @@
     border-color 0.12s,
     background 0.12s;
 }
-.send-root .public-file .file-dl:hover {
+.share-root .public-file .file-dl:hover {
   color: var(--color-accent-2);
   border-color: color-mix(in oklch, var(--color-accent), transparent 45%);
   background: color-mix(in oklch, var(--color-accent), transparent 88%);
 }
-.send-root .public-file .file-dl.inert {
+.share-root .public-file .file-dl.inert {
   cursor: default;
   opacity: 0.55;
 }
-.send-root .public-file .file-dl.inert:hover {
+.share-root .public-file .file-dl.inert:hover {
   color: var(--color-ink-2);
   border-color: var(--color-line-2);
   background: var(--color-surface-3);
 }
-.send-root .public-note {
+.share-root .public-note {
   text-align: center;
   font-size: 12px;
   color: var(--color-ink-3);
@@ -156,7 +156,7 @@
 }
 
 /* Async package preparation and server-produced download artifacts. */
-.send-root .preparation-track {
+.share-root .preparation-track {
   height: 7px;
   margin-top: 10px;
   overflow: hidden;
@@ -164,7 +164,7 @@
   border: 1px solid var(--color-line-2);
   border-radius: 999px;
 }
-.send-root .preparation-fill {
+.share-root .preparation-fill {
   display: block;
   height: 100%;
   background: var(--color-accent);
@@ -173,22 +173,22 @@
 }
 
 /* Verify screen */
-.send-root .verify-h {
+.share-root .verify-h {
   font-size: 21px;
   font-weight: 600;
   letter-spacing: -0.3px;
   margin: 0;
 }
-.send-root .verify-p {
+.share-root .verify-p {
   font-size: 13.5px;
   color: var(--color-ink-2);
   margin: 10px 0 24px;
   line-height: 1.55;
 }
-.send-root .verify-p b {
+.share-root .verify-p b {
   color: var(--color-ink);
 }
-.send-root .verify-error {
+.share-root .verify-error {
   font-size: 13px;
   color: oklch(0.85 0.1 25);
   background: color-mix(in oklch, var(--color-danger), transparent 85%);
@@ -206,7 +206,7 @@
    it reads as an instruction rather than fine print. */
 
 /* Pending access requests and the extend form, on the author's package card */
-.send-root .ask-hint {
+.share-root .ask-hint {
   margin: 2px 0 0;
   font-size: 11.5px;
   color: var(--color-ink-3);
@@ -214,10 +214,10 @@
 }
 
 @media (max-width: 600px) {
-  .send-root .public-stage {
+  .share-root .public-stage {
     padding: 24px 12px 34px;
   }
-  .send-root .public-card {
+  .share-root .public-card {
     padding: 24px 18px;
   }
 }

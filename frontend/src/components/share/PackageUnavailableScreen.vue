@@ -25,7 +25,7 @@ defineProps<{ heading: string; message?: string }>()
 </template>
 
 <style scoped>
-/* Colocated from send.css: these classes are used only by this
+/* Colocated from share.css: these classes are used only by this
    component. Shared primitives stay in assets/components.css — several
    components need them, and scoped CSS cannot be shared. */
 /* Terminal states (expired / revoked / not found) on the real recipient page */

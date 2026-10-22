@@ -2,33 +2,38 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '../components/AppHeader.vue'
-import PackageComposeForm from '../components/send/PackageComposeForm.vue'
-import SentPackagesList from '../components/send/SentPackagesList.vue'
-import RecipientPreviewTab from '../components/send/RecipientPreviewTab.vue'
+import PackageComposeForm from '../components/share/PackageComposeForm.vue'
+import SharedPackagesList from '../components/share/SharedPackagesList.vue'
+import RecipientPreviewTab from '../components/share/RecipientPreviewTab.vue'
 import { usePackages } from '../composables/usePackages'
 import { useAuth } from '../composables/useAuth'
-import '../assets/send.css'
+import '../assets/share.css'
 import UiTabs, { type UiTabEntry } from '../components/ui/UiTabs.vue'
 
-type View = 'compose' | 'sent' | 'preview'
+type View = 'compose' | 'shared' | 'preview'
 const route = useRoute()
 
-// ?tab=sent is what an access-request email links to (mail.ManageURL), landing
-// the author on the package they were asked about rather than the compose form.
+// ?tab=shared is what an access-request email links to (mail.ManageURL),
+// landing the author on the package they were asked about rather than the
+// compose form. Mail sent before the Send → Share rename spells it tab=sent,
+// and those links never expire from an inbox, so both are accepted.
+const tab = route.query.tab
 const initialView: View =
-  route.query.tab === 'sent' || route.query.tab === 'preview'
-    ? (route.query.tab as View)
-    : 'compose'
+  tab === 'shared' || tab === 'sent'
+    ? 'shared'
+    : tab === 'preview'
+      ? 'preview'
+      : 'compose'
 const view = ref<View>(initialView)
 const { total, fetchPackages } = usePackages()
 
 const viewTabs = computed<UiTabEntry[]>(() => [
   { value: 'compose', label: 'New package' },
-  { value: 'sent', label: 'Shared packages', count: total.value },
+  { value: 'shared', label: 'Shared packages', count: total.value },
   { value: 'preview', label: 'Recipient preview' },
 ])
-// Send is unavailable to guest sessions — the backend rejects both the
-// package-creation call and Send-flow uploads; this just explains why.
+// Sharing is unavailable to guest sessions — the backend rejects both the
+// package-creation call and share-flow uploads; this just explains why.
 const { state: authState } = useAuth()
 const isGuest = computed(() => authState.provider === 'guest')
 const previewPackageId = ref<string | undefined>(
@@ -37,9 +42,9 @@ const previewPackageId = ref<string | undefined>(
 
 onMounted(fetchPackages)
 
-function onSent() {
+function onShared() {
   previewPackageId.value = undefined
-  view.value = 'sent'
+  view.value = 'shared'
   fetchPackages()
 }
 
@@ -50,7 +55,7 @@ function onPreview(packageId: string) {
 </script>
 
 <template>
-  <div class="send-root">
+  <div class="share-root">
     <div class="page-wrap">
       <AppHeader />
 
@@ -82,10 +87,10 @@ function onPreview(packageId: string) {
 
         <UiTabs v-model="view" :tabs="viewTabs" list-class="tab-list-spaced">
           <template #compose>
-            <PackageComposeForm @sent="onSent" />
+            <PackageComposeForm @shared="onShared" />
           </template>
-          <template #sent>
-            <SentPackagesList
+          <template #shared>
+            <SharedPackagesList
               :focus-package-id="previewPackageId"
               @preview="onPreview"
               @focus-consumed="previewPackageId = undefined"

@@ -13,11 +13,11 @@ component-specific in the component**.
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `style.css` — Tailwind `@theme`        | The tokens. Never redeclare one elsewhere.                                                                                  | 101      |
 | `assets/components.css`                | Primitives more than one component applies: `.inp`, `.card`, `.badge`, `.field`, `.section-head`, the `.card table` family. | 506      |
-| `assets/send.css` / `assets/admin.css` | The page surface itself, plus classes handed across a component boundary (see below).                                       | 223 / 88 |
+| `assets/share.css` / `assets/admin.css` | The page surface itself, plus classes handed across a component boundary (see below).                                       | 223 / 88 |
 | `<style scoped>` in 38 components      | Everything used by exactly one component.                                                                                   | —        |
 
 `assets/` went from 2856 lines to 918. `UiSelect` owns its 19 rules, `UiMenu`
-11, `UiToaster` 10, `UiNumberInput` 10, `UiButton` 16; `SentPackageCard` 44,
+11, `UiToaster` 10, `UiNumberInput` 10, `UiButton` 16; `SharedPackageCard` 44,
 `PackageDownloadScreen` 19.
 
 Moved rules keep their `@layer components` wrapper inside the SFC. The layer
@@ -179,7 +179,7 @@ sheet.
 
 ## What is left
 
-- `send.css` (223) and `admin.css` (88) still hold the surface wrappers, the
+- `share.css` (223) and `admin.css` (88) still hold the surface wrappers, the
   boundary-crossing classes, and rules mixing classes owned by different
   components — `.pkg-card.gone` style splits that are safe today because the
   global selector is more specific, but worth tidying when those components are
@@ -216,7 +216,7 @@ covers `A a 0 space æ ø å Ā`, that every referenced woff2 exists under
 
 ## Page surfaces are unlayered, and that beats the component layer
 
-`admin.css` and `send.css` are not in `@layer components`, and an unlayered
+`admin.css` and `share.css` are not in `@layer components`, and an unlayered
 rule beats a layered one at _any_ specificity. So a surface-wide restyle of a
 bare element silently overrides a shared primitive, on that page only:
 `.admin-root button { color: inherit }` flattened `.btn-danger`'s red, and

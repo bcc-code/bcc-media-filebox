@@ -94,7 +94,7 @@
       color-mix(in oklch, var(--color-accent), transparent 88%);
   }
 
-  /* Textarea affordances. These lived in send.css as `.send-root textarea.inp`,
+  /* Textarea affordances. These lived in share.css as `.share-root textarea.inp`,
      which meant a textarea on any other surface lost them. */
   textarea.inp {
     resize: vertical;
@@ -288,7 +288,7 @@
 /* ============================================================
    App chrome — the page header, brand, tab nav and user menu
    shared by the Upload and Send surfaces. Promoted out of
-   send.css so both consume one definition.
+   share.css so both consume one definition.
    ============================================================ */
 
 @layer components {

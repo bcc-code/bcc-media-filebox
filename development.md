@@ -163,7 +163,7 @@ The share notification mirrors the recipient page it links to — the `.public-c
 Two constraints shape the markup:
 
 - **Tables and inline styles.** Outlook ignores `<style>` blocks and Gmail strips external CSS, so every colour and spacing value is inline. Padding goes on a `<td>`, never on a `<table>` — Outlook's Word engine drops the latter.
-- **Design tokens are hard-coded hex.** No mail client understands CSS custom properties or `oklch()`, so `assets/send.css` tokens are resolved to hex and listed in a comment at the top of the HTML template. **Changing a token in `send.css` does not update the mail** — update both, and `TestNotificationMatchesRecipientPageDesign` will tell you if the hex drifts out of the template.
+- **Design tokens are hard-coded hex.** No mail client understands CSS custom properties or `oklch()`, so `assets/share.css` tokens are resolved to hex and listed in a comment at the top of the HTML template. **Changing a token in `share.css` does not update the mail** — update both, and `TestNotificationMatchesRecipientPageDesign` will tell you if the hex drifts out of the template.
 
 Preview the rendered design in a browser without a mail server:
 

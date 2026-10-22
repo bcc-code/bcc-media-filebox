@@ -52,7 +52,7 @@ vi.mock('../../composables/usePackages', () => ({
 
 import AccessTab from '../admin/AccessTab.vue'
 import ArrangementsTab from '../admin/ArrangementsTab.vue'
-import SentPackagesList from '../send/SentPackagesList.vue'
+import SharedPackagesList from '../share/SharedPackagesList.vue'
 import { pending, settle } from '../../composables/useConfirm'
 
 let wrapper: VueWrapper | null = null
@@ -207,7 +207,7 @@ describe('ArrangementsTab — deleting a sub event', () => {
   })
 })
 
-describe('SentPackagesList — revoking a package', () => {
+describe('SharedPackagesList — revoking a package', () => {
   const pkg = (over: Record<string, unknown> = {}) => ({
     packageId: 'pkg-1',
     name: 'Sommerstevne masters',
@@ -229,7 +229,7 @@ describe('SentPackagesList — revoking a package', () => {
 
   it('asks before revoking, naming the package', async () => {
     packages.value = [pkg()]
-    wrapper = mount(SentPackagesList)
+    wrapper = mount(SharedPackagesList)
     await flush()
 
     await clickByText('Revoke')
@@ -240,7 +240,7 @@ describe('SentPackagesList — revoking a package', () => {
 
   it('tells the author it can be reopened, because ExtendPackage clears revoked', async () => {
     packages.value = [pkg()]
-    wrapper = mount(SentPackagesList)
+    wrapper = mount(SharedPackagesList)
     await flush()
 
     await clickByText('Revoke')
@@ -250,7 +250,7 @@ describe('SentPackagesList — revoking a package', () => {
 
   it('revokes once confirmed', async () => {
     packages.value = [pkg()]
-    wrapper = mount(SentPackagesList)
+    wrapper = mount(SharedPackagesList)
     await flush()
 
     await clickByText('Revoke')
@@ -262,7 +262,7 @@ describe('SentPackagesList — revoking a package', () => {
 
   it('keeps the package live when cancelled', async () => {
     packages.value = [pkg()]
-    wrapper = mount(SentPackagesList)
+    wrapper = mount(SharedPackagesList)
     await flush()
 
     await clickByText('Revoke')
@@ -285,7 +285,7 @@ describe('SentPackagesList — revoking a package', () => {
         ],
       }),
     ]
-    wrapper = mount(SentPackagesList)
+    wrapper = mount(SharedPackagesList)
     await flush()
 
     const x = wrapper.find('.ask-x')
@@ -313,7 +313,7 @@ describe('SentPackagesList — revoking a package', () => {
         ],
       }),
     ]
-    wrapper = mount(SentPackagesList)
+    wrapper = mount(SharedPackagesList)
     await flush()
 
     await wrapper.find('.ask-x').trigger('click')
@@ -337,7 +337,7 @@ describe('SentPackagesList — revoking a package', () => {
         ],
       }),
     ]
-    wrapper = mount(SentPackagesList)
+    wrapper = mount(SharedPackagesList)
     await flush()
 
     await wrapper.find('.ask-x').trigger('click')

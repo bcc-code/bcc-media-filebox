@@ -246,13 +246,22 @@ Three decisions worth keeping:
   codebase says send throughout; the argument that won is that "share" is simply the word
   people reach for, and it sits further from "upload" than "send" does, which is the whole
   problem this document is about.
-- **The rename stops at the user-visible staff surface.** Nav, titles, intro, the "Shared
-  packages" tab, "Share package" buttons, empty states. Route (`/send`), tab query value
-  (`?tab=sent`), component paths, the `send` tus target and every API field keep their names —
-  renaming those is churn with no user benefit, and the target name is wired into upload
-  routing. **Recipient-facing copy still says "sent"**: `PackageDownloadScreen.vue:75` and the
-  mail subject/headline (`mail/templates.go:133`, `:210`). Open decision — it's a different
-  audience, and changing a subject line affects threading for mail already delivered.
+- **The rename was carried through the code, not just the copy.** `views/Share.vue`,
+  `components/share/`, `SharedPackagesList`/`SharedPackageCard`, `assets/share.css`,
+  `.share-root`, the `/share` route, `?tab=shared`, and the component-local identifiers
+  (`canShare`, `sharing`, `shareError`, the `shared` emit). Docs follow.
+
+  Three values deliberately did **not** move, each with a comment saying why:
+
+  | Value | Why it stays |
+  | --- | --- |
+  | `/send` route | Kept as a redirect that preserves the query — mail already delivered links to `/send?tab=sent&package=…` |
+  | `?tab=sent` | Still accepted alongside `?tab=shared`, same reason: inbox links never expire |
+  | tus target `'send'`, draft key `filebox-send-draft-uploads:` | Wire and browser-storage values. The first is matched by the backend and written to `uploads.target_name`; the second keys drafts sitting in users' browsers. Renaming either orphans data |
+
+- **Recipient-facing copy still says "sent"** — `PackageDownloadScreen.vue:75` and the mail
+  subject/headline (`mail/templates.go:133`, `:210`). Open decision: different audience, and
+  changing a subject line affects threading for mail already delivered.
 - **"BCC Media", not "BCC".** The files go to the media organisation; *BCC* is the wider
   community that BCC Login authenticates, and conflating them in the one label a contributor
   reads first is the wrong place to be loose.

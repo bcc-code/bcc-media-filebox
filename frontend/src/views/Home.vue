@@ -247,9 +247,9 @@ watch(
         Your files go to BCC Media, where the team can use and archive them.
         Pick what the material belongs to, add your files, then press Upload.
       </p>
-      <!-- Deliberately no cross-link to Send: it is an internal tool for
+      <!-- Deliberately no cross-link to Share: it is an internal tool for
            sharing material outwards, and this page's audience is contributors
-           bringing material in. Pointing them at Send would misdirect the
+           bringing material in. Pointing them at Share would misdirect the
            majority to serve a minority who already know where it is. -->
       <p class="page-note">
         Nobody receives a download link — this is a hand-in.

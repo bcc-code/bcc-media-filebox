@@ -153,7 +153,7 @@ func TestNotifyAccessRequestMailsAuthor(t *testing.T) {
 	if msg.ReplyTo != "recipient@example.com" {
 		t.Errorf("Reply-To = %q, want the requester", msg.ReplyTo)
 	}
-	if !strings.Contains(msg.HTML, "https://filebox.example.com/send?package=pkgstate&amp;tab=sent") {
+	if !strings.Contains(msg.HTML, "https://filebox.example.com/share?package=pkgstate&amp;tab=shared") {
 		t.Errorf("mail is missing the author's manage link:\n%s", msg.HTML)
 	}
 	if !strings.Contains(msg.Text, "Still need these.") {

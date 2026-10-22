@@ -21,7 +21,7 @@ const dialog = read('components/ui/UiDialog.vue')
 const drawer = read('components/ui/UiDrawer.vue')
 const surfaces = {
   'admin.css': read('assets/admin.css'),
-  'send.css': read('assets/send.css'),
+  'share.css': read('assets/share.css'),
 }
 
 /**
@@ -54,8 +54,8 @@ const rule = (css: string, selector: string) => {
  * @layer components at ANY specificity. So a surface-wide restyle of a bare
  * element silently overrides a shared primitive. This has happened twice:
  * `.admin-root button { color: inherit }` flattened `.btn-danger`'s red, and
- * `.send-root a { color: accent }` recoloured the whole app header — brand,
- * nav links and the active pill — on the Send page only.
+ * `.share-root a { color: accent }` recoloured the whole app header — brand,
+ * nav links and the active pill — on the Share page only.
  */
 describe.each(Object.entries(surfaces))(
   '%s restyles no bare element',

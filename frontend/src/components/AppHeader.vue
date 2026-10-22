@@ -8,8 +8,8 @@ import { useAuth } from '../composables/useAuth'
 const route = useRoute()
 const { state: authState } = useAuth()
 
-// Send is unavailable to guests, so the link is hidden rather than dead.
-const canSend = computed(() => authState.provider !== 'guest')
+// Sharing is unavailable to guests, so the link is hidden rather than dead.
+const canShare = computed(() => authState.provider !== 'guest')
 </script>
 
 <template>
@@ -25,15 +25,15 @@ const canSend = computed(() => authState.provider !== 'guest')
            versus named individuals. Who may *use* each surface is a separate
            question the labels cannot answer; that is for access control. -->
       <!-- The active link is derived from the route rather than passed in by
-           each page. Home and Send each hand-wrote their own `class="active"`,
+           each page. Home and Share each hand-wrote their own `class="active"`,
            which is a pair of copies that can disagree. -->
       <router-link to="/" :class="{ active: route.path === '/' }">
         Upload to BCC Media
       </router-link>
       <router-link
-        v-if="canSend"
-        to="/send"
-        :class="{ active: route.path.startsWith('/send') }"
+        v-if="canShare"
+        to="/share"
+        :class="{ active: route.path.startsWith('/share') }"
       >
         Share with people
       </router-link>

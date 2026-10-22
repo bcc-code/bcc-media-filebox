@@ -32,7 +32,7 @@ func (f DownloadedFile) CountLabel() string {
 type DownloadNotification struct {
 	AuthorName  string
 	PackageName string
-	// ManageURL points the author at the package's card in the Send UI.
+	// ManageURL points the author at the package's card in the Share UI.
 	ManageURL string
 	// MuteURL switches these reports off without a login; empty drops the offer.
 	MuteURL string
