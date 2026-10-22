@@ -356,6 +356,27 @@
   .page-sub + .field {
     margin-top: 22px;
   }
+  /* Quieter than .page-sub: the cross-link to the other surface, and the
+     retention warning. Send stacks two, so only the last one clears the
+     section below. Promoted here from Send.vue's scoped block once Upload
+     needed the same family — a family has to have exactly one owner. */
+  .page-note {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: var(--color-ink-3);
+    line-height: 1.5;
+  }
+  .page-note:last-of-type {
+    margin-bottom: 24px;
+  }
+  .link {
+    color: var(--color-accent-2);
+    text-decoration: none;
+  }
+  .link:hover {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
+  }
 }
 
 /* ============================================================

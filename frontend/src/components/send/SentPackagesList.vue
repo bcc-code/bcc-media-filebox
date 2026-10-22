@@ -133,7 +133,7 @@ onUnmounted(stopPreparationPolling)
 
 <template>
   <div v-if="loading && !packages.length" class="empty">Loading…</div>
-  <div v-else-if="!packages.length" class="empty">No packages sent yet.</div>
+  <div v-else-if="!packages.length" class="empty">No packages shared yet.</div>
   <div v-else class="pkg-list">
     <p v-if="seekingFocus" class="ask-hint">
       Loading more packages to find the one from your link…

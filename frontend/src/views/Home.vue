@@ -242,14 +242,21 @@ watch(
     <div class="page-wrap">
       <AppHeader />
 
-      <h1 class="page-title">Upload files</h1>
+      <h1 class="page-title">Upload to BCC Media</h1>
       <p class="page-sub">
-        Pick a target, fill in what it needs, add your files, then press
-        Upload.
+        Your files go to BCC Media, where the team can use and archive them.
+        Pick what the material belongs to, add your files, then press Upload.
+      </p>
+      <!-- Deliberately no cross-link to Send: it is an internal tool for
+           sharing material outwards, and this page's audience is contributors
+           bringing material in. Pointing them at Send would misdirect the
+           majority to serve a minority who already know where it is. -->
+      <p class="page-note">
+        Nobody receives a download link — this is a hand-in.
       </p>
 
       <div class="field">
-        <label>Target</label>
+        <label>Where should this go?</label>
         <TargetSelector v-model="target" :targets="targets" />
       </div>
 

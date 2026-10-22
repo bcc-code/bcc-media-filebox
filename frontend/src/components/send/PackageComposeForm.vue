@@ -310,7 +310,7 @@ async function send() {
         </div>
         <UiFileUpload
           label="Drag &amp; drop files, or click to browse"
-          hint="Add as many as you like — they'll be sent as one package"
+          hint="Add as many as you like — they'll be shared as one package"
           @files="(files) => (staged = [...staged, ...files])"
           @reject="notifyError"
         />
@@ -484,10 +484,10 @@ async function send() {
           block
           :disabled="!canSend"
           :loading="sending"
-          loading-label="Sending…"
+          loading-label="Sharing…"
           @click="send"
         >
-          Send package
+          Share package
         </UiButton>
       </div>
     </div>
@@ -536,10 +536,10 @@ async function send() {
         style="margin-top: 16px"
         :disabled="!canSend"
         :loading="sending"
-        loading-label="Sending…"
+        loading-label="Sharing…"
         @click="send"
       >
-        Send package
+        Share package
       </UiButton>
       <div
         v-if="!canSend"

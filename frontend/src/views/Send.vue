@@ -24,7 +24,7 @@ const { total, fetchPackages } = usePackages()
 
 const viewTabs = computed<UiTabEntry[]>(() => [
   { value: 'compose', label: 'New package' },
-  { value: 'sent', label: 'Sent packages', count: total.value },
+  { value: 'sent', label: 'Shared packages', count: total.value },
   { value: 'preview', label: 'Recipient preview' },
 ])
 // Send is unavailable to guest sessions — the backend rejects both the
@@ -54,12 +54,12 @@ function onPreview(packageId: string) {
     <div class="page-wrap">
       <AppHeader />
 
-      <h1 class="page-title">Send files</h1>
+      <h1 class="page-title">Share with people</h1>
 
       <template v-if="isGuest">
         <p class="page-sub">
-          Send is not available for guest accounts. Sign in with your
-          organisation account to send packages.
+          Sending files externally is not available for guest accounts. Sign in
+          with your organisation account.
         </p>
         <p class="page-note">
           <router-link to="/" class="link">Back to Upload</router-link>
@@ -68,8 +68,12 @@ function onPreview(packageId: string) {
 
       <template v-else>
         <p class="page-sub">
-          Bundle files into a single package and send a secure download link to
-          anyone by email.
+          For sending material out to people outside BCC Media. They get an
+          email with a secure download link — nothing is filed into the archive.
+        </p>
+        <p class="page-note">
+          Handing material in instead?
+          <router-link to="/" class="link">Upload to BCC Media</router-link>.
         </p>
         <p class="page-note">
           Files are permanently deleted from storage 90 days after upload —
@@ -95,31 +99,3 @@ function onPreview(packageId: string) {
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Colocated from components.css: used only by this component. The @layer
-   wrapper is kept so precedence against Tailwind utilities is unchanged.
-   Shared primitives stay in assets/components.css. */
-@layer components {
-  .link {
-    color: var(--color-accent-2);
-    text-decoration: none;
-  }
-  .page-note {
-    margin: 0 0 24px;
-    font-size: 12px;
-    color: var(--color-ink-3);
-    line-height: 1.5;
-  }
-}
-
-/* Colocated from components.css: used only by this component. The @layer
-   wrapper is kept so precedence against Tailwind utilities is unchanged.
-   Shared primitives stay in assets/components.css. */
-@layer components {
-  .link:hover {
-    color: var(--color-accent-hover);
-    text-decoration: underline;
-  }
-}
-</style>
