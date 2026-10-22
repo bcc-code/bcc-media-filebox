@@ -228,9 +228,9 @@ with "Where should this go?" or "What is this for?" — "target" is ours, not th
 | | Before | After |
 | --- | --- | --- |
 | Nav / titles | Upload · Send | Upload to BCC Media · Share with people |
-| Upload intro | "Pick a target, fill in what it needs…" | "Hand material in to BCC Media, where the team can use and archive it." |
+| Upload intro | "Pick a target, fill in what it needs…" | "Hand material in, so the team can use and archive it." |
 | Upload field | "Target" | "Where should this go?" |
-| Share intro | "Bundle files into a single package…" | "Send material to specific people. They get an email with a secure download link." |
+| Share intro | "Bundle files into a single package…" | "Recipients get an email with a secure download link. Several files can go as one package." |
 
 Plus: a Share → Upload cross-link, and `flex-wrap` on the header so longer labels don't
 overflow narrow windows.
@@ -251,6 +251,18 @@ block, directly under the expiry picker. It is the ceiling on the choice being m
 that is where someone needs it — and the header is down to one small line (the Upload
 cross-link) instead of two competing ones. It also now says 90 days from *package creation*,
 which is what `maxPackageLifetimeDays` measures, not from upload.
+
+**The subtitles don't repeat the tab.** Naming the destination in each tab label is what makes
+the choice answerable without clicking, but it costs four words that the `h1` then repeats
+verbatim — so an early version of this pass had "BCC Media" three times in three consecutive
+lines on Upload, and "people" three times on Share. The old one-word tabs hid the same
+redundancy ("Upload" / "Upload files"); at four words it reads as padding. The fix is not
+shorter tabs — the tab is where the decision is made, so the qualifier has to live there — but
+subtitles that assume the two lines above them. Each now spends itself on something new:
+Upload on what the organisation does with the material, Share on the two mechanics Upload
+hasn't got (a link, and several files as one package). That last fact came back from the
+pre-rename copy, which had "bundle files into a single package" and was more concrete than
+what first replaced it.
 
 Three decisions worth keeping:
 

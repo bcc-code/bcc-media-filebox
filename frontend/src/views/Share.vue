@@ -72,12 +72,14 @@ function onPreview(packageId: string) {
       </template>
 
       <template v-else>
-        <!-- Not "outside BCC Media": Share reaches internal recipients just
-             as often. What separates it from Upload is that there is a named
-             recipient, not where that recipient sits. -->
+        <!-- Deliberately not "outside BCC Media": Share reaches internal
+             recipients just as often, so what separates it from Upload is that
+             there is a named recipient, not where that recipient sits. The tab
+             and title above already carry that, so this line spends itself on
+             the two mechanics Upload doesn't have: a link, and one package. -->
         <p class="page-sub">
-          Send material to specific people. They get an email with a secure
-          download link.
+          Recipients get an email with a secure download link. Several files
+          can go as one package.
         </p>
         <p class="page-note">
           Handing material in instead?

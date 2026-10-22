@@ -243,8 +243,10 @@ watch(
       <AppHeader />
 
       <h1 class="page-title">Upload to BCC Media</h1>
+      <!-- The tab and the title above both say "to BCC Media"; the subtitle
+           doesn't repeat it a third time, it says what happens next. -->
       <p class="page-sub">
-        Hand material in to BCC Media, where the team can use and archive it.
+        Hand material in, so the team can use and archive it.
       </p>
       <!-- Deliberately no cross-link to Share, and no note that Upload is
            one-way: this page's audience is contributors bringing material in,
