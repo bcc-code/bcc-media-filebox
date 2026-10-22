@@ -63,8 +63,8 @@ function onPreview(packageId: string) {
 
       <template v-if="isGuest">
         <p class="page-sub">
-          Sending files externally is not available for guest accounts. Sign in
-          with your organisation account.
+          Sharing is not available for guest accounts. Sign in with your
+          organisation account.
         </p>
         <p class="page-note">
           <router-link to="/" class="link">Back to Upload</router-link>
@@ -72,17 +72,22 @@ function onPreview(packageId: string) {
       </template>
 
       <template v-else>
+        <!-- Not "outside BCC Media": Share reaches internal recipients just
+             as often. What separates it from Upload is that there is a named
+             recipient, not where that recipient sits. -->
         <p class="page-sub">
-          For sending material out to people outside BCC Media. They get an
-          email with a secure download link — nothing is filed into the archive.
+          Send material to specific people. They get an email with a secure
+          download link.
         </p>
         <p class="page-note">
           Handing material in instead?
           <router-link to="/" class="link">Upload to BCC Media</router-link>.
         </p>
+        <!-- 90 days runs from package creation (maxPackageLifetimeDays),
+             not from when the files were uploaded. -->
         <p class="page-note">
-          Files are permanently deleted from storage 90 days after upload —
-          packages can no longer be renewed after that.
+          Files are deleted 90 days after a package is created, and it can't be
+          renewed past that.
         </p>
 
         <UiTabs v-model="view" :tabs="viewTabs" list-class="tab-list-spaced">
