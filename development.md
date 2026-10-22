@@ -45,29 +45,38 @@ Goose is not a separate dependency: migrations ship embedded in the binary and r
 
 ## Local development
 
-The dev workflow uses two processes: the Go server in API-only mode and the Vite dev server for the frontend.
+The dev stack is two processes: the Go server in API-only mode on `:8080`, and the Vite
+dev server on `:8091` which proxies `/api`, `/auth` and `/files` back to it.
 
 ```bash
-# 1. Configure at least one upload target (startup fails without one)
-export TARGET_1_NAME=RawMaterial
-export TARGET_1_DIR="$PWD/uploads-raw"
-mkdir -p "$TARGET_1_DIR"
+# 1. Configure. main.go loads .env on startup, so no exports are needed.
+#    At least one upload target is required — startup fails without one.
+cp .env.example .env
 
-# 2. Backend (API only, no embedded frontend)
+# 2. Run both halves in one terminal. Ctrl-C stops both.
 make dev
-
-# 3. Frontend (Vite dev server, in another terminal)
-make frontend-dev
 ```
 
-The Vite dev server proxies API and TUS requests to the Go backend. Open the URL it prints.
+Open <http://localhost:8091> — the Vite origin, not `:8080`. The dev-tagged backend has no
+embedded frontend and serves the API only.
+
+To run the halves in separate terminals (clearer logs, restart one without the other):
+
+```bash
+make backend-dev    # Go API on :8080
+make frontend-dev   # Vite on :8091
+```
 
 ## Make targets
 
 ```bash
+make dev           # both halves of the dev stack in one terminal
+make backend-dev   # Go API only (dev tag, no embedded frontend)
+make frontend-dev  # Vite dev server only
 make all           # generate + build frontend + build Go binary -> ./filebox
 make build-linux   # cross-compile -> ./filebox-linux-amd64
 make generate      # regenerate sqlc code after editing internal/db/queries/
+make mailpit       # local SMTP catch-all for testing mail
 make clean         # remove binaries and frontend dist
 ```
 
