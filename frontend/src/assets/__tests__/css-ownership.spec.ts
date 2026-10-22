@@ -16,11 +16,11 @@ function vueFiles(dir = root): string[] {
 
 // Page-surface wrappers are not context in this sense: every rule on the page
 // carries one, and no component style mentions them.
-const SURFACE_CLASSES = new Set(['admin-root', 'send-root', 'upload-root'])
+const SURFACE_CLASSES = new Set(['admin-root', 'share-root', 'upload-root'])
 
 const SHEETS = [
   'assets/components.css',
-  'assets/send.css',
+  'assets/share.css',
   'assets/admin.css',
 ] as const
 

@@ -2,12 +2,12 @@
 import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLogo from '../components/AppLogo.vue'
-import PackageVerifyScreen from '../components/send/PackageVerifyScreen.vue'
-import PackageDownloadScreen from '../components/send/PackageDownloadScreen.vue'
-import PackageUnavailableScreen from '../components/send/PackageUnavailableScreen.vue'
-import PackageAccessRequestForm from '../components/send/PackageAccessRequestForm.vue'
+import PackageVerifyScreen from '../components/share/PackageVerifyScreen.vue'
+import PackageDownloadScreen from '../components/share/PackageDownloadScreen.vue'
+import PackageUnavailableScreen from '../components/share/PackageUnavailableScreen.vue'
+import PackageAccessRequestForm from '../components/share/PackageAccessRequestForm.vue'
 import { usePackagePreview } from '../composables/usePackagePreview'
-import '../assets/send.css'
+import '../assets/share.css'
 
 const route = useRoute()
 const packageId = route.params.packageId as string
@@ -40,7 +40,7 @@ function signInBcc() {
 </script>
 
 <template>
-  <div class="send-root">
+  <div class="share-root">
     <div
       class="public-stage"
       style="min-height: 100vh; border-radius: 0; border: none"

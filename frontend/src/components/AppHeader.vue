@@ -8,8 +8,8 @@ import { useAuth } from '../composables/useAuth'
 const route = useRoute()
 const { state: authState } = useAuth()
 
-// Send is unavailable to guests, so the link is hidden rather than dead.
-const canSend = computed(() => authState.provider !== 'guest')
+// Sharing is unavailable to guests, so the link is hidden rather than dead.
+const canShare = computed(() => authState.provider !== 'guest')
 </script>
 
 <template>
@@ -19,18 +19,23 @@ const canSend = computed(() => authState.provider !== 'guest')
       <span class="name">FileBox</span>
     </router-link>
     <nav class="app-nav">
+      <!-- Both labels name a recipient, not just a verb: "upload" and "share"
+           are near enough in everyday use that the trailing "to BCC Media" /
+           "with people" is what tells them apart — the organisation itself
+           versus named individuals. Who may *use* each surface is a separate
+           question the labels cannot answer; that is for access control. -->
       <!-- The active link is derived from the route rather than passed in by
-           each page. Home and Send each hand-wrote their own `class="active"`,
+           each page. Home and Share each hand-wrote their own `class="active"`,
            which is a pair of copies that can disagree. -->
       <router-link to="/" :class="{ active: route.path === '/' }">
-        Upload
+        Upload to BCC Media
       </router-link>
       <router-link
-        v-if="canSend"
-        to="/send"
-        :class="{ active: route.path.startsWith('/send') }"
+        v-if="canShare"
+        to="/share"
+        :class="{ active: route.path.startsWith('/share') }"
       >
-        Send
+        Share with people
       </router-link>
     </nav>
     <span class="spacer"></span>
@@ -46,6 +51,9 @@ const canSend = computed(() => authState.provider !== 'guest')
   .app-header {
     display: flex;
     align-items: center;
+    /* The nav drops to its own line rather than overflowing once the labels
+       are long enough to not fit beside the brand and the user menu. */
+    flex-wrap: wrap;
     gap: 22px;
     margin-bottom: 30px;
     position: relative;

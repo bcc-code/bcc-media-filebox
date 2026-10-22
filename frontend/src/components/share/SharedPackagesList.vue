@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { usePackages } from '../../composables/usePackages'
-import SentPackageCard from './SentPackageCard.vue'
+import SharedPackageCard from './SharedPackageCard.vue'
 import { notify, notifyError } from '../../composables/useToast'
 import { confirmAction } from '../../composables/useConfirm'
 import { copyToClipboard } from '../../composables/useClipboard'
@@ -125,7 +125,7 @@ async function dismiss(packageId: string, requestId: string) {
   }
 }
 
-// No fetch on mount: usePackages() is a shared singleton, and Send.vue already
+// No fetch on mount: usePackages() is a shared singleton, and Share.vue already
 // fetches on mount and after each send.
 onMounted(startPreparationPolling)
 onUnmounted(stopPreparationPolling)
@@ -133,12 +133,12 @@ onUnmounted(stopPreparationPolling)
 
 <template>
   <div v-if="loading && !packages.length" class="empty">Loading…</div>
-  <div v-else-if="!packages.length" class="empty">No packages sent yet.</div>
+  <div v-else-if="!packages.length" class="empty">No packages shared yet.</div>
   <div v-else class="pkg-list">
     <p v-if="seekingFocus" class="ask-hint">
       Loading more packages to find the one from your link…
     </p>
-    <SentPackageCard
+    <SharedPackageCard
       v-for="p in packages"
       :key="p.packageId"
       :pkg="p"
@@ -164,7 +164,7 @@ onUnmounted(stopPreparationPolling)
 </template>
 
 <style scoped>
-/* Colocated from send.css: these classes are used only by this
+/* Colocated from share.css: these classes are used only by this
    component. Shared primitives stay in assets/components.css — several
    components need them, and scoped CSS cannot be shared. */
 /* ============ Sent packages ============ */

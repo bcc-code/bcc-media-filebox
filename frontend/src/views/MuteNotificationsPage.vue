@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLogo from '../components/AppLogo.vue'
 import { muteNotifications } from '../composables/usePackages'
-import '../assets/send.css'
+import '../assets/share.css'
 import UiButton from '../components/ui/UiButton.vue'
 
 // Public: the token in the link is the only credential, since the author's mail
@@ -30,7 +30,7 @@ async function confirm() {
 </script>
 
 <template>
-  <div class="send-root">
+  <div class="share-root">
     <div
       class="public-stage"
       style="min-height: 100vh; border-radius: 0; border: none"
@@ -49,7 +49,7 @@ async function confirm() {
             card under Sent packages.
           </p>
           <UiButton
-            href="/send?tab=sent"
+            href="/share?tab=shared"
             size="lg"
             variant="primary"
             block

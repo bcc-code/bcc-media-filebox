@@ -242,14 +242,20 @@ watch(
     <div class="page-wrap">
       <AppHeader />
 
-      <h1 class="page-title">Upload files</h1>
+      <h1 class="page-title">Upload to BCC Media</h1>
+      <!-- The tab and the title above both say "to BCC Media"; the subtitle
+           doesn't repeat it a third time, it says what happens next. -->
       <p class="page-sub">
-        Pick a target, fill in what it needs, add your files, then press
-        Upload.
+        Hand material in, so the team can use and archive it.
       </p>
+      <!-- Deliberately no cross-link to Share, and no note that Upload is
+           one-way: this page's audience is contributors bringing material in,
+           and the title and subtitle already name BCC Media as the
+           destination. Both would spend a line on the minority who wanted
+           Share, without actually routing them there. -->
 
       <div class="field">
-        <label>Target</label>
+        <label>Where should this go?</label>
         <TargetSelector v-model="target" :targets="targets" />
       </div>
 

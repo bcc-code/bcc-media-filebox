@@ -19,20 +19,24 @@ import UiButton from '../ui/UiButton.vue'
 import UiInput from '../ui/UiInput.vue'
 import UiTextarea from '../ui/UiTextarea.vue'
 
-const emit = defineEmits<{ sent: [packageId: string] }>()
+const emit = defineEmits<{ shared: [packageId: string] }>()
 
 const { uploads, addFiles, cancelUpload, forgetUpload, addServerUpload } =
   useTusUpload()
 const { createPackage } = usePackages()
 
-// Send shows no target picker, so it names its destination symbolically and the
-// tus pre-create hook resolves it (S3 when configured, else a real target).
+// Share shows no target picker, so it names its destination symbolically and
+// the tus pre-create hook resolves it (S3 when configured, else a real target).
 // Must not be an empty string: Home submits that when a user has no grants.
-const SEND_TARGET = 'send'
-const SEND_DRAFT_UPLOADS_KEY = 'filebox-send-draft-uploads:'
+// The value stays 'send' after the rename — the backend matches on it and it
+// is written to uploads.target_name, so changing it would orphan stored rows.
+const SHARE_TARGET = 'send'
+// Value unchanged by the rename: it keys drafts already sitting in users'
+// browsers, and renaming it would silently drop them.
+const SHARE_DRAFT_UPLOADS_KEY = 'filebox-send-draft-uploads:'
 
 function draftStorageKey(): string {
-  return `${SEND_DRAFT_UPLOADS_KEY}${getUserId()}`
+  return `${SHARE_DRAFT_UPLOADS_KEY}${getUserId()}`
 }
 
 function readDraftUploadIds(): string[] {
@@ -100,8 +104,8 @@ const maxDownloads = ref<number | ''>('')
 const verify = ref<VerificationMethod>('none')
 const password = ref('')
 const notify = ref(true)
-const sending = ref(false)
-const sendError = ref<string | null>(null)
+const sharing = ref(false)
+const shareError = ref<string | null>(null)
 
 const isEmail = (r: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r)
 const validRecipients = computed(() => recipients.value.filter(isEmail))
@@ -122,7 +126,7 @@ const staged = ref<File[]>([])
 
 function uploadStaged(files: File[]) {
   staged.value = []
-  addFiles(files, SEND_TARGET)
+  addFiles(files, SHARE_TARGET)
 }
 
 const stillUploading = computed(() =>
@@ -223,7 +227,7 @@ const verifyLabels: Partial<Record<VerificationMethod, string>> = {
 }
 const verifyName = computed(() => verifyLabels[verify.value] ?? verify.value)
 
-const canSend = computed(
+const canShare = computed(
   () =>
     completedUploads.value.length > 0 &&
     !stillUploading.value &&
@@ -234,7 +238,7 @@ const canSend = computed(
     (verify.value !== 'password' || password.value.trim().length > 0) &&
     !restoringDraft.value &&
     unresolvedDraftUploadIds.value.length === 0 &&
-    !sending.value,
+    !sharing.value,
 )
 
 const blockReason = computed(() => {
@@ -259,10 +263,10 @@ const blockReason = computed(() => {
   return ''
 })
 
-async function send() {
-  if (!canSend.value) return
-  sending.value = true
-  sendError.value = null
+async function share() {
+  if (!canShare.value) return
+  sharing.value = true
+  shareError.value = null
   try {
     const result = await createPackage({
       name: name.value.trim(),
@@ -277,7 +281,7 @@ async function send() {
       password: verify.value === 'password' ? password.value : undefined,
       notifyOnDownload: notify.value,
     })
-    emit('sent', result.packageId)
+    emit('shared', result.packageId)
     // Completed uploads now belong to the package and must stay on the server;
     // anything else here never made it in and should be cleaned up.
     for (const u of [...uploads.value]) {
@@ -293,9 +297,9 @@ async function send() {
     password.value = ''
     notify.value = true
   } catch (e) {
-    sendError.value = (e as Error).message
+    shareError.value = (e as Error).message
   } finally {
-    sending.value = false
+    sharing.value = false
   }
 }
 </script>
@@ -310,7 +314,7 @@ async function send() {
         </div>
         <UiFileUpload
           label="Drag &amp; drop files, or click to browse"
-          hint="Add as many as you like — they'll be sent as one package"
+          hint="Add as many as you like — they'll be shared as one package"
           @files="(files) => (staged = [...staged, ...files])"
           @reject="notifyError"
         />
@@ -437,6 +441,13 @@ async function send() {
             aria-label="Max downloads per item"
           />
         </div>
+        <!-- The hard ceiling on the expiry above, so it sits where someone is
+             choosing a date rather than in the page header. 90 days runs from
+             package creation (maxPackageLifetimeDays), not from upload. -->
+        <p class="block-note">
+          Files are deleted 90 days after a package is created, and expiry
+          can't be extended past that.
+        </p>
       </div>
 
       <!-- Verification -->
@@ -475,19 +486,19 @@ async function send() {
         </div>
       </div>
 
-      <div v-if="sendError" class="verify-error">{{ sendError }}</div>
+      <div v-if="shareError" class="verify-error">{{ shareError }}</div>
 
       <div class="compose-actions">
         <UiButton
           size="lg"
           variant="primary"
           block
-          :disabled="!canSend"
-          :loading="sending"
-          loading-label="Sending…"
-          @click="send"
+          :disabled="!canShare"
+          :loading="sharing"
+          loading-label="Sharing…"
+          @click="share"
         >
-          Send package
+          Share package
         </UiButton>
       </div>
     </div>
@@ -534,15 +545,15 @@ async function send() {
         variant="primary"
         block
         style="margin-top: 16px"
-        :disabled="!canSend"
-        :loading="sending"
-        loading-label="Sending…"
-        @click="send"
+        :disabled="!canShare"
+        :loading="sharing"
+        loading-label="Sharing…"
+        @click="share"
       >
-        Send package
+        Share package
       </UiButton>
       <div
-        v-if="!canSend"
+        v-if="!canShare"
         style="
           font-size: 11.5px;
           color: var(--color-ink-3);
@@ -558,7 +569,7 @@ async function send() {
 </template>
 
 <style scoped>
-/* Colocated from send.css: every class below is used only by this component,
+/* Colocated from share.css: every class below is used only by this component,
    so it belongs with the markup. Shared primitives (.inp, .btn, .card,
    .badge) stay in assets/components.css — several components need them, and
    scoped CSS cannot be shared. */
@@ -573,6 +584,12 @@ async function send() {
   flex-direction: column;
   gap: 18px;
   min-width: 0;
+}
+.block-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-ink-3);
+  line-height: 1.5;
 }
 .block-label {
   font-size: 13.5px;

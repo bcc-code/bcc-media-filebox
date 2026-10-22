@@ -94,7 +94,7 @@
       color-mix(in oklch, var(--color-accent), transparent 88%);
   }
 
-  /* Textarea affordances. These lived in send.css as `.send-root textarea.inp`,
+  /* Textarea affordances. These lived in share.css as `.share-root textarea.inp`,
      which meant a textarea on any other surface lost them. */
   textarea.inp {
     resize: vertical;
@@ -288,7 +288,7 @@
 /* ============================================================
    App chrome — the page header, brand, tab nav and user menu
    shared by the Upload and Send surfaces. Promoted out of
-   send.css so both consume one definition.
+   share.css so both consume one definition.
    ============================================================ */
 
 @layer components {
@@ -355,6 +355,27 @@
      form field, it needs room to read as a new section. */
   .page-sub + .field {
     margin-top: 22px;
+  }
+  /* Quieter than .page-sub: the cross-link to the other surface. The
+     :last-of-type rule is what clears the section below, and survives a page
+     stacking more than one. Promoted here from Send.vue's scoped block once
+     Upload needed the same family — a family has to have exactly one owner. */
+  .page-note {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: var(--color-ink-3);
+    line-height: 1.5;
+  }
+  .page-note:last-of-type {
+    margin-bottom: 24px;
+  }
+  .link {
+    color: var(--color-accent-2);
+    text-decoration: none;
+  }
+  .link:hover {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
   }
 }
 

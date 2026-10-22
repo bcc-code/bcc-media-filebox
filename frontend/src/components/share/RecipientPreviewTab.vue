@@ -84,7 +84,7 @@ function signInBcc() {
   </div>
 
   <div v-if="!packages.length" class="empty">
-    Send a package first to preview it here.
+    Share a package first to preview it here.
   </div>
   <div v-else-if="loading" class="empty">Loading…</div>
   <div v-else class="public-stage">
@@ -152,7 +152,7 @@ function signInBcc() {
 </template>
 
 <style scoped>
-/* Colocated from send.css: these classes are used only by this
+/* Colocated from share.css: these classes are used only by this
    component. Shared primitives stay in assets/components.css — several
    components need them, and scoped CSS cannot be shared. */
 /* ============ Recipient preview (sender-side tab) ============ */

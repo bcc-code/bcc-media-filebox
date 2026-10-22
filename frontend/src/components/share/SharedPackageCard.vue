@@ -524,7 +524,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Colocated from send.css: these classes are used only by this
+/* Colocated from share.css: these classes are used only by this
    component. Shared primitives stay in assets/components.css — several
    components need them, and scoped CSS cannot be shared. */
 .pkg-card {
@@ -743,7 +743,7 @@ onMounted(() => {
 }
 
 /* Its own responsive override. This has to live beside the base rule: left
-   in send.css it tied on specificity with the scoped rule here and the winner
+   in share.css it tied on specificity with the scoped rule here and the winner
    came down to bundle order. */
 @media (max-width: 600px) {
   .pkg-top {
@@ -758,7 +758,7 @@ onMounted(() => {
     flex-wrap: wrap;
   }
 }
-/* State modifiers for this card. They stayed in send.css because each one
+/* State modifiers for this card. They stayed in share.css because each one
    mixes in a shared modifier class (.gone, .active, .failed, .spacer), but
    every element they target is rendered here — and left global they tied
    with the scoped base rules. */

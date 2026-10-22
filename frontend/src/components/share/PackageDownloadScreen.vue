@@ -252,7 +252,7 @@ function artifactKindText(artifact: PackageArtifact): string {
 </template>
 
 <style scoped>
-/* Colocated from send.css: these classes are used only by this
+/* Colocated from share.css: these classes are used only by this
    component. Shared primitives stay in assets/components.css — several
    components need them, and scoped CSS cannot be shared. */
 .public-msg {
@@ -386,7 +386,7 @@ function artifactKindText(artifact: PackageArtifact): string {
 }
 
 /* Its own responsive override. This has to live beside the base rule: left
-   in send.css it tied on specificity with the scoped rule here and the winner
+   in share.css it tied on specificity with the scoped rule here and the winner
    came down to bundle order. */
 @media (max-width: 600px) {
   .artifact-row {

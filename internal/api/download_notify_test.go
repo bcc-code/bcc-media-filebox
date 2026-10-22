@@ -197,7 +197,7 @@ func TestNotifyDownloadsMailsTheAuthor(t *testing.T) {
 	}
 	// The mail counts files without naming a downloader: a link can be forwarded,
 	// so the session that fetched the file doesn't identify who took it.
-	for _, want := range []string{"rushes.mov", "notes.pdf", "2 files were downloaded", "×2", "/send?"} {
+	for _, want := range []string{"rushes.mov", "notes.pdf", "2 files were downloaded", "×2", "/share?"} {
 		if !strings.Contains(msg.Text, want) {
 			t.Errorf("text body missing %q:\n%s", want, msg.Text)
 		}

@@ -84,3 +84,23 @@ if (!('DragEvent' in globalThis)) {
   }
   globalThis.DragEvent = DragEventStub as unknown as typeof DragEvent
 }
+
+// jsdom hands requestAnimationFrame callbacks a timestamp measured from when
+// the window was created, while performance.now() measures from when the
+// worker process started. A real browser derives both from the document's
+// time origin, so they agree there.
+//
+// Zag's Timer (@zag-js/utils) mixes the two: it stamps its start with
+// performance.now() and then computes elapsed = rafTimestamp - start. Under
+// jsdom that subtracts the gap between worker start and window creation from
+// every rAF-driven delay, so the timer begins thousands of milliseconds in
+// the past. On a warm run the gap is small and nothing shows; on a loaded one
+// it reaches ~13s and delays such as the toast's removeDelay never elapse —
+// the toast reaches data-state="closed" and is never removed.
+//
+// Re-stamping the callback with performance.now() puts both on one clock.
+const nativeRaf = globalThis.requestAnimationFrame
+if (typeof nativeRaf === 'function') {
+  globalThis.requestAnimationFrame = (cb: FrameRequestCallback): number =>
+    nativeRaf(() => cb(performance.now()))
+}

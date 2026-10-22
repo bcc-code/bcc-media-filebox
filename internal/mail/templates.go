@@ -31,15 +31,17 @@ func ShareURL(baseURL, packageID string) (string, error) {
 	return u.String(), nil
 }
 
-// ManageURL builds the author-facing link: the Send page's "Sent packages" tab
-// focused on one package. Send.vue reads the tab/package query params.
+// ManageURL builds the author-facing link: the Share page's "Shared packages"
+// tab focused on one package. Share.vue reads the tab/package query params and
+// still accepts the pre-rename ?tab=sent spelling, since mail already
+// delivered carries it.
 func ManageURL(baseURL, packageID string) (string, error) {
 	u, err := linkOrigin(baseURL)
 	if err != nil {
 		return "", err
 	}
-	u.Path = strings.TrimSuffix(u.Path, "/") + "/send"
-	u.RawQuery = url.Values{"tab": {"sent"}, "package": {packageID}}.Encode()
+	u.Path = strings.TrimSuffix(u.Path, "/") + "/share"
+	u.RawQuery = url.Values{"tab": {"shared"}, "package": {packageID}}.Encode()
 	return u.String(), nil
 }
 
