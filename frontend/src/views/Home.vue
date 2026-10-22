@@ -244,16 +244,13 @@ watch(
 
       <h1 class="page-title">Upload to BCC Media</h1>
       <p class="page-sub">
-        Your files go to BCC Media, where the team can use and archive them.
-        Pick what the material belongs to, add your files, then press Upload.
+        Hand material in to BCC Media, where the team can use and archive it.
       </p>
-      <!-- Deliberately no cross-link to Share: it is an internal tool for
-           sharing material outwards, and this page's audience is contributors
-           bringing material in. Pointing them at Share would misdirect the
-           majority to serve a minority who already know where it is. -->
-      <p class="page-note">
-        Nobody receives a download link — this is a hand-in.
-      </p>
+      <!-- Deliberately no cross-link to Share, and no note that Upload is
+           one-way: this page's audience is contributors bringing material in,
+           and the title and subtitle already name BCC Media as the
+           destination. Both would spend a line on the minority who wanted
+           Share, without actually routing them there. -->
 
       <div class="field">
         <label>Where should this go?</label>
