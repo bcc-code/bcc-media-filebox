@@ -46,7 +46,7 @@ async function confirm() {
           <p class="public-note" style="margin-top: 14px">
             You won't be emailed about this package again. The link still works
             for its recipients — turn notifications back on from the package's
-            card under Sent packages.
+            card under Shared packages.
           </p>
           <UiButton
             href="/share?tab=shared"
@@ -54,7 +54,7 @@ async function confirm() {
             variant="primary"
             block
             style="margin-top: 18px"
-            >Open Sent packages</UiButton
+            >Open Shared packages</UiButton
           >
         </template>
 

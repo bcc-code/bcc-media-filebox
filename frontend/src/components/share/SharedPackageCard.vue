@@ -51,6 +51,16 @@ function dateText(iso: string): string {
   })
 }
 
+// Inbox-style: the year only shows when it isn't the current one.
+function shortDateText(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleDateString(undefined, {
+    year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 const permanentDeleteWarningDays = 14
 
 function daysUntilFilesDeleted(iso: string): number {
@@ -179,6 +189,12 @@ onMounted(() => {
       <div class="pkg-main">
         <div class="pkg-name">{{ pkg.name }}</div>
         <div class="pkg-recips">
+          <span
+            class="pkg-date"
+            :title="`Shared on ${new Date(pkg.createdAt).toLocaleString()}`"
+            >Shared {{ shortDateText(pkg.createdAt) }}</span
+          >
+          ·
           {{
             pkg.recipients.length
               ? `To ${pkg.recipients.join(', ')}`
@@ -569,6 +585,9 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.pkg-date {
+  color: var(--color-ink-3);
 }
 .pkg-meta {
   display: flex;
